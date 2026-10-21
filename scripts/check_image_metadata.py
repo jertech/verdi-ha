@@ -5,12 +5,12 @@
 from __future__ import annotations
 
 import struct
-import subprocess
 import sys
 from pathlib import Path
 
 # PNG chunks that describe pixels only. Anything else (tEXt, zTXt, iTXt, eXIf, caBX, ...) fails.
 PNG_ALLOWED = {b"IHDR", b"PLTE", b"IDAT", b"IEND", b"tRNS", b"gAMA", b"cHRM", b"sRGB", b"sBIT"}
+SKIP_DIRS = {".git", ".venv", "venv", "__pycache__", ".ruff_cache", ".pytest_cache"}
 IMAGE_SUFFIXES = {".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico", ".bmp", ".tif", ".tiff", ".avif"}
 
 
@@ -44,10 +44,11 @@ def jpeg_problems(data: bytes) -> list[str]:
 
 
 def main() -> int:
-    files = subprocess.run(["git", "ls-files"], capture_output=True, text=True, check=True).stdout.split()
     failed = False
-    for name in files:
-        path = Path(name)
+    for path in sorted(Path().rglob("*")):
+        if not path.is_file() or SKIP_DIRS.intersection(path.parts):
+            continue
+        name = str(path)
         suffix = path.suffix.lower()
         if suffix not in IMAGE_SUFFIXES:
             continue
