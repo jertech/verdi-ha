@@ -3,10 +3,10 @@
     "step": {
       "user": {
         "title": "Verdi (onofficieel)",
-        "description": "Onofficieel, niet verbonden aan Cevi of Verdi, niet voor operationeel gebruik. Zie de README om de ID's te vinden (deel nooit schermafbeeldingen van het netwerktabblad van je browser: daarin staat je token). Tokens worden geleverd door de Verdi Token Grabber-app; het tokenveld is alleen om te testen.",
+        "description": "Onofficieel, niet verbonden aan Cevi of Verdi, niet voor operationeel gebruik. Het Verdi-adres ziet eruit als {example_url}. Zie de README om de ID's te vinden (deel nooit schermafbeeldingen van het netwerktabblad van je browser: daarin staat je token). Tokens worden geleverd door de Verdi Token Grabber-app; het tokenveld is alleen om te testen.",
         "data": {
           "accept_disclaimer": "Ik begrijp dat dit een onofficiële integratie is, niet verbonden aan Cevi of Verdi, niet bedoeld voor operationeel gebruik, en dat ze mijn eigen Verdi-account met al zijn rechten gebruikt, op eigen risico.",
-          "verdi_url": "Verdi-adres (bijvoorbeeld https://jouwzone.verdi.cloud)",
+          "verdi_url": "Verdi-adres",
           "station_id": "Post-ID",
           "team_group_id": "Ploeggroep-ID",
           "function_calendar_id": "Functiekalender-ID (rooster, optioneel)",
@@ -18,9 +18,9 @@
       },
       "reconfigure": {
         "title": "Verdi opnieuw configureren",
-        "description": "Wijzig het Verdi-adres of de ID's. De post-ID moet hetzelfde blijven.",
+        "description": "Het Verdi-adres ziet eruit als {example_url}. Wijzig het adres of de ID's. De post-ID moet hetzelfde blijven.",
         "data": {
-          "verdi_url": "Verdi-adres (bijvoorbeeld https://jouwzone.verdi.cloud)",
+          "verdi_url": "Verdi-adres",
           "station_id": "Post-ID",
           "team_group_id": "Ploeggroep-ID",
           "function_calendar_id": "Functiekalender-ID (rooster, optioneel)",

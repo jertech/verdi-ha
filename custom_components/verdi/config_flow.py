@@ -67,6 +67,7 @@ ID_FIELDS = (
 )
 LIST_FIELDS = (CONF_VEHICLE_TRAIN_IDS, CONF_CREW_FUNCTION_IDS, CONF_AVAILABILITY_IDS)
 OPTIONAL_FIELDS = (CONF_FUNCTION_CALENDAR_ID,)
+PLACEHOLDERS = {"example_url": "https://<zone>.verdi.cloud"}
 TEXT = TextSelector()
 SECRET = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 
@@ -160,7 +161,10 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
         defaults = dict(user_input or {})
         defaults.pop(CONF_TOKEN, None)
         return self.async_show_form(
-            step_id="user", data_schema=_schema(defaults, disclaimer=True), errors=errors
+            step_id="user",
+            data_schema=_schema(defaults, disclaimer=True),
+            errors=errors,
+            description_placeholders=PLACEHOLDERS,
         )
 
     async def async_step_reconfigure(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
@@ -181,7 +185,10 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
         if user_input:
             defaults.update(user_input)
         return self.async_show_form(
-            step_id="reconfigure", data_schema=_schema(defaults, disclaimer=False), errors=errors
+            step_id="reconfigure",
+            data_schema=_schema(defaults, disclaimer=False),
+            errors=errors,
+            description_placeholders=PLACEHOLDERS,
         )
 
     async def async_step_reauth(self, entry_data: Mapping[str, Any]) -> ConfigFlowResult:

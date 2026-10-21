@@ -3,10 +3,10 @@
     "step": {
       "user": {
         "title": "Verdi (non officiel)",
-        "description": "Non officiel, sans lien avec Cevi ou Verdi, pas pour un usage opérationnel. Consultez le README pour trouver les identifiants (ne partagez jamais de captures d'écran de l'onglet réseau de votre navigateur : votre jeton y apparaît). Les jetons sont fournis par l'application Verdi Token Grabber ; le champ jeton sert uniquement aux tests.",
+        "description": "Non officiel, sans lien avec Cevi ou Verdi, pas pour un usage opérationnel. L'adresse Verdi ressemble à {example_url}. Consultez le README pour trouver les identifiants (ne partagez jamais de captures d'écran de l'onglet réseau de votre navigateur : votre jeton y apparaît). Les jetons sont fournis par l'application Verdi Token Grabber ; le champ jeton sert uniquement aux tests.",
         "data": {
           "accept_disclaimer": "Je comprends qu'il s'agit d'une intégration non officielle, sans lien avec Cevi ou Verdi, non destinée à un usage opérationnel, et qu'elle utilise mon propre compte Verdi avec toutes ses autorisations, à mes propres risques.",
-          "verdi_url": "Adresse Verdi (par exemple https://votrezone.verdi.cloud)",
+          "verdi_url": "Adresse Verdi",
           "station_id": "ID du poste",
           "team_group_id": "ID du groupe d'équipes",
           "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",
@@ -18,9 +18,9 @@
       },
       "reconfigure": {
         "title": "Reconfigurer Verdi",
-        "description": "Modifiez l'adresse Verdi ou les identifiants. L'ID du poste doit rester identique.",
+        "description": "L'adresse Verdi ressemble à {example_url}. Modifiez l'adresse ou les identifiants. L'ID du poste doit rester identique.",
         "data": {
-          "verdi_url": "Adresse Verdi (par exemple https://votrezone.verdi.cloud)",
+          "verdi_url": "Adresse Verdi",
           "station_id": "ID du poste",
           "team_group_id": "ID du groupe d'équipes",
           "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",

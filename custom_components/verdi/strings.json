@@ -3,10 +3,10 @@
     "step": {
       "user": {
         "title": "Verdi (unofficial)",
-        "description": "Unofficial, not affiliated with Cevi or Verdi, not for operational use. See the README for how to find the IDs (never share screenshots of your browser's network tab: it shows your token). Tokens are delivered by the Verdi Token Grabber app; the token field is for testing only.",
+        "description": "Unofficial, not affiliated with Cevi or Verdi, not for operational use. The Verdi address looks like {example_url}. See the README for how to find the IDs (never share screenshots of your browser's network tab: it shows your token). Tokens are delivered by the Verdi Token Grabber app; the token field is for testing only.",
         "data": {
           "accept_disclaimer": "I understand that this is an unofficial integration, not affiliated with Cevi or Verdi, not intended for operational use, and that it uses my own Verdi account with all its permissions, at my own risk.",
-          "verdi_url": "Verdi address (for example https://yourzone.verdi.cloud)",
+          "verdi_url": "Verdi address",
           "station_id": "Station ID",
           "team_group_id": "Team group ID",
           "function_calendar_id": "Function calendar ID (roster, optional)",
@@ -18,9 +18,9 @@
       },
       "reconfigure": {
         "title": "Reconfigure Verdi",
-        "description": "Change the Verdi address or IDs. The station ID must stay the same.",
+        "description": "The Verdi address looks like {example_url}. Change the address or IDs. The station ID must stay the same.",
         "data": {
-          "verdi_url": "Verdi address (for example https://yourzone.verdi.cloud)",
+          "verdi_url": "Verdi address",
           "station_id": "Station ID",
           "team_group_id": "Team group ID",
           "function_calendar_id": "Function calendar ID (roster, optional)",
