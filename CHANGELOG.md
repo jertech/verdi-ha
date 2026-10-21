@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.5.6] - unreleased
+
+### Integration
+- Dutch and French texts reviewed: clearer wording in setup, reauth, options and error messages.
+  In French, on-duty sensors now show "Pourvu" / "Vacant" instead of "Occupé" / "Libre".
+- Dutch and French names now match the Verdi web app: Middelentrein / Train des moyens,
+  Functie / Fonction, Status / Statut for the availability IDs, Disponibilité de départs,
+  Sur intervention, and Personen / Personnes for the personnel sensor. Entity IDs do not change.
+
+### App
+- Dutch and French option texts reviewed.
+
+### Docs
+- French disclaimer: the liability sentence could be read as "not liable for all damage";
+  it now says the authors are liable for no damage, loss or claim, as in the English version.
+
 ## [0.5.5] - unreleased
 
 ### App

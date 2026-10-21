@@ -54,7 +54,7 @@ from pathlib import Path
 
 LOG = logging.getLogger("verdi_token_grabber")
 
-VERSION = "0.5.5"  # scripts/check_version.py keeps this equal to the app and integration
+VERSION = "0.5.6"  # scripts/check_version.py keeps this equal to the app and integration
 
 PUSH_INTERVAL = 90  # seconds between re-pushes of the current token
 TICK = 10  # main loop resolution; also how fast an HA outage is noticed as over

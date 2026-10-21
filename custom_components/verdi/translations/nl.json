@@ -10,9 +10,9 @@
           "station_id": "Post-ID",
           "team_group_id": "Ploeggroep-ID",
           "function_calendar_id": "Functiekalender-ID (rooster, optioneel)",
-          "vehicle_train_ids": "Voertuigtrein-ID's (kommagescheiden)",
-          "crew_function_ids": "Bemanningsfunctie-ID's (kommagescheiden)",
-          "availability_ids": "Beschikbaarheids-ID's (kommagescheiden)",
+          "vehicle_train_ids": "Middelentrein-ID's (kommagescheiden)",
+          "crew_function_ids": "Functie-ID's (kommagescheiden)",
+          "availability_ids": "Status-ID's (kommagescheiden)",
           "token": "Bearer-token (alleen om te testen, verloopt na ongeveer een uur)"
         }
       },
@@ -24,21 +24,21 @@
           "station_id": "Post-ID",
           "team_group_id": "Ploeggroep-ID",
           "function_calendar_id": "Functiekalender-ID (rooster, optioneel)",
-          "vehicle_train_ids": "Voertuigtrein-ID's (kommagescheiden)",
-          "crew_function_ids": "Bemanningsfunctie-ID's (kommagescheiden)",
-          "availability_ids": "Beschikbaarheids-ID's (kommagescheiden)"
+          "vehicle_train_ids": "Middelentrein-ID's (kommagescheiden)",
+          "crew_function_ids": "Functie-ID's (kommagescheiden)",
+          "availability_ids": "Status-ID's (kommagescheiden)"
         }
       },
       "reauth_confirm": {
         "title": "Verdi heeft een nieuw token nodig",
-        "description": "Verdi heeft het token geweigerd, of er kwam geen token binnen. Meestal lost de Verdi Token Grabber-app dit zelf op:\n\n1. Controleer of de Verdi Token Grabber-app draait.\n2. Als het logboek meldt dat de aanmelding interactie nodig heeft, doe de eenmalige aanmelding opnieuw op een pc met het grabber-script.\n3. Kopieer de nieuwe verdi_state.json naar de configuratiemap van de app en herstart de app.\n\nDeze melding sluit vanzelf zodra het volgende token binnenkomt. Hieronder een token plakken is alleen om te testen.",
+        "description": "Verdi heeft het token geweigerd, of er kwam geen token binnen. Meestal lost de Verdi Token Grabber-app dit zelf op:\n\n1. Controleer of de Verdi Token Grabber-app draait.\n2. Als het logboek van de app meldt dat de aanmelding interactie nodig heeft, doe de eenmalige aanmelding opnieuw op een pc met het grabber-script.\n3. Kopieer de nieuwe verdi_state.json naar de configuratiemap van de app en herstart de app.\n\nDeze melding sluit vanzelf zodra het volgende token binnenkomt. Hieronder een token plakken is alleen om te testen.",
         "data": {
           "token": "Bearer-token (alleen om te testen, verloopt na ongeveer een uur)"
         }
       }
     },
     "error": {
-      "invalid_url": "Geef het https-adres van je Verdi-zone.",
+      "invalid_url": "Vul het https-adres van je Verdi-zone in.",
       "required": "Verplicht.",
       "must_accept": "Je moet dit aanvaarden om verder te gaan.",
       "invalid_auth": "Verdi heeft het token geweigerd.",
@@ -53,16 +53,16 @@
       "already_configured": "Deze post is al ingesteld.",
       "reauth_successful": "Token aanvaard.",
       "reconfigure_successful": "Instellingen bijgewerkt.",
-      "wrong_station": "De post-ID kan niet wijzigen. Verwijder de integratie en voeg ze opnieuw toe voor een andere post."
+      "wrong_station": "De post-ID kan niet gewijzigd worden. Verwijder de integratie en voeg ze opnieuw toe voor een andere post."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Verdi-opties",
-        "description": "Met \"Namen van collega's tonen\" uit tonen de wachtsensoren ingevuld of open, en tonen kalenderafspraken alleen de functie. Staat het aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Als je persoons-GUID gevonden kon worden, wordt die hieronder voorgesteld.",
+        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Als je persoons-GUID gevonden werd, wordt die hieronder voorgesteld.",
         "data": {
-          "scan_interval": "Poll-interval (seconden, minstens 60)",
+          "scan_interval": "Pollinterval (seconden, minstens 60)",
           "show_names": "Namen van collega's tonen",
           "person_id": "Mijn persoons-GUID (voor de sensor 'Mijn beschikbaarheid')"
         }
@@ -93,7 +93,7 @@
         "name": "Van wacht {function}"
       },
       "personnel": {
-        "name": "Personeel"
+        "name": "Personen"
       },
       "my_availability": {
         "name": "Mijn beschikbaarheid"
@@ -110,7 +110,7 @@
   },
   "issues": {
     "missing_config": {
-      "title": "Verdi-instelling onvolledig",
+      "title": "Verdi-instellingen onvolledig",
       "description": "Bij de Verdi-integratie \"{title}\" ontbreken verplichte instellingen. Open Instellingen > Apparaten & diensten > Verdi en kies Opnieuw configureren in het menu van de integratie."
     }
   },
@@ -128,7 +128,7 @@
       "message": "Binnen 10 minuten kwam er geen token van de Verdi Token Grabber. Controleer of de app draait en of het logboek geen aanmeldprobleem toont."
     },
     "token_expired": {
-      "message": "Het Verdi-token is verlopen en er kwam geen nieuw. Controleer of de Verdi Token Grabber-app draait."
+      "message": "Het Verdi-token is verlopen en er kwam geen nieuw token binnen. Controleer of de Verdi Token Grabber-app draait."
     },
     "token_rejected": {
       "message": "Verdi heeft het token geweigerd."
