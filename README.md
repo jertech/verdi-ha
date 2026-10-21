@@ -71,12 +71,14 @@ Diagnostics downloads contain only counts and settings with every identifier rem
 The login includes your organisation's MFA, so it has to happen once in a real browser window:
 
 ```sh
-python3 -m venv venv && . venv/bin/activate     # Windows: venv\Scripts\activate
+python3 -m venv ~/.venvs/verdi && . ~/.venvs/verdi/bin/activate   # Windows: py -m venv %USERPROFILE%\.venvs\verdi && %USERPROFILE%\.venvs\verdi\Scripts\activate
 pip install playwright==1.64.0
 playwright install chromium
-export VERDI_URL=https://yourzone.verdi.cloud VERDI_TENANT=YourTenant   # Windows: set ...
-python3 verdi_token_grabber.py login
+export VERDI_URL=https://yourzone.verdi.cloud VERDI_TENANT=YourTenant VERDI_STATE=~/verdi_state.json   # Windows: set ...
+python3 verdi_token_grabber/verdi_token_grabber.py login
 ```
+
+Keep the virtual environment and `verdi_state.json` outside the repository folder, as above.
 
 The script is [verdi_token_grabber/verdi_token_grabber.py](verdi_token_grabber/verdi_token_grabber.py).
 Your tenant name is the value after `tenant:` in the web login (see [docs/finding-your-ids.md](docs/finding-your-ids.md)).
