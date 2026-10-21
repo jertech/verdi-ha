@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.3
+
+- The setup docs name the Samba share correctly (`apps_configs`).
+
 ## 0.5.2
 
 - The setup docs name the configuration folder correctly (`app_config`).

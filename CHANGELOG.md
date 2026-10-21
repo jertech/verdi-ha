@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.5.3] - unreleased
+
+### App
+- The setup docs name the Samba share correctly: `apps_configs` (0.5.2 said `app_config`).
+
+### Repository
+- Test: no person is suggested when Verdi returns an empty or missing `personGuid`.
+
 ## [0.5.2] - unreleased
 
 ### App
