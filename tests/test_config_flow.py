@@ -3,6 +3,7 @@
 
 from unittest.mock import patch
 
+import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -132,6 +133,15 @@ async def test_options_no_suggestion_when_guid_unknown(hass: HomeAssistant, conf
     with patch(
         "custom_components.verdi.api.VerdiApi.current_user", return_value={"personGuid": "not-listed"}
     ):
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    schema = {str(k): k for k in result["data_schema"].schema}
+    assert schema["person_id"].description == {}
+
+
+@pytest.mark.parametrize("user", [{"personGuid": ""}, {}])
+async def test_options_no_suggestion_without_guid(hass: HomeAssistant, config_entry, mock_api, user):
+    await setup_with_token(hass, config_entry)
+    with patch("custom_components.verdi.api.VerdiApi.current_user", return_value=user):
         result = await hass.config_entries.options.async_init(config_entry.entry_id)
     schema = {str(k): k for k in result["data_schema"].schema}
     assert schema["person_id"].description == {}
