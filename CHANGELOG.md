@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.5.4] - unreleased
+
+### Integration
+- When the 10-minute wait for the first token ends, an entry that still has none asks for
+  reauthentication right away, instead of at Home Assistant's next retry (up to 10 minutes later).
+- Clearer reasons when a token is missing: no token within 10 minutes, or the token expired.
+- Logs when a failed lookup works again, and when the token view refuses a push (with the reason).
+- Debug log (Enable debug logging): token received with its expiry, each poll's duration and item
+  counts, and the end of the token wait. Never tokens, names or response content.
+
+### App
+- While Home Assistant restarts behind the Supervisor proxy (HTTP 502, 503 or 504), the app retries
+  every 10 seconds and logs "not reachable" instead of "refused the token".
+- Logs its version at start, "Token delivered to Home Assistant" once per token, how long each login
+  took and how many days ago the login state was made, and when a failed login is retried.
+
 ## [0.5.3] - unreleased
 
 ### App

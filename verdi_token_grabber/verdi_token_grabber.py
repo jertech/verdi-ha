@@ -48,15 +48,18 @@ import urllib.parse
 import urllib.request
 from contextlib import suppress
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 LOG = logging.getLogger("verdi_token_grabber")
+
+VERSION = "0.5.4"  # scripts/check_version.py keeps this equal to the app and integration
 
 PUSH_INTERVAL = 90  # seconds between re-pushes of the current token
 TICK = 10  # main loop resolution; also how fast an HA outage is noticed as over
 REFRESH_MARGIN = 300  # run the browser login when less than this is left
 RETRY_LOGIN = 900  # after a failed headless login, wait this long before trying again
+GATEWAY_ERRORS = (502, 503, 504)  # proxy answers while Home Assistant is (re)starting
 CLIENT_ID = "verdi-web"
 SCOPE = "openid profile verdi-api verdi-communications"
 
@@ -156,6 +159,23 @@ def save_state(context, path: Path) -> None:
         raise
 
 
+def seed_marker(state: Path) -> Path:
+    """Records when the login state was created by an interactive login (MFA)."""
+    return state.with_name(state.name + ".seeded")
+
+
+def mark_seeded(state: Path) -> None:
+    seed_marker(state).write_text(datetime.now(UTC).isoformat() + "\n", encoding="utf-8")
+
+
+def state_age_days(state: Path) -> float | None:
+    try:
+        seeded = datetime.fromisoformat(seed_marker(state).read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+    return (datetime.now(UTC) - seeded).total_seconds() / 86400
+
+
 def where(url: str) -> str:
     """Host and path only: queries and fragments can hold state, codes or tokens."""
     parts = urllib.parse.urlsplit(url)
@@ -212,6 +232,8 @@ def push(s: Settings, token: str) -> bool | None:
         with urllib.request.urlopen(request, timeout=15):
             return True
     except urllib.error.HTTPError as err:
+        if err.code in GATEWAY_ERRORS:  # inside HA OS: the Supervisor proxy while Core restarts
+            return None
         try:
             result = json.loads(err.read() or b"{}").get("result", "")
         except ValueError:
@@ -230,28 +252,49 @@ def push(s: Settings, token: str) -> bool | None:
         return None
 
 
-def run(s: Settings) -> None:
+def run(s: Settings, addon: bool = False) -> None:
     if not (s.ha_url and s.ha_token):
         sys.exit("Set HA_URL and HA_TOKEN.")
     if not s.state.exists():
         sys.exit(f"No login state at {s.state}. Run the one-time 'login' step on a PC first.")
+    LOG.info(
+        "Verdi Token Grabber %s (%s), pushing to Home Assistant every %s s",
+        VERSION,
+        "app" if addon else "standalone",
+        PUSH_INTERVAL,
+    )
+    if state_age_days(s.state) is None:
+        LOG.info("Unknown when the login state was created (before version 0.5.4); counting from now")
+        mark_seeded(s.state)
     token: str | None = None
     last_push = 0.0
     reachable = True
+    delivered = False
     next_login = 0.0
     while True:
         now = time.monotonic()
         if seconds_left(token) < REFRESH_MARGIN and now >= next_login:
             fresh = browser_login(s, headless=True, timeout_s=45)
+            took = time.monotonic() - now
             if fresh:
                 token = fresh
-                LOG.info("New Verdi token, valid until %s", expiry(token))
+                age = state_age_days(s.state)
+                LOG.info(
+                    "New Verdi token, valid until %s (login took %.0f s%s)",
+                    expiry(token),
+                    took,
+                    f", login state seeded {age:.1f} days ago" if age is not None else "",
+                )
                 last_push = 0.0
+                delivered = False
             else:
                 next_login = now + RETRY_LOGIN
+                retry_at = datetime.now().astimezone() + timedelta(seconds=RETRY_LOGIN)
                 LOG.error(
-                    "The login needs interaction. Redo the one-time login on a PC with this "
-                    "script ('login'), copy the new verdi_state.json here and restart."
+                    "The login needs interaction. Next attempt at %s. If this keeps happening, redo "
+                    "the one-time login on a PC with this script ('login'), copy the new "
+                    "verdi_state.json here and restart.",
+                    retry_at.strftime("%H:%M"),
                 )
         if token and seconds_left(token) > 60 and (not reachable or now - last_push >= PUSH_INTERVAL):
             result = push(s, token)
@@ -259,11 +302,15 @@ def run(s: Settings) -> None:
                 if reachable:
                     LOG.warning("Home Assistant is not reachable; retrying every %s s", TICK)
                 reachable = False
+                delivered = False
             else:
                 if not reachable:
                     LOG.info("Home Assistant is reachable again")
                 reachable = True
                 last_push = now
+                if result and not delivered:
+                    LOG.info("Token delivered to Home Assistant")
+                    delivered = True
         time.sleep(TICK)
 
 
@@ -271,6 +318,7 @@ def login(s: Settings, push_after: bool) -> None:
     token = browser_login(s, headless=False, timeout_s=300)
     if not token:
         sys.exit("No token appeared within 5 minutes. Did the login finish?")
+    mark_seeded(s.state)
     print(f"Signed in. Login state saved to {s.state}. Token valid until {expiry(token)}.")
     if push_after and s.ha_url and s.ha_token:
         print("Delivered to Home Assistant." if push(s, token) else "Delivery to Home Assistant failed.")
@@ -287,7 +335,7 @@ def main() -> None:
     if args.command == "login":
         login(settings, args.push)
     else:
-        run(settings)
+        run(settings, args.addon)
 
 
 if __name__ == "__main__":

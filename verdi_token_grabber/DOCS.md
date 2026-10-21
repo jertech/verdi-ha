@@ -29,11 +29,21 @@ On start, the app moves the file into its private data folder and deletes the co
   the token. That access technically allows more; the app's code makes only this call.
 - No ports, no ingress, no host network, no extra privileges.
 
+## Reading the log
+
+- `Verdi Token Grabber 0.5.4 (app)`: the version that is running.
+- `New Verdi token, valid until ... (login took 8 s, login state seeded 3.2 days ago)`: an hourly
+  renewal. The age tells you how long your one-time login has lasted so far.
+- `Token delivered to Home Assistant`: once per new token, and again after Home Assistant was away.
+- `Home Assistant is not reachable` / `reachable again`: Home Assistant restarted; nothing to do.
+- `Login stopped at <host>/<path>`: where a headless login did not finish (never the full address).
+
 ## When the log says "The login needs interaction"
 
-Your saved login expired (for example after a password change or a long time unused). Redo the
-one-time login on a PC, copy the new `verdi_state.json` into the configuration folder again and
-restart the app.
+The headless login did not finish. The app tries again by itself at the time in the message, and a
+single failure often fixes itself. If it keeps happening, your saved login has expired (for example
+after a password change or a long time unused): redo the one-time login on a PC, copy the new
+`verdi_state.json` into the configuration folder again and restart the app.
 
 ## Options
 

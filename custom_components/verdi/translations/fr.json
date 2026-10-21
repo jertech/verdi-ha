@@ -124,6 +124,12 @@
     "no_token": {
       "message": "Aucun jeton Verdi valide. Vérifiez que l'application Verdi Token Grabber fonctionne."
     },
+    "no_token_after_wait": {
+      "message": "Aucun jeton n'est arrivé du Verdi Token Grabber en 10 minutes. Vérifiez que l'application fonctionne et que son journal ne signale pas de problème de connexion."
+    },
+    "token_expired": {
+      "message": "Le jeton Verdi a expiré et aucun nouveau n'est arrivé. Vérifiez que l'application Verdi Token Grabber fonctionne."
+    },
     "token_rejected": {
       "message": "Verdi a refusé le jeton."
     }

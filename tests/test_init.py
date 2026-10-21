@@ -2,15 +2,17 @@
 """Setup, token grace period, reauth, repairs and migration."""
 
 import time
+from datetime import timedelta
 from unittest.mock import patch
 
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.verdi.api import VerdiAuthError
-from custom_components.verdi.const import CONF_STATION_ID, DOMAIN
+from custom_components.verdi.const import CONF_STATION_ID, DOMAIN, TOKEN_GRACE_SECONDS
 from custom_components.verdi.token import get_store
 from tests.conftest import DATA, fake_command, make_token, setup_with_token
 
@@ -42,6 +44,20 @@ async def test_reauth_after_grace(hass: HomeAssistant, config_entry, mock_api):
     get_store(hass).started = time.monotonic() - 3600
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
+
+
+async def test_reauth_when_grace_ends(hass: HomeAssistant, config_entry, mock_api):
+    # HA's own retry of a waiting entry can be up to 10 minutes away; keep it from running.
+    with patch("homeassistant.config_entries.async_call_later"):
+        config_entry.add_to_hass(hass)
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+        assert config_entry.state is ConfigEntryState.SETUP_RETRY
+        get_store(hass).started = time.monotonic() - TOKEN_GRACE_SECONDS - 1
+        async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=TOKEN_GRACE_SECONDS + 5))
+        await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_ERROR
     assert list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
 

@@ -68,10 +68,13 @@ async def test_body_too_large(client, config_entry, hass):
     assert (status, resp) == (400, {"result": "invalid_request"})
 
 
-async def test_expired(client, config_entry, hass):
+async def test_expired(client, config_entry, hass, caplog):
     config_entry.add_to_hass(hass)
-    status, resp = await _post(client, {"token": make_token(lifetime=30)})
+    token = make_token(lifetime=30)
+    status, resp = await _post(client, {"token": token})
     assert (status, resp) == (400, {"result": "expired"})
+    assert "Refused a token push: expired" in caplog.text
+    assert token not in caplog.text
 
 
 async def test_wrong_site(client, config_entry, hass):
@@ -93,6 +96,7 @@ async def test_first_token_records_sub_and_reloads(client, config_entry, hass, m
     assert (status, resp) == (200, {"result": "ok"})
     assert config_entry.data[CONF_ACCOUNT_SUB] == SUB
     assert config_entry.state is ConfigEntryState.LOADED
+    assert "Token for Verdi received, valid until" in caplog.text
     assert token not in caplog.text
     assert token.split(".")[1] not in caplog.text
 

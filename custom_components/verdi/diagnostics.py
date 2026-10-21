@@ -23,6 +23,7 @@ from .const import (
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
 )
+from .coordinator import lookup_counts
 from .token import get_store
 
 TO_REDACT = {
@@ -44,7 +45,6 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
     coordinator = getattr(entry, "runtime_data", None)
     data = (coordinator.data or {}) if coordinator else {}
     token = get_store(hass).tokens.get(entry.entry_id)
-    personnel = data.get("personnel") or {}
     return {
         "entry": {
             "version": entry.version,
@@ -56,11 +56,6 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
             "present": token is not None,
             "expires": (exp.isoformat() if (exp := token_expiry(token)) else None),
         },
-        "counts": {
-            key: (len(value) if isinstance(value, list) else None)
-            for key, value in data.items()
-            if key != "personnel"
-        }
-        | {"personnel": personnel.get("total")},
+        "counts": lookup_counts(data),
         "last_update_success": coordinator.last_update_success if coordinator else None,
     }
