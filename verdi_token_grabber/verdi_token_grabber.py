@@ -40,6 +40,7 @@ import json
 import logging
 import os
 import secrets
+import signal
 import sys
 import tempfile
 import time
@@ -252,11 +253,23 @@ def push(s: Settings, token: str) -> bool | None:
         return None
 
 
+def handle_stop_signal() -> None:
+    """Exit cleanly on SIGTERM. As process 1 in a container the default action does not apply,
+    so without this the Supervisor waits 10 seconds and then kills the app (exit code 137)."""
+
+    def stop(_signum, _frame) -> None:
+        LOG.info("Stopping")
+        sys.exit(0)
+
+    signal.signal(signal.SIGTERM, stop)
+
+
 def run(s: Settings, addon: bool = False) -> None:
     if not (s.ha_url and s.ha_token):
         sys.exit("Set HA_URL and HA_TOKEN.")
     if not s.state.exists():
         sys.exit(f"No login state at {s.state}. Run the one-time 'login' step on a PC first.")
+    handle_stop_signal()
     LOG.info(
         "Verdi Token Grabber %s (%s), pushing to Home Assistant every %s s",
         VERSION,

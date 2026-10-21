@@ -10,6 +10,8 @@ numbers; each entry says which component changed.
 ### App
 - The French option texts load again: the Supervisor could not read `translations/fr.yaml`
   (an unquoted `: ` in the Tenant description). A test now parses every app YAML file.
+- Stops cleanly when the Supervisor stops or updates it, instead of being killed after 10 seconds
+  (exit code 137).
 
 ## [0.5.4] - unreleased
 

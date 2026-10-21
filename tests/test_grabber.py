@@ -5,6 +5,7 @@ import importlib.util
 import io
 import json
 import logging
+import signal
 import sys
 import urllib.parse
 from pathlib import Path
@@ -173,3 +174,18 @@ def test_failed_login_says_when_it_retries(settings, monkeypatch, caplog):
 def test_app_yaml_parses(path):
     # The Supervisor skips a file it cannot parse, such as an unquoted ": " in a description.
     assert isinstance(yaml.safe_load(path.read_text(encoding="utf-8")), dict)
+
+
+def test_stop_signal_exits_cleanly(monkeypatch, caplog):
+    # In the app container the script is process 1, which ignores SIGTERM unless it handles it.
+    caplog.set_level(logging.INFO)
+    previous = signal.getsignal(signal.SIGTERM)
+    try:
+        grabber.handle_stop_signal()
+        handler = signal.getsignal(signal.SIGTERM)
+        with pytest.raises(SystemExit) as stopped:
+            handler(signal.SIGTERM, None)
+        assert stopped.value.code == 0
+        assert "Stopping" in caplog.text
+    finally:
+        signal.signal(signal.SIGTERM, previous)
