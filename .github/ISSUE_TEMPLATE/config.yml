@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Report a security problem privately
+    url: https://github.com/jertech/verdi-ha/security/advisories/new
+    about: Never report security problems in a public issue.

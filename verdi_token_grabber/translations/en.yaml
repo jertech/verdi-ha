@@ -1,0 +1,13 @@
+configuration:
+  verdi_url:
+    name: Verdi address
+    description: The https address of your Verdi zone, for example https://yourzone.verdi.cloud
+  tenant:
+    name: Tenant
+    description: Your tenant name, as it appears after "tenant:" in the web login.
+  culture:
+    name: Login language
+    description: Language of the Verdi login page.
+  entry_id:
+    name: Config entry ID
+    description: Only needed when you have more than one Verdi entry in Home Assistant.

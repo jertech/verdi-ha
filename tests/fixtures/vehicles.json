@@ -1,0 +1,306 @@
+{
+ "data": [
+  {
+   "guid": "00000000-0000-4000-8000-000000000078",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000079",
+   "name": "Vehicle  01 (PLATE-01)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000080",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T06:00:00+02:00"
+   },
+   "tagNames": []
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000081",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000082",
+   "name": "Vehicle 02 (PLATE-02)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000083",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T07:00:00+02:00"
+   },
+   "tagNames": []
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000084",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000085",
+   "name": "Vehicle 03 (PLATE-03)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000086",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T08:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000087",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000088",
+   "name": "Vehicle 04 (PLATE-04)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000089",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T09:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000090",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000091",
+   "name": "Vehicle 05 (PLATE-05) ",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000092",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T10:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000093",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000094",
+   "name": "Vehicle 06 (PLATE-06) ",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000095",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T11:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000096",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000097",
+   "name": "Vehicle 07 (PLATE-07)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000098",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T12:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000099",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000100",
+   "name": "Vehicle 08 (PLATE-08)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000101",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T13:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000102",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000103",
+   "name": "Vehicle 09 (PLATE-09)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000104",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T14:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000105",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000106",
+   "name": "Vehicle 10 (PLATE-10)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000107",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T15:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000108",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000109",
+   "name": "Vehicle 11 (PLATE-11)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000110",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T16:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000111",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000112",
+   "name": "Vehicle 12 (PLATE-12)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000113",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T17:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000114",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000115",
+   "name": "Vehicle 13 (PLATE-13)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000116",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T06:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  },
+  {
+   "guid": "00000000-0000-4000-8000-000000000117",
+   "currentApplianceId": "00000000-0000-4000-8000-000000000118",
+   "name": "Vehicle 14 (PLATE-14)",
+   "stationName": "Station A",
+   "isAtOutpost": false,
+   "isOnIntervention": false,
+   "currentAvailability": {
+    "guid": "00000000-0000-4000-8000-000000000119",
+    "backgroundColor": "#46fc4c",
+    "description": {
+     "default": "Availability 6"
+    },
+    "start": "2026-06-15T07:00:00+02:00",
+    "remark": ""
+   },
+   "tagNames": [
+    {
+     "default": "Station A"
+    }
+   ]
+  }
+ ],
+ "total": 14,
+ "result": "Success",
+ "warningFeedback": [],
+ "errorFeedback": []
+}

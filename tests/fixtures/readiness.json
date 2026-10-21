@@ -1,0 +1,237 @@
+{
+ "groups": [
+  {
+   "guid": "00000000-0000-4000-8000-000000000050",
+   "title": {
+    "default": "Station A"
+   },
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000051",
+     "title": {
+      "default": "Train 1"
+     },
+     "isComplete": true,
+     "slowestResponseTime": "00:05:00",
+     "fastestResponseTime": "00:05:00",
+     "trainOrder": 1,
+     "items": [
+      {
+       "guid": "00000000-0000-4000-8000-000000000052",
+       "trainItemOrder": 0,
+       "trainItemName": {
+        "default": "Position 1"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000053",
+       "trainItemOrder": 1,
+       "trainItemName": {
+        "default": "Position 2"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000054",
+       "trainItemOrder": 2,
+       "trainItemName": {
+        "default": "Position 3"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000055",
+       "trainItemOrder": 3,
+       "trainItemName": {
+        "default": "Position 4"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000056",
+       "trainItemOrder": 4,
+       "trainItemName": {
+        "default": "Position 5"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000057",
+       "trainItemOrder": 5,
+       "trainItemName": {
+        "default": "Position 6"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      }
+     ]
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000058",
+     "title": {
+      "default": "Train 2"
+     },
+     "isComplete": true,
+     "slowestResponseTime": "00:05:00",
+     "fastestResponseTime": "00:05:00",
+     "trainOrder": 4,
+     "items": [
+      {
+       "guid": "00000000-0000-4000-8000-000000000059",
+       "trainItemOrder": 0,
+       "trainItemName": {
+        "default": "Position 7 "
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      }
+     ]
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000060",
+     "title": {
+      "default": "Train 3"
+     },
+     "isComplete": true,
+     "slowestResponseTime": "00:05:00",
+     "fastestResponseTime": "00:05:00",
+     "trainOrder": 8,
+     "items": [
+      {
+       "guid": "00000000-0000-4000-8000-000000000061",
+       "trainItemOrder": 0,
+       "trainItemName": {
+        "default": "Position 8"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      }
+     ]
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000062",
+     "title": {
+      "default": "Train 4"
+     },
+     "isComplete": true,
+     "slowestResponseTime": "00:05:00",
+     "fastestResponseTime": "00:05:00",
+     "trainOrder": 12,
+     "items": [
+      {
+       "guid": "00000000-0000-4000-8000-000000000063",
+       "trainItemOrder": 0,
+       "trainItemName": {
+        "default": "Position 9"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      }
+     ]
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000064",
+     "title": {
+      "default": "Train 5"
+     },
+     "isComplete": true,
+     "slowestResponseTime": "00:05:00",
+     "fastestResponseTime": "00:05:00",
+     "trainOrder": 14,
+     "items": [
+      {
+       "guid": "00000000-0000-4000-8000-000000000065",
+       "trainItemOrder": 0,
+       "trainItemName": {
+        "default": "Position 10"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000066",
+       "trainItemOrder": 1,
+       "trainItemName": {
+        "default": "Position 11"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000067",
+       "trainItemOrder": 2,
+       "trainItemName": {
+        "default": "Position 8"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000068",
+       "trainItemOrder": 3,
+       "trainItemName": {
+        "default": "Position 12 "
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      },
+      {
+       "guid": "00000000-0000-4000-8000-000000000069",
+       "trainItemOrder": 4,
+       "trainItemName": {
+        "default": "Position 13"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:05:00",
+       "fastestResponseTime": "00:05:00"
+      }
+     ]
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000070",
+     "title": {
+      "default": "Train 6"
+     },
+     "isComplete": true,
+     "slowestResponseTime": "00:02:00",
+     "fastestResponseTime": "00:02:00",
+     "trainOrder": 15,
+     "items": [
+      {
+       "guid": "00000000-0000-4000-8000-000000000071",
+       "trainItemOrder": 0,
+       "trainItemName": {
+        "default": "Position 14"
+       },
+       "isComplete": true,
+       "slowestResponseTime": "00:02:00",
+       "fastestResponseTime": "00:02:00"
+      }
+     ]
+    }
+   ]
+  }
+ ],
+ "result": "Success",
+ "warningFeedback": [],
+ "errorFeedback": []
+}

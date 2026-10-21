@@ -1,0 +1,761 @@
+{
+ "personGroups": [
+  {
+   "groupId": "00000000-0000-4000-8000-000000000001",
+   "title": {
+    "default": "Grade 1"
+   },
+   "persons": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000002",
+     "firstName": "First1",
+     "name": "Last1",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "groupId": "00000000-0000-4000-8000-000000000004",
+   "title": {
+    "default": "Grade 2"
+   },
+   "persons": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000005",
+     "firstName": "First2",
+     "name": "Last2",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "groupId": "00000000-0000-4000-8000-000000000006",
+   "title": {
+    "default": "Grade 3"
+   },
+   "persons": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000007",
+     "firstName": "First3",
+     "name": "Last3",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000008",
+     "firstName": "First4",
+     "name": "Last4 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#51aafd",
+      "description": {
+       "default": "Availability 2"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000009",
+     "firstName": "First5",
+     "name": "Last5 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000010",
+     "firstName": "First6",
+     "name": "Last6",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "groupId": "00000000-0000-4000-8000-000000000011",
+   "title": {
+    "default": "Grade 4"
+   },
+   "persons": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000012",
+     "firstName": "First7",
+     "name": "Last7",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000013",
+     "firstName": "First8",
+     "name": "Last8",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000014",
+     "firstName": "First9",
+     "name": "Last9",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000015",
+     "firstName": "First10",
+     "name": "Last10 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000016",
+     "firstName": "First11",
+     "name": "Last11",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000017",
+     "firstName": "First12",
+     "name": "Last12 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "groupId": "00000000-0000-4000-8000-000000000018",
+   "title": {
+    "default": "Grade 5"
+   },
+   "persons": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000019",
+     "firstName": "First13",
+     "name": "Last13",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000020",
+     "firstName": "",
+     "name": " ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "groupId": "00000000-0000-4000-8000-000000000021",
+   "title": {
+    "default": "Grade 6"
+   },
+   "persons": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000022",
+     "firstName": "First14",
+     "name": "Last14",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000023",
+     "firstName": "First15",
+     "name": "Last15 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000024",
+     "firstName": "First16",
+     "name": "Last16",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#015511",
+      "description": {
+       "default": "Availability 3"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000025",
+     "firstName": "First17",
+     "name": "Last17",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#7fedff",
+      "description": {
+       "default": "Availability 4 "
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000026",
+     "firstName": "First18",
+     "name": "Last18",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000027",
+     "firstName": "First19",
+     "name": "Last19",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000028",
+     "firstName": "First20",
+     "name": "Last20 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000029",
+     "firstName": "First21",
+     "name": "Last21 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000030",
+     "firstName": "First22",
+     "name": "Last22 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000031",
+     "firstName": "First23",
+     "name": "Last23",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000032",
+     "firstName": "First24",
+     "name": "Last24",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000033",
+     "firstName": "First25",
+     "name": "Last25",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000034",
+     "firstName": "First26",
+     "name": "Last26",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000035",
+     "firstName": "First27",
+     "name": "Last27",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#dceb16",
+      "description": {
+       "default": "Availability 5"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000036",
+     "firstName": "First28",
+     "name": "Last28",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#015511",
+      "description": {
+       "default": "Availability 3"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000037",
+     "firstName": "First29",
+     "name": "Last29",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000038",
+     "firstName": "First30",
+     "name": "Last30",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000039",
+     "firstName": "First31",
+     "name": "Last31 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000040",
+     "firstName": "First32",
+     "name": "Last32",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000041",
+     "firstName": "First33",
+     "name": "Last33 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000042",
+     "firstName": "First34",
+     "name": "Last34",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    }
+   ]
+  },
+  {
+   "groupId": "00000000-0000-4000-8000-000000000043",
+   "title": {
+    "default": "Grade 7"
+   },
+   "persons": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000044",
+     "firstName": "First35",
+     "name": "Last35",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000045",
+     "firstName": "First36",
+     "name": "Last36",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000046",
+     "firstName": "First37",
+     "name": "Last37 ",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000047",
+     "firstName": "First38",
+     "name": "Last38",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#015511",
+      "description": {
+       "default": "Availability 3"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000048",
+     "firstName": "First39",
+     "name": "Last39",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#08f133",
+      "description": {
+       "default": "Availability 1"
+      }
+     }
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000049",
+     "firstName": "First40",
+     "name": "Last40",
+     "isOnIntervention": false,
+     "isOnPreAlert": false,
+     "isGuardCrew": false,
+     "isGarrisonCrew": false,
+     "isPresent": false,
+     "currentAvailability": {
+      "guid": "00000000-0000-4000-8000-000000000003",
+      "backgroundColor": "#dceb16",
+      "description": {
+       "default": "Availability 5"
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "isTruncated": false,
+ "result": "Success",
+ "warningFeedback": [],
+ "errorFeedback": []
+}

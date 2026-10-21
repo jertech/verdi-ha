@@ -1,0 +1,13 @@
+{
+  "domain": "verdi",
+  "name": "Verdi (unofficial)",
+  "codeowners": ["@jertech"],
+  "config_flow": true,
+  "dependencies": ["http"],
+  "documentation": "https://github.com/jertech/verdi-ha",
+  "integration_type": "service",
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/jertech/verdi-ha/issues",
+  "requirements": [],
+  "version": "0.5.0"
+}

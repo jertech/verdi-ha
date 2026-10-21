@@ -1,0 +1,18 @@
+{
+ "teamsOnDuty": [
+  {
+   "groupId": "00000000-0000-4000-8000-000000000075",
+   "groupName": "Station A",
+   "stationId": "00000000-0000-4000-8000-000000000050",
+   "currentTeamRotationId": "00000000-0000-4000-8000-000000000076",
+   "currentTeamId": "00000000-0000-4000-8000-000000000077",
+   "currentTeamName": "Station A - Team 1",
+   "nextRotation": "2026-06-18T16:00:00+00:00",
+   "nextTeamName": "-",
+   "personsOnDuty": []
+  }
+ ],
+ "result": "Success",
+ "warningFeedback": [],
+ "errorFeedback": []
+}

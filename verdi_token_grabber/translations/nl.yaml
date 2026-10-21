@@ -1,0 +1,13 @@
+configuration:
+  verdi_url:
+    name: Verdi-adres
+    description: Het https-adres van je Verdi-zone, bijvoorbeeld https://jouwzone.verdi.cloud
+  tenant:
+    name: Tenant
+    description: Je tenantnaam, zoals die na "tenant:" in de webaanmelding staat.
+  culture:
+    name: Taal aanmelding
+    description: Taal van de Verdi-aanmeldpagina.
+  entry_id:
+    name: Config entry-ID
+    description: Alleen nodig als je meer dan één Verdi-integratie in Home Assistant hebt.
