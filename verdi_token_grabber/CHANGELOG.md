@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.2
+
+- The setup docs name the configuration folder correctly (`app_config`).
+
 ## 0.5.1
 
 - Uses the full Chromium build for the headless login instead of the headless shell.

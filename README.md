@@ -84,8 +84,8 @@ Sign in in the window that opens. The script saves `verdi_state.json`: **treat i
 
 ### 4. Give the login to the app
 
-1. Copy `verdi_state.json` into the app's configuration folder (for example through the Samba app's
-   `app_configs` share, in the folder of the Verdi Token Grabber).
+1. Copy `verdi_state.json` into the app's configuration folder (for example through the Samba app,
+   into the Verdi Token Grabber's folder under `app_config`).
 2. In the app's **Configuration** tab, set your Verdi address and tenant, then start the app.
    It moves the file into its private data folder and deletes the copy you dropped in.
 

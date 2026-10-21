@@ -9,7 +9,7 @@ your password: it reuses the login state of a one-time browser login that you do
 
 1. Do the one-time login on a PC (see the project README, step 3). This creates `verdi_state.json`.
 2. Copy `verdi_state.json` into this app's configuration folder (for example through the Samba
-   app's `app_configs` share).
+   app's `app_config` folder).
 3. Set **Verdi address** and **Tenant** below and start the app.
 
 On start, the app moves the file into its private data folder and deletes the copy you dropped in.
