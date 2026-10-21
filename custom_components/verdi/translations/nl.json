@@ -10,8 +10,8 @@
           "station_id": "Post-ID",
           "team_group_id": "Ploeggroep-ID",
           "function_calendar_id": "Functiekalender-ID (rooster, optioneel)",
-          "vehicle_train_ids": "Voertuigtrein-ID's (kommagescheiden)",
-          "crew_function_ids": "Bemanningsfunctie-ID's (kommagescheiden)",
+          "vehicle_train_ids": "Middelentrein-ID's (kommagescheiden)",
+          "crew_function_ids": "Functie-ID's (kommagescheiden)",
           "availability_ids": "Beschikbaarheids-ID's (kommagescheiden)",
           "token": "Bearer-token (alleen om te testen, verloopt na ongeveer een uur)"
         }
@@ -24,8 +24,8 @@
           "station_id": "Post-ID",
           "team_group_id": "Ploeggroep-ID",
           "function_calendar_id": "Functiekalender-ID (rooster, optioneel)",
-          "vehicle_train_ids": "Voertuigtrein-ID's (kommagescheiden)",
-          "crew_function_ids": "Bemanningsfunctie-ID's (kommagescheiden)",
+          "vehicle_train_ids": "Middelentrein-ID's (kommagescheiden)",
+          "crew_function_ids": "Functie-ID's (kommagescheiden)",
           "availability_ids": "Beschikbaarheids-ID's (kommagescheiden)"
         }
       },
@@ -93,7 +93,7 @@
         "name": "Van wacht {function}"
       },
       "personnel": {
-        "name": "Personeel"
+        "name": "Personen"
       },
       "my_availability": {
         "name": "Mijn beschikbaarheid"

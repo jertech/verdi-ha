@@ -10,6 +10,9 @@ numbers; each entry says which component changed.
 ### Integration
 - Dutch and French texts reviewed: clearer wording in setup, reauth, options and error messages.
   In French, on-duty sensors now show "Pourvu" / "Vacant" instead of "Occupé" / "Libre".
+- Dutch and French names now match the Verdi web app: Middelentrein / Train des moyens,
+  Functie / Fonction, Disponibilité de départs, Sur intervention, and Personen / Personnes for
+  the personnel sensor. Entity IDs do not change.
 
 ### App
 - Dutch and French option texts reviewed.

@@ -10,8 +10,8 @@
           "station_id": "ID du poste",
           "team_group_id": "ID du groupe d'équipes",
           "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",
-          "vehicle_train_ids": "ID des trains de véhicules (séparés par des virgules)",
-          "crew_function_ids": "ID des fonctions d'équipage (séparés par des virgules)",
+          "vehicle_train_ids": "ID des trains des moyens (séparés par des virgules)",
+          "crew_function_ids": "ID des fonctions (séparés par des virgules)",
           "availability_ids": "ID des disponibilités (séparés par des virgules)",
           "token": "Jeton bearer (tests uniquement, expire après environ une heure)"
         }
@@ -24,8 +24,8 @@
           "station_id": "ID du poste",
           "team_group_id": "ID du groupe d'équipes",
           "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",
-          "vehicle_train_ids": "ID des trains de véhicules (séparés par des virgules)",
-          "crew_function_ids": "ID des fonctions d'équipage (séparés par des virgules)",
+          "vehicle_train_ids": "ID des trains des moyens (séparés par des virgules)",
+          "crew_function_ids": "ID des fonctions (séparés par des virgules)",
           "availability_ids": "ID des disponibilités (séparés par des virgules)"
         }
       },
@@ -72,10 +72,10 @@
   "entity": {
     "binary_sensor": {
       "readiness": {
-        "name": "Disponibilité opérationnelle {train}"
+        "name": "Disponibilité de départs {train}"
       },
       "vehicle_on_intervention": {
-        "name": "{vehicle} en intervention"
+        "name": "{vehicle} sur intervention"
       }
     },
     "sensor": {
@@ -93,7 +93,7 @@
         "name": "De garde {function}"
       },
       "personnel": {
-        "name": "Personnel"
+        "name": "Personnes"
       },
       "my_availability": {
         "name": "Ma disponibilité"
