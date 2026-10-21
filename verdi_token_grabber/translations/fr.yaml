@@ -4,7 +4,7 @@ configuration:
     description: L'adresse https de votre zone Verdi, par exemple https://votrezone.verdi.cloud
   tenant:
     name: Tenant
-    description: Le nom de votre tenant, tel qu'il apparaît après « tenant: » dans la connexion web.
+    description: "Le nom de votre tenant, tel qu'il apparaît après « tenant: » dans la connexion web."
   culture:
     name: Langue de connexion
     description: Langue de la page de connexion Verdi.

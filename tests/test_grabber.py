@@ -10,6 +10,7 @@ import urllib.parse
 from pathlib import Path
 
 import pytest
+import yaml
 
 from tests.conftest import make_token
 
@@ -162,3 +163,13 @@ def test_run_logs_state_changes_once(settings, monkeypatch, caplog):
 def test_failed_login_says_when_it_retries(settings, monkeypatch, caplog):
     run_loop(settings, monkeypatch, logins=[], pushes=[], ticks=1)
     assert "The login needs interaction. Next attempt at " in caplog.text
+
+
+@pytest.mark.parametrize(
+    "path",
+    sorted([SCRIPT.parent / "config.yaml", *(SCRIPT.parent / "translations").glob("*.yaml")]),
+    ids=lambda p: p.name,
+)
+def test_app_yaml_parses(path):
+    # The Supervisor skips a file it cannot parse, such as an unquoted ": " in a description.
+    assert isinstance(yaml.safe_load(path.read_text(encoding="utf-8")), dict)
