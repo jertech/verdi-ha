@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.6
+
+- Dutch and French option texts reviewed.
+
 ## 0.5.5
 
 - The French option texts load again (`translations/fr.yaml` could not be read).

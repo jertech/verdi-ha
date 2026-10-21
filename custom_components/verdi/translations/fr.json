@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Verdi (non officiel)",
-        "description": "Non officiel, sans lien avec Cevi ou Verdi, pas pour un usage opérationnel. L'adresse Verdi ressemble à {example_url}. Consultez le README pour trouver les identifiants (ne partagez jamais de captures d'écran de l'onglet réseau de votre navigateur : votre jeton y apparaît). Les jetons sont fournis par l'application Verdi Token Grabber ; le champ jeton sert uniquement aux tests.",
+        "description": "Non officiel, sans lien avec Cevi ou Verdi, non destiné à un usage opérationnel. L'adresse Verdi ressemble à {example_url}. Consultez le README pour trouver les identifiants (ne partagez jamais de captures d'écran de l'onglet réseau de votre navigateur : votre jeton y apparaît). Les jetons sont fournis par l'application Verdi Token Grabber ; le champ jeton sert uniquement aux tests.",
         "data": {
           "accept_disclaimer": "Je comprends qu'il s'agit d'une intégration non officielle, sans lien avec Cevi ou Verdi, non destinée à un usage opérationnel, et qu'elle utilise mon propre compte Verdi avec toutes ses autorisations, à mes propres risques.",
           "verdi_url": "Adresse Verdi",
@@ -31,7 +31,7 @@
       },
       "reauth_confirm": {
         "title": "Verdi a besoin d'un nouveau jeton",
-        "description": "Verdi a refusé le jeton, ou aucun jeton n'est arrivé. En général, l'application Verdi Token Grabber règle cela d'elle-même :\n\n1. Vérifiez que l'application Verdi Token Grabber est en cours d'exécution.\n2. Si son journal indique que la connexion nécessite une interaction, refaites la connexion unique sur un PC avec le script grabber.\n3. Copiez le nouveau verdi_state.json dans le dossier de configuration de l'application et redémarrez-la.\n\nCette demande se ferme d'elle-même à l'arrivée du prochain jeton. Coller un jeton ci-dessous sert uniquement aux tests.",
+        "description": "Verdi a refusé le jeton, ou aucun jeton n'est arrivé. En général, l'application Verdi Token Grabber règle cela d'elle-même :\n\n1. Vérifiez que l'application Verdi Token Grabber est en cours d'exécution.\n2. Si son journal indique que la connexion nécessite une interaction, refaites sur un PC la connexion initiale avec le script grabber.\n3. Copiez le nouveau verdi_state.json dans le dossier de configuration de l'application et redémarrez-la.\n\nCette demande se ferme d'elle-même à l'arrivée du prochain jeton. Coller un jeton ci-dessous sert uniquement aux tests.",
         "data": {
           "token": "Jeton bearer (tests uniquement, expire après environ une heure)"
         }
@@ -43,24 +43,24 @@
       "must_accept": "Vous devez accepter pour continuer.",
       "invalid_auth": "Verdi a refusé le jeton.",
       "cannot_connect": "Impossible de joindre Verdi. Vérifiez l'adresse et votre réseau.",
-      "no_token": "Collez un jeton, ou attendez le token grabber.",
+      "no_token": "Collez un jeton ou attendez le token grabber.",
       "invalid_token": "Ce jeton n'est pas valide.",
       "token_expired": "Ce jeton a expiré.",
-      "token_wrong_site": "Ce jeton appartient à une autre adresse Verdi.",
+      "token_wrong_site": "Ce jeton correspond à une autre adresse Verdi.",
       "wrong_account": "Ce jeton appartient à un autre compte Verdi."
     },
     "abort": {
       "already_configured": "Ce poste est déjà configuré.",
       "reauth_successful": "Jeton accepté.",
       "reconfigure_successful": "Paramètres mis à jour.",
-      "wrong_station": "L'ID du poste ne peut pas changer. Supprimez puis ajoutez l'intégration pour un autre poste."
+      "wrong_station": "L'ID du poste ne peut pas être modifié. Supprimez l'intégration, puis ajoutez-la à nouveau pour un autre poste."
     }
   },
   "options": {
     "step": {
       "init": {
         "title": "Options Verdi",
-        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent occupé ou libre et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. Si votre GUID de personne a pu être détecté, il est proposé ci-dessous.",
+        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent pourvu ou vacant et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. Si votre GUID de personne a pu être détecté, il est proposé ci-dessous.",
         "data": {
           "scan_interval": "Intervalle d'interrogation (secondes, au moins 60)",
           "show_names": "Afficher les noms des collègues",
@@ -85,8 +85,8 @@
       "on_duty": {
         "name": "De garde {function}",
         "state": {
-          "filled": "Occupé",
-          "open": "Libre"
+          "filled": "Pourvu",
+          "open": "Vacant"
         }
       },
       "on_duty_name": {
@@ -125,7 +125,7 @@
       "message": "Aucun jeton Verdi valide. Vérifiez que l'application Verdi Token Grabber fonctionne."
     },
     "no_token_after_wait": {
-      "message": "Aucun jeton n'est arrivé du Verdi Token Grabber en 10 minutes. Vérifiez que l'application fonctionne et que son journal ne signale pas de problème de connexion."
+      "message": "Aucun jeton n'a été reçu du Verdi Token Grabber dans les 10 minutes. Vérifiez que l'application fonctionne et que son journal ne signale pas de problème de connexion."
     },
     "token_expired": {
       "message": "Le jeton Verdi a expiré et aucun nouveau n'est arrivé. Vérifiez que l'application Verdi Token Grabber fonctionne."
