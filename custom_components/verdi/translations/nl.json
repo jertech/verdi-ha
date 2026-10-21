@@ -124,6 +124,12 @@
     "no_token": {
       "message": "Geen geldig Verdi-token. Controleer of de Verdi Token Grabber-app draait."
     },
+    "no_token_after_wait": {
+      "message": "Binnen 10 minuten kwam er geen token van de Verdi Token Grabber. Controleer of de app draait en of het logboek geen aanmeldprobleem toont."
+    },
+    "token_expired": {
+      "message": "Het Verdi-token is verlopen en er kwam geen nieuw. Controleer of de Verdi Token Grabber-app draait."
+    },
     "token_rejected": {
       "message": "Verdi heeft het token geweigerd."
     }

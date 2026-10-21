@@ -124,6 +124,12 @@
     "no_token": {
       "message": "No valid Verdi token. Check that the Verdi Token Grabber app is running."
     },
+    "no_token_after_wait": {
+      "message": "No token arrived from the Verdi Token Grabber within 10 minutes. Check that the app is running and that its log shows no login problem."
+    },
+    "token_expired": {
+      "message": "The Verdi token expired and no new one arrived. Check that the Verdi Token Grabber app is running."
+    },
     "token_rejected": {
       "message": "Verdi rejected the token."
     }

@@ -4,6 +4,7 @@ captures/
 *.apk
 *.xapk
 verdi_state.json
+*.seeded
 *token*.txt
 *.secret
 .env

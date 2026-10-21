@@ -6,13 +6,15 @@
 from __future__ import annotations
 
 import logging
+from datetime import datetime
 
-from homeassistant.config_entries import ConfigEntry
+from homeassistant.config_entries import ConfigEntry, ConfigEntryState
 from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HassJob, HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed, ConfigEntryError, ConfigEntryNotReady
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers import issue_registry as ir
+from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
@@ -24,6 +26,7 @@ from .const import (
     LEGACY_TOKEN_KEYS,
     MIN_SCAN_INTERVAL,
     REQUIRED_DATA,
+    TOKEN_GRACE_SECONDS,
 )
 from .coordinator import VerdiCoordinator
 from .token import VerdiTokenView, get_store
@@ -37,8 +40,20 @@ type VerdiConfigEntry = ConfigEntry[VerdiCoordinator]
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    get_store(hass)  # starts the grace period for the first token push
+    store = get_store(hass)  # starts the grace period for the first token push
     hass.http.register_view(VerdiTokenView())
+    _LOGGER.debug("Waiting up to %d s for the first token push", TOKEN_GRACE_SECONDS)
+
+    @callback
+    def grace_over(_now: datetime) -> None:
+        # HA's own retry of a waiting entry can be up to 10 minutes away. Re-check now, so an
+        # entry that still has no token asks for reauthentication when the grace period ends.
+        for entry in hass.config_entries.async_entries(DOMAIN):
+            if entry.state is ConfigEntryState.SETUP_RETRY and store.get(entry.entry_id) is None:
+                _LOGGER.debug("Token grace period over; re-checking %s, which has no token yet", entry.title)
+                hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    async_call_later(hass, max(store.grace_left(), 0) + 1, HassJob(grace_over, cancel_on_shutdown=True))
     return True
 
 
@@ -68,7 +83,10 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     if token is None:
         if store.in_grace():
             raise ConfigEntryNotReady(translation_domain=DOMAIN, translation_key="waiting_for_token")
-        raise ConfigEntryAuthFailed(translation_domain=DOMAIN, translation_key="no_token")
+        expired = entry.entry_id in store.tokens
+        raise ConfigEntryAuthFailed(
+            translation_domain=DOMAIN, translation_key="token_expired" if expired else "no_token_after_wait"
+        )
 
     coordinator = VerdiCoordinator(hass, entry, token)
     await coordinator.async_config_entry_first_refresh()

@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import time
 from datetime import timedelta
 from typing import Any
 
@@ -35,6 +36,16 @@ from .token import get_store
 _LOGGER = logging.getLogger(__name__)
 
 
+def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:
+    """How many items each lookup returned; numbers only, never content."""
+    personnel = data.get("personnel") or {}
+    return {
+        key: (len(value) if isinstance(value, list) else None)
+        for key, value in data.items()
+        if key != "personnel"
+    } | {"personnel": personnel.get("total")}
+
+
 class VerdiCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     config_entry: ConfigEntry
 
@@ -51,6 +62,7 @@ class VerdiCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.show_names: bool = bool(entry.options.get(CONF_SHOW_NAMES, False))
         self.api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
         names = self.show_names
+        self._failing: set[str] = set()
         self._lookups = {
             "readiness": (
                 lambda: self.api.readiness(d[CONF_STATION_ID], d[CONF_VEHICLE_TRAIN_IDS]),
@@ -70,13 +82,18 @@ class VerdiCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _refresh_token(self) -> None:
         """Pick up the newest pushed token before each poll."""
-        token = get_store(self.hass).get(self.config_entry.entry_id)
+        store = get_store(self.hass)
+        token = store.get(self.config_entry.entry_id)
         if token is None:
-            raise ConfigEntryAuthFailed(translation_domain=DOMAIN, translation_key="no_token")
+            expired = self.config_entry.entry_id in store.tokens
+            raise ConfigEntryAuthFailed(
+                translation_domain=DOMAIN, translation_key="token_expired" if expired else "no_token"
+            )
         self.api.set_token(token)
 
     async def _async_update_data(self) -> dict[str, Any]:
         self._refresh_token()
+        started = time.monotonic()
         previous = self.data or {}
         data: dict[str, Any] = {}
         errors = []
@@ -97,6 +114,11 @@ class VerdiCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 )
                 errors.append(key)
                 data[key] = previous.get(key)
+            else:
+                if key in self._failing:
+                    _LOGGER.info("Verdi lookup %s works again", key)
+        self._failing = set(errors)
         if len(errors) == len(self._lookups):
             raise UpdateFailed(f"All Verdi lookups failed: {', '.join(errors)}")
+        _LOGGER.debug("Verdi poll took %.1f s: %s", time.monotonic() - started, lookup_counts(data))
         return data

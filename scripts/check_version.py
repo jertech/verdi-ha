@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""The integration and the app share one version, which must equal the release tag."""
+"""The integration, the app and the app's script share one version, which must equal the release tag."""
 
 from __future__ import annotations
 
@@ -19,6 +19,10 @@ def main() -> int:
     errors = []
     if addon != manifest:
         errors.append(f"app version {addon} != integration version {manifest}")
+    script = (ROOT / "verdi_token_grabber/verdi_token_grabber.py").read_text()
+    match = re.search(r'^VERSION = "([^"]+)"', script, re.M)
+    if (match.group(1) if match else None) != manifest:
+        errors.append(f"VERSION in verdi_token_grabber.py != integration version {manifest}")
     if len(sys.argv) > 1:
         tag = sys.argv[1].removeprefix("refs/tags/").removeprefix("v")
         if tag != manifest:

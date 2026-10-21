@@ -12,6 +12,7 @@ call_service event and so in the recorder database.
 from __future__ import annotations
 
 import json
+import logging
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
@@ -35,6 +36,8 @@ from .const import (
     TOKEN_VIEW_URL,
 )
 
+_LOGGER = logging.getLogger(__name__)
+
 
 @dataclass
 class TokenStore:
@@ -50,7 +53,10 @@ class TokenStore:
         return token if token and is_usable(token) else None
 
     def in_grace(self) -> bool:
-        return time.monotonic() - self.started < TOKEN_GRACE_SECONDS
+        return self.grace_left() > 0
+
+    def grace_left(self) -> float:
+        return TOKEN_GRACE_SECONDS - (time.monotonic() - self.started)
 
 
 def is_usable(token: str) -> bool:
@@ -75,6 +81,7 @@ def origin(url: str | None) -> str | None:
 
 
 def _error(code: str, status: HTTPStatus) -> web.Response:
+    _LOGGER.warning("Refused a token push: %s", code)
     return web.json_response({"result": code}, status=status)
 
 
@@ -147,6 +154,7 @@ class VerdiTokenView(HomeAssistantView):
 @callback
 def accept_token(hass: HomeAssistant, entry: ConfigEntry, token: str, new_sub: str | None) -> None:
     get_store(hass).tokens[entry.entry_id] = token
+    exp = token_expiry(token)
     if new_sub:
         hass.config_entries.async_update_entry(entry, data={**entry.data, CONF_ACCOUNT_SUB: new_sub})
 
@@ -154,6 +162,8 @@ def accept_token(hass: HomeAssistant, entry: ConfigEntry, token: str, new_sub: s
     for flow in reauth_flows:
         hass.config_entries.flow.async_abort(flow["flow_id"])
     if entry.state in (ConfigEntryState.SETUP_RETRY, ConfigEntryState.SETUP_ERROR) or reauth_flows:
+        _LOGGER.debug("Token for %s received, valid until %s; reloading the entry", entry.title, exp)
         hass.config_entries.async_schedule_reload(entry.entry_id)
     elif entry.state is ConfigEntryState.LOADED:
+        _LOGGER.debug("Token for %s received, valid until %s", entry.title, exp)
         entry.runtime_data.api.set_token(token)

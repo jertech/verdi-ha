@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.5.4
+
+- While Home Assistant restarts, retries every 10 seconds instead of logging "refused the token".
+- Logs its version at start, each delivery once, how long a login took, the age of the login state,
+  and when a failed login is retried.
+
 ## 0.5.3
 
 - The setup docs name the Samba share correctly (`apps_configs`).
