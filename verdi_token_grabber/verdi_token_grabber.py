@@ -156,6 +156,12 @@ def save_state(context, path: Path) -> None:
         raise
 
 
+def where(url: str) -> str:
+    """Host and path only: queries and fragments can hold state, codes or tokens."""
+    parts = urllib.parse.urlsplit(url)
+    return f"{parts.netloc}{parts.path}" or "(no page)"
+
+
 def browser_login(s: Settings, headless: bool, timeout_s: int) -> str | None:
     """Run the web login once. Returns the access token, or None if it needs a human."""
     from playwright.sync_api import Error as PlaywrightError
@@ -164,7 +170,9 @@ def browser_login(s: Settings, headless: bool, timeout_s: int) -> str | None:
     callback = f"{s.verdi_url}/callback"
     seen: list[str] = []
     with sync_playwright() as pw:
-        browser = pw.chromium.launch(headless=headless)
+        # The full Chromium build; the slimmer headless shell is treated differently by
+        # some sign-in pages.
+        browser = pw.chromium.launch(headless=headless, channel="chromium")
         try:
             context = browser.new_context(storage_state=str(s.state) if s.state.exists() else None)
             page = context.new_page()
@@ -181,6 +189,9 @@ def browser_login(s: Settings, headless: bool, timeout_s: int) -> str | None:
                 page.wait_for_timeout(500)
             if token:
                 save_state(context, s.state)
+            else:
+                with suppress(PlaywrightError):
+                    LOG.warning("Login stopped at %s (page title: %r)", where(page.url), page.title())
             return token
         finally:
             browser.close()

@@ -5,7 +5,7 @@ FROM python:3.13-slim-bookworm
 # Chromium security releases.
 COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt \
-    && playwright install --with-deps --only-shell chromium \
+    && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
 COPY verdi_token_grabber.py run.sh /app/

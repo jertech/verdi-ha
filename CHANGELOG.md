@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.5.1] - unreleased
+
+### App
+- Uses the full Chromium build for the headless login instead of the headless shell.
+- When a headless login does not finish, the log says on which page (host and path only) it
+  stopped.
+
 ## [0.5.0] - unreleased
 
 First public release.
