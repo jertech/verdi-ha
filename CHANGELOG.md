@@ -17,6 +17,10 @@ numbers; each entry says which component changed.
 ### App
 - Dutch and French option texts reviewed.
 
+### Docs
+- French disclaimer: the liability sentence could be read as "not liable for all damage";
+  it now says the authors are liable for no damage, loss or claim, as in the English version.
+
 ## [0.5.5] - unreleased
 
 ### App
