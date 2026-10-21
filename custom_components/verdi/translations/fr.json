@@ -12,7 +12,7 @@
           "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",
           "vehicle_train_ids": "ID des trains des moyens (séparés par des virgules)",
           "crew_function_ids": "ID des fonctions (séparés par des virgules)",
-          "availability_ids": "ID des disponibilités (séparés par des virgules)",
+          "availability_ids": "ID des statuts (séparés par des virgules)",
           "token": "Jeton bearer (tests uniquement, expire après environ une heure)"
         }
       },
@@ -26,7 +26,7 @@
           "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",
           "vehicle_train_ids": "ID des trains des moyens (séparés par des virgules)",
           "crew_function_ids": "ID des fonctions (séparés par des virgules)",
-          "availability_ids": "ID des disponibilités (séparés par des virgules)"
+          "availability_ids": "ID des statuts (séparés par des virgules)"
         }
       },
       "reauth_confirm": {
