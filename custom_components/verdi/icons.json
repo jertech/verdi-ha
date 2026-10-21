@@ -1,0 +1,17 @@
+{
+  "entity": {
+    "binary_sensor": {
+      "readiness": { "default": "mdi:shield-check" },
+      "vehicle_on_intervention": { "default": "mdi:alarm-light" }
+    },
+    "sensor": {
+      "vehicles": { "default": "mdi:fire-truck" },
+      "team_on_duty": { "default": "mdi:account-group" },
+      "on_duty": { "default": "mdi:account-clock" },
+      "on_duty_name": { "default": "mdi:account-clock" },
+      "personnel": { "default": "mdi:account-multiple" },
+      "my_availability": { "default": "mdi:account-check" },
+      "token_expiry": { "default": "mdi:key-chain-variant" }
+    }
+  }
+}

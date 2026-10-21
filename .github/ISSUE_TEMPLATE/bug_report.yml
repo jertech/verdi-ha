@@ -1,0 +1,43 @@
+name: Bug report
+description: Something does not work as described.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Before you post: remove all personal and account data.** This issue is public.
+        Never include tokens, `verdi_state.json`, HAR files, screenshots of the browser's network tab,
+        Verdi IDs (GUIDs), your Verdi address or tenant, or anyone's name.
+        Replace them with placeholders like `<GUID>` or `<name>`.
+  - type: checkboxes
+    id: redacted
+    attributes:
+      label: Redaction
+      options:
+        - label: I removed tokens, GUIDs, addresses, tenant names and people's names from everything below.
+          required: true
+  - type: input
+    id: version
+    attributes:
+      label: Integration and app version
+      placeholder: "0.5.0"
+    validations:
+      required: true
+  - type: input
+    id: ha
+    attributes:
+      label: Home Assistant version and installation type
+      placeholder: "2026.10.2, Home Assistant OS"
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log lines (redacted)
+      render: text

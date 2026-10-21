@@ -1,0 +1,227 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Copyright (C) 2026 jertech and contributors
+# Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
+"""Verdi sensors."""
+
+from __future__ import annotations
+
+from collections.abc import Callable
+from datetime import datetime
+from typing import Any
+
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.core import HomeAssistant
+from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
+
+from . import VerdiConfigEntry
+from .api import token_expiry
+from .const import CONF_PERSON_ID
+from .coordinator import VerdiCoordinator
+from .entity import device_info, find
+
+PARALLEL_UPDATES = 0
+
+FILLED, OPEN = "filled", "open"
+
+VEHICLE_ATTRS = ("station", "availability_since", "color", "on_intervention", "at_outpost")
+
+
+def _roster_value(names: bool) -> Callable[[dict[str, Any]], Any]:
+    def value(item: dict[str, Any]) -> Any:
+        current = item["current"]
+        if names:
+            return (current or {}).get("name")
+        return FILLED if current else OPEN
+
+    return value
+
+
+def _roster_attrs(names: bool) -> Callable[[dict[str, Any]], dict[str, Any]]:
+    def attrs(item: dict[str, Any]) -> dict[str, Any]:
+        current, nxt = item["current"] or {}, item["next"] or {}
+        result = {
+            "description": item["description"],
+            "start": current.get("start"),
+            "end": current.get("end"),
+            "next_start": nxt.get("start"),
+            "next_end": nxt.get("end"),
+        }
+        if names:
+            result["next"] = nxt.get("name")
+        return result
+
+    return attrs
+
+
+async def async_setup_entry(
+    hass: HomeAssistant, entry: VerdiConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
+) -> None:
+    c = entry.runtime_data
+    data = c.data or {}
+    entities: list[SensorEntity] = [TokenExpirySensor(c)]
+    if data.get("personnel") is not None:
+        entities.append(PersonnelSensor(c))
+    if person_id := entry.options.get(CONF_PERSON_ID):
+        entities.append(MyAvailabilitySensor(c, person_id))
+    for v in data.get("vehicles") or []:
+        entities.append(
+            VerdiListSensor(
+                c,
+                "vehicles",
+                v["id"],
+                lambda i: i["availability"],
+                lambda i: {k: i[k] for k in VEHICLE_ATTRS},
+                name=v["name"],
+            )
+        )
+    for t in data.get("teams") or []:
+        entities.append(
+            VerdiListSensor(
+                c,
+                "teams",
+                t["id"],
+                lambda i: i["current_team"],
+                lambda i: {"next_team": i["next_team"], "next_rotation": i["next_rotation"]},
+                translation_key="team_on_duty",
+                placeholders={"group": t["group"] or "?"},
+            )
+        )
+    for r in data.get("roster") or []:
+        entities.append(
+            VerdiListSensor(
+                c,
+                "roster",
+                r["id"],
+                _roster_value(c.show_names),
+                _roster_attrs(c.show_names),
+                translation_key="on_duty_name" if c.show_names else "on_duty",
+                placeholders={"function": r["function"] or "?"},
+                enum_options=None if c.show_names else [FILLED, OPEN],
+            )
+        )
+    async_add_entities(entities)
+
+
+class VerdiListSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
+    """One sensor per item of a list lookup (vehicle, team, crew function)."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: VerdiCoordinator,
+        section: str,
+        item_id: str,
+        value: Callable[[dict[str, Any]], Any],
+        attrs: Callable[[dict[str, Any]], dict[str, Any]],
+        *,
+        name: str | None = None,
+        translation_key: str | None = None,
+        placeholders: dict[str, str] | None = None,
+        enum_options: list[str] | None = None,
+    ) -> None:
+        super().__init__(coordinator)
+        self._section, self._item_id, self._value, self._attrs = section, item_id, value, attrs
+        if translation_key:
+            self._attr_translation_key = translation_key
+            self._attr_translation_placeholders = placeholders or {}
+        else:
+            self._attr_name = name
+            self._attr_translation_key = section
+        if enum_options:
+            self._attr_device_class = SensorDeviceClass.ENUM
+            self._attr_options = enum_options
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{section}_{item_id}"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def _item(self) -> dict[str, Any] | None:
+        return find((self.coordinator.data or {}).get(self._section), self._item_id)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._item is not None
+
+    @property
+    def native_value(self) -> Any:
+        return self._value(self._item) if self._item else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        return self._attrs(self._item) if self._item else None
+
+
+class PersonnelSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
+    _attr_has_entity_name = True
+    _attr_translation_key = "personnel"
+    _attr_native_unit_of_measurement = "persons"
+
+    def __init__(self, coordinator: VerdiCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_personnel"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def _summary(self) -> dict[str, Any] | None:
+        return (self.coordinator.data or {}).get("personnel")
+
+    @property
+    def native_value(self) -> int | None:
+        return self._summary["total"] if self._summary else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        s = self._summary
+        if not s:
+            return None
+        counts = {k: s[k] for k in ("on_intervention", "on_pre_alert", "present", "truncated")}
+        return {**s["by_availability"], **counts}
+
+
+class TokenExpirySensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
+    """When the current token stops working. Shows the time only, never the token."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "token_expiry"
+    _attr_device_class = SensorDeviceClass.TIMESTAMP
+
+    def __init__(self, coordinator: VerdiCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_token_expiry"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def native_value(self) -> datetime | None:
+        return token_expiry(self.coordinator.api.token)
+
+
+class MyAvailabilitySensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
+    """Your own availability, for the person GUID set in the integration options."""
+
+    _attr_has_entity_name = True
+    _attr_translation_key = "my_availability"
+
+    def __init__(self, coordinator: VerdiCoordinator, person_id: str) -> None:
+        super().__init__(coordinator)
+        self._person_id = person_id
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_my_availability"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def _person(self) -> dict[str, Any] | None:
+        persons = ((self.coordinator.data or {}).get("personnel") or {}).get("persons")
+        return find(persons, self._person_id)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._person is not None
+
+    @property
+    def native_value(self) -> str | None:
+        return self._person["availability"] if self._person else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        p = self._person
+        return {k: p[k] for k in ("on_intervention", "on_pre_alert", "present")} if p else None

@@ -1,0 +1,36 @@
+Verdi HA (unofficial Home Assistant integration and app for Verdi)
+Copyright (C) 2026 jertech and contributors
+
+This program is free software: you can redistribute it and/or modify it under the
+terms of the GNU General Public License as published by the Free Software Foundation,
+either version 3 of the License, or (at your option) any later version, with the
+additional terms in ADDITIONAL_TERMS.md (section 7(a), 7(b) and 7(f) of the license).
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details. You should
+have received a copy of the GNU General Public License along with this program. If
+not, see <https://www.gnu.org/licenses/>.
+
+Authors
+-------
+jertech (https://github.com/jertech): original author.
+
+Brand images
+------------
+custom_components/verdi/brand/icon.png, custom_components/verdi/brand/icon@2x.png and
+verdi_token_grabber/icon.png are original works by the authors above, dedicated to the
+public domain under CC0 1.0 Universal
+(https://creativecommons.org/publicdomain/zero/1.0/). They are not, and do not depict,
+the logo or trademark of Verdi or Cevi.
+
+Trademarks
+----------
+"Verdi" and "Cevi" are trademarks of their respective owners and are used only to
+describe compatibility. This project is not affiliated with them.
+
+Third-party software (not included in this repository)
+-------------------------------------------------------
+The integration runs inside Home Assistant (Apache-2.0) and has no extra Python
+requirements. The app's container image bundles Python (PSF License), Playwright
+(Apache-2.0) and Chromium (BSD-3-Clause and others) as separate programs.

@@ -1,0 +1,20 @@
+# Never commit captures, credentials or app packages.
+*.har
+captures/
+*.apk
+*.xapk
+verdi_state.json
+*token*.txt
+*.secret
+.env
+.env.*
+
+# Python / tooling
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/

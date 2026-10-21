@@ -1,0 +1,131 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Verdi (non officiel)",
+        "description": "Non officiel, sans lien avec Cevi ou Verdi, pas pour un usage opérationnel. Consultez le README pour trouver les identifiants (ne partagez jamais de captures d'écran de l'onglet réseau de votre navigateur : votre jeton y apparaît). Les jetons sont fournis par l'application Verdi Token Grabber ; le champ jeton sert uniquement aux tests.",
+        "data": {
+          "accept_disclaimer": "Je comprends qu'il s'agit d'une intégration non officielle, sans lien avec Cevi ou Verdi, non destinée à un usage opérationnel, et qu'elle utilise mon propre compte Verdi avec toutes ses autorisations, à mes propres risques.",
+          "verdi_url": "Adresse Verdi (par exemple https://votrezone.verdi.cloud)",
+          "station_id": "ID du poste",
+          "team_group_id": "ID du groupe d'équipes",
+          "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",
+          "vehicle_train_ids": "ID des trains de véhicules (séparés par des virgules)",
+          "crew_function_ids": "ID des fonctions d'équipage (séparés par des virgules)",
+          "availability_ids": "ID des disponibilités (séparés par des virgules)",
+          "token": "Jeton bearer (tests uniquement, expire après environ une heure)"
+        }
+      },
+      "reconfigure": {
+        "title": "Reconfigurer Verdi",
+        "description": "Modifiez l'adresse Verdi ou les identifiants. L'ID du poste doit rester identique.",
+        "data": {
+          "verdi_url": "Adresse Verdi (par exemple https://votrezone.verdi.cloud)",
+          "station_id": "ID du poste",
+          "team_group_id": "ID du groupe d'équipes",
+          "function_calendar_id": "ID du calendrier de fonctions (planning, facultatif)",
+          "vehicle_train_ids": "ID des trains de véhicules (séparés par des virgules)",
+          "crew_function_ids": "ID des fonctions d'équipage (séparés par des virgules)",
+          "availability_ids": "ID des disponibilités (séparés par des virgules)"
+        }
+      },
+      "reauth_confirm": {
+        "title": "Verdi a besoin d'un nouveau jeton",
+        "description": "Verdi a refusé le jeton, ou aucun jeton n'est arrivé. En général, l'application Verdi Token Grabber règle cela d'elle-même :\n\n1. Vérifiez que l'application Verdi Token Grabber est en cours d'exécution.\n2. Si son journal indique que la connexion nécessite une interaction, refaites la connexion unique sur un PC avec le script grabber.\n3. Copiez le nouveau verdi_state.json dans le dossier de configuration de l'application et redémarrez-la.\n\nCette demande se ferme d'elle-même à l'arrivée du prochain jeton. Coller un jeton ci-dessous sert uniquement aux tests.",
+        "data": {
+          "token": "Jeton bearer (tests uniquement, expire après environ une heure)"
+        }
+      }
+    },
+    "error": {
+      "invalid_url": "Saisissez l'adresse https de votre zone Verdi.",
+      "required": "Obligatoire.",
+      "must_accept": "Vous devez accepter pour continuer.",
+      "invalid_auth": "Verdi a refusé le jeton.",
+      "cannot_connect": "Impossible de joindre Verdi. Vérifiez l'adresse et votre réseau.",
+      "no_token": "Collez un jeton, ou attendez le token grabber.",
+      "invalid_token": "Ce jeton n'est pas valide.",
+      "token_expired": "Ce jeton a expiré.",
+      "token_wrong_site": "Ce jeton appartient à une autre adresse Verdi.",
+      "wrong_account": "Ce jeton appartient à un autre compte Verdi."
+    },
+    "abort": {
+      "already_configured": "Ce poste est déjà configuré.",
+      "reauth_successful": "Jeton accepté.",
+      "reconfigure_successful": "Paramètres mis à jour.",
+      "wrong_station": "L'ID du poste ne peut pas changer. Supprimez puis ajoutez l'intégration pour un autre poste."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Options Verdi",
+        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent occupé ou libre et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. Si votre GUID de personne a pu être détecté, il est proposé ci-dessous.",
+        "data": {
+          "scan_interval": "Intervalle d'interrogation (secondes, au moins 60)",
+          "show_names": "Afficher les noms des collègues",
+          "person_id": "Mon GUID de personne (pour le capteur « Ma disponibilité »)"
+        }
+      }
+    }
+  },
+  "entity": {
+    "binary_sensor": {
+      "readiness": {
+        "name": "Disponibilité opérationnelle {train}"
+      },
+      "vehicle_on_intervention": {
+        "name": "{vehicle} en intervention"
+      }
+    },
+    "sensor": {
+      "team_on_duty": {
+        "name": "Équipe de garde {group}"
+      },
+      "on_duty": {
+        "name": "De garde {function}",
+        "state": {
+          "filled": "Occupé",
+          "open": "Libre"
+        }
+      },
+      "on_duty_name": {
+        "name": "De garde {function}"
+      },
+      "personnel": {
+        "name": "Personnel"
+      },
+      "my_availability": {
+        "name": "Ma disponibilité"
+      },
+      "token_expiry": {
+        "name": "Expiration du jeton"
+      }
+    },
+    "calendar": {
+      "roster": {
+        "name": "Planning"
+      }
+    }
+  },
+  "issues": {
+    "missing_config": {
+      "title": "Configuration Verdi incomplète",
+      "description": "Des paramètres obligatoires manquent pour l'intégration Verdi « {title} ». Ouvrez Paramètres > Appareils et services > Verdi, puis choisissez Reconfigurer dans le menu de l'intégration."
+    }
+  },
+  "exceptions": {
+    "missing_config": {
+      "message": "Des paramètres Verdi obligatoires manquent. Utilisez Reconfigurer."
+    },
+    "waiting_for_token": {
+      "message": "En attente d'un jeton du Verdi Token Grabber."
+    },
+    "no_token": {
+      "message": "Aucun jeton Verdi valide. Vérifiez que l'application Verdi Token Grabber fonctionne."
+    },
+    "token_rejected": {
+      "message": "Verdi a refusé le jeton."
+    }
+  }
+}

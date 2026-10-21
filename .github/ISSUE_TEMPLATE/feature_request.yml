@@ -1,0 +1,15 @@
+name: Feature request
+description: Suggest an improvement.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        This issue is public. Do not include tokens, IDs, addresses, tenant names or people's names.
+        Note: the integration only uses what the official Verdi web interface uses.
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like, and why?
+    validations:
+      required: true
