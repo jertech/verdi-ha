@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.5.2] - unreleased
+
+### App
+- The setup docs name the app's configuration folder correctly (`app_config`).
+
+### Repository
+- `scripts/draw_icon.py` draws the integration and app icons; the committed icons are its output
+  (no visible change).
+
 ## [0.5.1] - unreleased
 
 ### App
