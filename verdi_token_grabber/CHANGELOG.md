@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.5
+
+- The French option texts load again (`translations/fr.yaml` could not be read).
+- Stops cleanly when stopped or updated, instead of being killed after 10 seconds.
+
 ## 0.5.4
 
 - While Home Assistant restarts, retries every 10 seconds instead of logging "refused the token".

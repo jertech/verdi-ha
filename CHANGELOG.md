@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.5.5] - unreleased
+
+### App
+- The French option texts load again: the Supervisor could not read `translations/fr.yaml`
+  (an unquoted `: ` in the Tenant description). A test now parses every app YAML file.
+- Stops cleanly when the Supervisor stops or updates it, instead of being killed after 10 seconds
+  (exit code 137).
+
 ## [0.5.4] - unreleased
 
 ### Integration
