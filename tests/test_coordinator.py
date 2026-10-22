@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """LookupCoordinator: only due lookups, failures, the guard, and when it wakes next."""
 
+import asyncio
 import logging
 from datetime import timedelta
 from unittest.mock import AsyncMock
@@ -166,15 +167,54 @@ async def test_server_errors_back_off_and_recover(hass: HomeAssistant, config_en
     assert c.update_interval == timedelta(seconds=60)
 
 
-async def test_cap_stops_the_run(hass: HomeAssistant, config_entry):
+async def test_cap_stops_the_run_and_keeps_the_rest_due(hass: HomeAssistant, config_entry, freezer):
     a, b = value(1), value(2)
     c = make(hass, config_entry, {"a": Lookup(a, parse), "b": Lookup(b, parse)})
+    await c.async_refresh()
+    freezer.tick(timedelta(seconds=60))
     for _ in range(29):
         c.guard.record_call()
     await c.async_refresh()
-    assert (a.call_count, b.call_count) == (1, 0)
-    assert c.lookups["b"].schedule.reason(c.lookups["a"].schedule.last_fetch) is not None
+    assert (a.call_count, b.call_count) == (2, 1)
     assert c.update_interval == timedelta(seconds=5)
+    freezer.tick(timedelta(seconds=5))
+    await c.async_refresh()
+    assert (a.call_count, b.call_count) == (2, 1)  # the cap still holds
+    freezer.tick(timedelta(seconds=60))
+    await c.async_refresh()
+    assert (a.call_count, b.call_count) == (3, 2)
+
+
+async def test_backoff_stretches_a_short_retry_not_the_pace(hass: HomeAssistant, config_entry):
+    c = make(
+        hass,
+        config_entry,
+        {"x": Lookup(AsyncMock(side_effect=VerdiUnavailable("x: HTTP 503")), parse)},
+        pace=(21600.0, 30.0),
+        keep=True,
+    )
+    await c.async_refresh()
+    assert c.update_interval == RETRY
+
+
+async def test_manual_refresh_during_a_tick_run(hass: HomeAssistant, config_entry):
+    gate = asyncio.Event()
+
+    async def slow_a():
+        await gate.wait()
+        return {"v": 1}
+
+    b, d = value(2), value(3)
+    c = make(hass, config_entry, {"a": Lookup(slow_a, parse), "b": Lookup(b, parse), "d": Lookup(d, parse)})
+    tick_run = asyncio.create_task(c.async_refresh())
+    await asyncio.sleep(0)
+    manual = asyncio.create_task(c.async_refresh_lookup("d"))
+    await asyncio.sleep(0)
+    gate.set()
+    await asyncio.gather(tick_run, manual)
+    assert c.last_update_success
+    assert c.data == {"a": 1, "b": 2, "d": 3}
+    assert b.call_count == 1
 
 
 async def test_refresh_one_lookup(hass: HomeAssistant, config_entry):

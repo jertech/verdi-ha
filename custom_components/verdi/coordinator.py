@@ -41,7 +41,7 @@ from .const import (
     REJECTED_WINDOW,
 )
 from .guard import Guard, get_guard
-from .schedule import MANUAL, LookupSchedule, jittered
+from .schedule import MANUAL, TICK, LookupSchedule, jittered
 from .token import get_store
 
 if TYPE_CHECKING:
@@ -129,6 +129,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._failing: set[str] = set()
         self._tick_at: datetime | None = None
         self._only: str | None = None
+        self._run_lock = asyncio.Lock()
         self._rejected_logged = False
         self.on_fetched: FetchHook | None = None
         self.on_run: RunHook | None = None
@@ -175,21 +176,31 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self.on_fetched(key, new, old)
 
     async def _async_update_data(self) -> dict[str, Any]:
+        # Home Assistant doesn't serialise refreshes; a run reads self.data, so runs go one by one.
+        only = self._only
+        async with self._run_lock:
+            return await self._run(only)
+
+    async def _run(self, only: str | None) -> dict[str, Any]:
         self._refresh_token()
         started, now = time.monotonic(), dt_util.now()
         previous = self.data or {}
         data = {key: previous.get(key) for key in self.lookups}
-        tick = self._only is None and (self._tick_at is None or now >= self._tick_at - timedelta(seconds=1))
+        tick = only is None and (self._tick_at is None or now >= self._tick_at - timedelta(seconds=1))
         fetched: list[str] = []
         failed: list[str] = []
         rejected = False
-        for key, lookup in self.lookups.items():
-            if self._only not in (None, key):
+        for index, (key, lookup) in enumerate(self.lookups.items()):
+            if only not in (None, key):
                 continue
             reason = lookup.schedule.reason(now, tick)
             if reason is None:
                 continue
             if not self.guard.can_call():
+                if tick:  # the rest of this tick's lookups stay due for the next wake
+                    for rest in list(self.lookups.values())[index:]:
+                        if rest.schedule.always:
+                            rest.schedule.mark_due(TICK)
                 break
             if fetched or failed:
                 await self._gap()
@@ -258,7 +269,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         wait = max((min(moments) - now).total_seconds(), MIN_WAKE) if moments else float(IDLE_WAKE)
         if self.guard.backing_off:
             current = self._pace()
-            wait = max(wait, self.guard.delay(current[0] if current else None) or 0.0)
+            wait = max(wait, self.guard.delay(min(wait, current[0]) if current else wait) or 0.0)
         return timedelta(seconds=wait)
 
 
