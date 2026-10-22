@@ -36,8 +36,12 @@ Verdi's app route for your own data. The station data is polled every 120 second
 What the integration pulls from Verdi and stores in Home Assistant, including the recorder history:
 
 - vehicle names and statuses, readiness, team names and rotation times;
-- head counts per availability, and your own availability;
-- roster shift times per crew function.
+- head counts per availability;
+- roster shift times per crew function;
+- with "Your own data" on: your availability (overall, per station and per planning group) with its
+  end time, pre-alert details (description, station, function, start), your garrison station and
+  city, your shifts and availability events about a month ahead, and your availability % per year
+  and times called with the last call. The calendar feed link Verdi returns is never stored.
 
 **Colleagues' names.** With the option "Show colleagues' names" **off** (the default for new setups),
 names are dropped as soon as a response is read: on-duty sensors show *filled* or *open*, and

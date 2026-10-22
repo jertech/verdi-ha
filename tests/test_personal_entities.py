@@ -69,6 +69,23 @@ async def test_statistics_sensors_appear_after_a_failed_start(hass: HomeAssistan
         assert hass.states.get("sensor.verdi_times_called_station_north_fire").state == "17"
 
 
+async def test_statistics_sensor_listed_twice_is_added_once(
+    hass: HomeAssistant, config_entry, freezer, caplog
+):
+    responses = r.all_ok()
+    responses[APP_ROUTE][STATS] = {
+        **r.STATISTICS,
+        "interventionCounters": r.STATISTICS["interventionCounters"] * 2,
+    }
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(responses)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+    assert hass.states.get("sensor.verdi_times_called_station_north_fire").state == "17"
+    assert "already exists" not in caplog.text
+
+
 PRE, GARRISON = "GetPersonCurrentPreAlertInformationCommand", "GetPersonCurrentGarrisonInformationCommand"
 
 

@@ -83,6 +83,7 @@ async def test_calendar_feed_link_never_leaves_the_response(
     resp = await client.get(
         "/api/calendars/calendar.verdi_my_availability?start=2020-01-01T00:00:00Z&end=2030-01-01T00:00:00Z"
     )
+    assert resp.status == 200
     events_data = json.dumps(config_entry.runtime_data.personal.events.data, default=str)
     for text in (_all_state_text(hass), await resp.text(), json.dumps(diag), events_data, caplog.text):
         assert "secret-feed-id" not in text

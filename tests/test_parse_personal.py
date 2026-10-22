@@ -165,3 +165,67 @@ def test_fixture_upcoming_events():
     events = p.upcoming_events(load("app_upcoming_events"))
     assert len(events["shifts"]) == 12
     assert len(events["availability"]) == 3
+
+
+def test_last_called_just_under_a_year_ago_is_not_tomorrow():
+    now = datetime(2026, 10, 22, 20, 0, tzinfo=TZ)
+    assert p.last_called("vr. 23 okt, 17:31", now) == datetime(2025, 10, 23, 17, 31, tzinfo=TZ)
+
+
+def test_statistics_this_year_is_the_largest_year_when_listed_oldest_first():
+    data = {
+        "availabilityCounters": [
+            {
+                "name": "Beschikbaarheid (jaar) - Station North",
+                "intervals": [{"name": "2025", "percentage": 44.1}, {"name": "2026", "percentage": 34.7}],
+            }
+        ]
+    }
+    item = p.statistics(data, NOW)["availability_year"][0]
+    assert item["percentage"] == 34.7
+    assert list(item["years"]) == ["2025", "2026"]
+
+
+def test_statistics_keeps_first_interval_when_names_are_not_years():
+    data = {
+        "availabilityCounters": [
+            {
+                "name": "Beschikbaarheid - Station North",
+                "intervals": [
+                    {"name": "Last 12 months", "percentage": 50},
+                    {"name": "2025", "percentage": 60},
+                ],
+            }
+        ]
+    }
+    assert p.statistics(data, NOW)["availability_year"][0]["percentage"] == 50.0
+
+
+def test_upcoming_events_drop_items_ending_before_they_start():
+    data = {
+        "groups": [
+            {
+                "items": [
+                    r._event(
+                        "a",
+                        "Single",
+                        "Backwards",
+                        "2026-06-16T08:00:00+02:00",
+                        "2026-06-15T08:00:00+02:00",
+                        "Station North",
+                        "All",
+                    ),
+                    r._event(
+                        "b",
+                        "Single",
+                        "Fine",
+                        "2026-06-15T08:00:00+02:00",
+                        "2026-06-16T08:00:00+02:00",
+                        "Station North",
+                        "All",
+                    ),
+                ]
+            }
+        ]
+    }
+    assert [e["summary"] for e in p.upcoming_events(data)["availability"]] == ["Fine"]

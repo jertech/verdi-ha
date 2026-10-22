@@ -117,13 +117,12 @@ def _add_statistics_sensors(
     @callback
     def add_new() -> None:
         stats = (coordinator.data or {}).get("statistics") or {}
-        new = [
-            StatisticSensor(coordinator, kind, item)
-            for kind in (AVAILABILITY_YEAR, TIMES_CALLED)
-            for item in stats.get(kind) or []
-            if (kind, item["id"]) not in added
-        ]
-        added.update((s.kind, s.item_id) for s in new)
+        new = []
+        for kind in (AVAILABILITY_YEAR, TIMES_CALLED):
+            for item in stats.get(kind) or []:
+                if (kind, item["id"]) not in added:
+                    added.add((kind, item["id"]))
+                    new.append(StatisticSensor(coordinator, kind, item))
         if new:
             async_add_entities(new)
 

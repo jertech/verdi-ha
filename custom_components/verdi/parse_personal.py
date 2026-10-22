@@ -56,7 +56,7 @@ def _by_name(items: list[dict[str, Any]] | None, name_key: str) -> dict[str, str
 def last_called(text: Any, now: datetime) -> datetime | None:
     """Read Verdi's "last called" text, which has no year, in now's time zone.
 
-    The year is the latest one that doesn't put the moment more than a day after now.
+    The year is the latest one that doesn't put the moment more than two hours after now (clock skew).
     """
     if not isinstance(text, str) or not (m := TIME_TEXT.search(text)):
         return None
@@ -76,7 +76,7 @@ def last_called(text: Any, now: datetime) -> datetime | None:
             )
         except ValueError:
             continue
-        if moment <= now + timedelta(days=1):
+        if moment <= now + timedelta(hours=2):
             return moment
     return None
 
@@ -117,8 +117,8 @@ def garrison(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def statistics(data: dict[str, Any], now: datetime) -> dict[str, list[dict[str, Any]]]:
-    """Availability % per station and year (current period first, as Verdi lists it), and how
-    often you were called per station and service."""
+    """Availability % per station and year (this year is the largest year, else the first listed),
+    and how often you were called per station and service."""
     availability_year = []
     for counter in data.get("availabilityCounters") or []:
         head, sep, tail = (clean(counter.get("name")) or "").rpartition(" - ")
@@ -129,11 +129,12 @@ def statistics(data: dict[str, Any], now: datetime) -> dict[str, list[dict[str, 
             if (name := clean(interval.get("name"))) and isinstance(interval.get("percentage"), int | float)
         }
         if station and years:
+            this_year = max(years, key=int) if all(y.isdecimal() and len(y) == 4 for y in years) else None
             availability_year.append(
                 {
                     "id": slug(station),
                     "station": station,
-                    "percentage": next(iter(years.values())),
+                    "percentage": years[this_year] if this_year else next(iter(years.values())),
                     "years": years,
                 }
             )
@@ -169,7 +170,7 @@ def upcoming_events(data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
         for item in group.get("items") or []:
             start, end = _moment(item.get("startDate")), _moment(item.get("endDate"))
             title = clean(item.get("title"))
-            if not start or not end or not title:
+            if not start or not end or end < start or not title:
                 continue
             scope, position = clean(item.get("name")), clean(item.get("position"))
             if item.get("type") == SHIFT:

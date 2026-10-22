@@ -10,7 +10,7 @@ Paths are relative to `<your Verdi address>/verdi-core/api/v1/`.
 | Method | Path | Command | Used for |
 |--------|------|---------|----------|
 | POST | `configuration/readinesses/commands` | `ReadinessGetWidgetsCommand` | Readiness per vehicle train |
-| POST | `configuration/persons/commands` | `PersonGetGroupedWidgetsCommand` | Personnel counts, your own availability |
+| POST | `configuration/persons/commands` | `PersonGetGroupedWidgetsCommand` | Personnel counts |
 | POST | `configuration/vehicles/commands` | `VehicleWidgetsSummaryCommand` | Vehicle status |
 | POST | `configuration/team/groups/commands` | `TeamOnDutyWidgetCommand` | Team on duty |
 | POST | `planning/functioncalendars/commands` | `FunctionCalendarPlanningWidgetCommand` | On-duty sensors |
