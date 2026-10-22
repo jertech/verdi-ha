@@ -20,7 +20,6 @@ from homeassistant.helpers.event import async_call_later, async_track_time_chang
 from homeassistant.util import dt as dt_util
 
 from . import parse_personal
-from .api import VerdiApi, VerdiError
 from .const import (
     CONF_EVENTS_INTERVAL,
     CONF_STATISTICS_INTERVAL,
@@ -39,22 +38,6 @@ def request_language(hass: HomeAssistant) -> str:
     return next((code for code in ("nl", "fr") if language.startswith(code)), "en")
 
 
-class PersonId:
-    """Your person GUID from security/users/authorize, asked once and kept in memory."""
-
-    def __init__(self, api: VerdiApi) -> None:
-        self._api = api
-        self._value: str | None = None
-
-    async def get(self) -> str:
-        if self._value is None:
-            guid = (await self._api.current_user()).get("personGuid")
-            if not isinstance(guid, str) or not guid:
-                raise VerdiError("security/users/authorize: no personGuid")
-            self._value = guid
-        return self._value
-
-
 @dataclass
 class Personal:
     fast: LookupCoordinator
@@ -68,7 +51,7 @@ class Personal:
 
 def create_personal(hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator) -> Personal:
     api = station.api
-    person, language = PersonId(api), request_language(hass)
+    person, language = station.person, request_language(hass)
 
     async def events() -> dict[str, Any]:
         return await api.upcoming_events(await person.get(), language)

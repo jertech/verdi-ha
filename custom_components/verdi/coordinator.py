@@ -29,10 +29,14 @@ from .const import (
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
+    CONF_INTERVENTION_INTERVAL,
+    CONF_READINESS_SAFETY,
+    CONF_ROSTER_SAFETY,
     CONF_SCAN_INTERVAL,
     CONF_SHOW_NAMES,
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
+    CONF_TEAMS_SAFETY,
     CONF_VEHICLE_TRAIN_IDS,
     DOMAIN,
     FEATURES,
@@ -42,7 +46,7 @@ from .const import (
     REJECTED_WINDOW,
 )
 from .guard import Guard, get_guard
-from .schedule import MANUAL, TICK, LookupSchedule, jittered
+from .schedule import MANUAL, TICK, LookupSchedule, earliest_after, jittered
 from .token import get_store
 
 if TYPE_CHECKING:
@@ -77,6 +81,55 @@ def pace(options: Mapping[str, Any], key: str) -> tuple[float, float]:
 def enabled(options: Mapping[str, Any], key: str) -> bool:
     """Whether a kind of your own data is switched on."""
     return bool(options.get(key, FEATURES[key]))
+
+
+def safety_schedule(options: Mapping[str, Any], key: str, **kwargs: Any) -> LookupSchedule:
+    """A schedule with a safety interval option."""
+    return LookupSchedule(safety=interval(options, key), safety_minimum=minimum(key), **kwargs)
+
+
+def readiness_inputs(key: str, value: Any) -> list[tuple[str, ...]] | None:
+    """The fields of personnel and vehicles that readiness depends on."""
+    if key == "personnel":
+        persons = (value or {}).get("persons") or []
+        return sorted(
+            (str(p["id"]), str(p["availability"]), str(p["present"]), str(p["on_intervention"]))
+            for p in persons
+        )
+    if key == "vehicles":
+        return sorted((str(v["id"]), str(v["availability"]), str(v["on_intervention"])) for v in value or [])
+    return None
+
+
+def teams_change(teams: list[dict[str, Any]], now: datetime) -> datetime | None:
+    return earliest_after((t.get("next_rotation") for t in teams), now)
+
+
+def roster_change(roster: list[dict[str, Any]], now: datetime) -> datetime | None:
+    return earliest_after(
+        (
+            moment
+            for item in roster
+            for moment in ((item["current"] or {}).get("end"), (item["next"] or {}).get("start"))
+        ),
+        now,
+    )
+
+
+class PersonId:
+    """Your person GUID from security/users/authorize, asked once and kept in memory."""
+
+    def __init__(self, api: VerdiApi) -> None:
+        self._api = api
+        self.value: str | None = None
+
+    async def get(self) -> str:
+        if self.value is None:
+            guid = (await self._api.current_user()).get("personGuid")
+            if not isinstance(guid, str) or not guid:
+                raise VerdiError("security/users/authorize: no personGuid")
+            self.value = guid
+        return self.value
 
 
 def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:
@@ -280,24 +333,36 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
 
 class VerdiCoordinator(LookupCoordinator):
-    """The station's lookups. Your own lookups, when enabled, are in .personal."""
+    """The station's lookups. Personnel and vehicles every tick; readiness when they change;
+    teams and roster at the times Verdi announced; each also after its safety interval.
+    Your own lookups, when enabled, are in .personal."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, token: str) -> None:
-        d = entry.data
-        names = bool(entry.options.get(CONF_SHOW_NAMES, False))
+        d, o = entry.data, entry.options
+        names = bool(o.get(CONF_SHOW_NAMES, False))
         rng = schedule.make_rng()
         api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
+        self.person = PersonId(api)
+        self.intervention = False
         lookups = {
-            "readiness": Lookup(
-                lambda: api.readiness(d[CONF_STATION_ID], d[CONF_VEHICLE_TRAIN_IDS]), parse.readiness_trains
-            ),
             "personnel": Lookup(
                 lambda: api.personnel(d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS]), parse.personnel_summary
             ),
             "vehicles": Lookup(lambda: api.vehicles(d[CONF_STATION_ID]), parse.vehicles),
-            "teams": Lookup(lambda: api.team_on_duty(d[CONF_TEAM_GROUP_ID]), parse.teams_on_duty),
+            "readiness": Lookup(
+                lambda: api.readiness(d[CONF_STATION_ID], d[CONF_VEHICLE_TRAIN_IDS]),
+                parse.readiness_trains,
+                safety_schedule(o, CONF_READINESS_SAFETY),
+            ),
+            "teams": Lookup(
+                lambda: api.team_on_duty(d[CONF_TEAM_GROUP_ID]),
+                parse.teams_on_duty,
+                safety_schedule(o, CONF_TEAMS_SAFETY, next_change=teams_change),
+            ),
             "roster": Lookup(
-                lambda: api.roster(d[CONF_CREW_FUNCTION_IDS]), lambda data: parse.roster(data, names=names)
+                lambda: api.roster(d[CONF_CREW_FUNCTION_IDS]),
+                lambda data: parse.roster(data, names=names, me=self.person.value),
+                safety_schedule(o, CONF_ROSTER_SAFETY, next_change=roster_change),
             ),
         }
         super().__init__(
@@ -306,10 +371,19 @@ class VerdiCoordinator(LookupCoordinator):
             api,
             DOMAIN,
             lookups,
-            pace=lambda: pace(entry.options, CONF_SCAN_INTERVAL),
-            retry=interval(entry.options, CONF_SCAN_INTERVAL),
+            pace=self._tick,
+            retry=interval(o, CONF_SCAN_INTERVAL),
             guard=get_guard(hass, entry.entry_id, rng),
             rng=rng,
         )
         self.show_names: bool = names
         self.personal: Personal | None = None
+
+    def _tick(self) -> tuple[float, float]:
+        key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL
+        return pace(self.config_entry.options, key)
+
+    def _fetched(self, key: str, new: Any, old: Any) -> None:
+        if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
+            self.mark_due("readiness", f"trigger:{key}")
+        super()._fetched(key, new, old)

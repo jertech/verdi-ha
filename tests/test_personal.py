@@ -100,7 +100,11 @@ async def test_statistics_refresh_after_midnight(hass: HomeAssistant, config_ent
 
 async def test_failed_person_lookup_is_retried(hass: HomeAssistant, config_entry, api, freezer):
     _, _, user = api
-    user.side_effect = [VerdiError("security/users/authorize: HTTP 500"), r.CURRENT_USER]
+    user.side_effect = [
+        VerdiError("security/users/authorize: HTTP 500"),
+        VerdiError("security/users/authorize: HTTP 500"),
+        r.CURRENT_USER,
+    ]
     await setup_with_token(hass, config_entry)
     personal = config_entry.runtime_data.personal
     assert not personal.events.last_update_success  # first to ask, got the 500
@@ -108,4 +112,4 @@ async def test_failed_person_lookup_is_retried(hass: HomeAssistant, config_entry
     personal.events.async_add_listener(lambda: None)  # entities subscribe like this
     await tick(hass, freezer, 5 * 60 + 1)
     assert personal.events.last_update_success
-    assert user.call_count == 2
+    assert user.call_count == 3

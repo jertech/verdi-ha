@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+from contextlib import suppress
 from datetime import datetime
 
 from homeassistant.config_entries import ConfigEntry, ConfigEntryState
@@ -17,6 +18,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import ConfigType
 
+from .api import VerdiError
 from .const import (
     CONF_PAGED,
     CONF_SCAN_INTERVAL,
@@ -97,8 +99,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
         )
 
     coordinator = VerdiCoordinator(hass, entry, token)
+    personal_on = any(enabled(entry.options, key) for key in FEATURES if key != CONF_PAGED)
+    if personal_on:
+        # Your own line in personnel and your roster shifts need it; a failure is retried later.
+        with suppress(VerdiError):
+            await coordinator.person.get()
     await coordinator.async_config_entry_first_refresh()
-    if any(enabled(entry.options, key) for key in FEATURES if key != CONF_PAGED):
+    if personal_on:
         coordinator.personal = await async_setup_personal(hass, entry, coordinator)
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
