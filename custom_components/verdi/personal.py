@@ -166,3 +166,25 @@ async def async_setup_personal(
         await coordinator.async_refresh()
     StatisticsTriggers(hass, entry, station, personal.statistics)
     return personal
+
+
+def personal_counts(personal: Personal | None) -> dict[str, Any] | None:
+    """How much of your own data each lookup returned; numbers and flags only, never content."""
+    if personal is None:
+        return None
+    fast, events, stats = (c.data or {} for c in personal.coordinators)
+    planned, numbers = events.get("events") or {}, stats.get("statistics") or {}
+    return {
+        "availability": fast.get("availability") is not None,
+        "pre_alerts": len(fast.get("pre_alerts") or []),
+        "garrison": bool((fast.get("garrison") or {}).get("active")),
+        "shifts": len(planned.get("shifts") or []),
+        "availability_events": len(planned.get("availability") or []),
+        "availability_year": len(numbers.get("availability_year") or []),
+        "times_called": len(numbers.get("times_called") or []),
+        "last_update_success": {
+            "fast": personal.fast.last_update_success,
+            "events": personal.events.last_update_success,
+            "statistics": personal.statistics.last_update_success,
+        },
+    }
