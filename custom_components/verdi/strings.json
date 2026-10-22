@@ -98,6 +98,12 @@
       "my_availability": {
         "name": "My availability"
       },
+      "availability_year": {
+        "name": "Availability this year {station}"
+      },
+      "times_called": {
+        "name": "Times called {station} {service}"
+      },
       "token_expiry": {
         "name": "Token expires"
       }

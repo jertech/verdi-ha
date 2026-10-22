@@ -98,6 +98,12 @@
       "my_availability": {
         "name": "Ma disponibilité"
       },
+      "availability_year": {
+        "name": "Disponibilité cette année {station}"
+      },
+      "times_called": {
+        "name": "Nombre de fois alarmé {station} {service}"
+      },
       "token_expiry": {
         "name": "Expiration du jeton"
       }

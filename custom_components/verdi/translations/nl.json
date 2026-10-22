@@ -98,6 +98,12 @@
       "my_availability": {
         "name": "Mijn beschikbaarheid"
       },
+      "availability_year": {
+        "name": "Beschikbaarheid dit jaar {station}"
+      },
+      "times_called": {
+        "name": "Aantal keer opgeroepen {station} {service}"
+      },
       "token_expiry": {
         "name": "Token verloopt"
       }

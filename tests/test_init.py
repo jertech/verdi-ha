@@ -108,7 +108,7 @@ async def test_migration_v1_drops_tokens_and_keeps_names(hass: HomeAssistant, mo
     assert "token" not in entry.data and "token_file" not in entry.data
     assert entry.data == DATA
     assert entry.options == {"scan_interval": 60, "person_id": "me-1", "show_names": True}
-    assert hass.states.get("sensor.verdi_my_availability").state == "Available"
+    assert hass.states.get("sensor.verdi_my_availability").state == "Available 5 min"
     assert hass.states.get("sensor.verdi_on_duty_officer").state == "Sam Sample"
 
 

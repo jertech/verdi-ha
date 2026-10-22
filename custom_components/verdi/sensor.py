@@ -9,20 +9,22 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
-from homeassistant.core import HomeAssistant
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.const import PERCENTAGE
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import VerdiConfigEntry
 from .api import token_expiry
-from .const import CONF_PERSON_ID
-from .coordinator import VerdiCoordinator
+from .coordinator import LookupCoordinator, VerdiCoordinator
 from .entity import device_info, find
 
 PARALLEL_UPDATES = 0
 
 FILLED, OPEN = "filled", "open"
+AVAILABILITY_YEAR, TIMES_CALLED = "availability_year", "times_called"
+MY_AVAILABILITY_ATTRS = ("end", "color", "garrison_crew", "stations", "planning_groups")
 
 VEHICLE_ATTRS = ("station", "availability_since", "color", "on_intervention", "at_outpost")
 
@@ -62,8 +64,6 @@ async def async_setup_entry(
     entities: list[SensorEntity] = [TokenExpirySensor(c)]
     if data.get("personnel") is not None:
         entities.append(PersonnelSensor(c))
-    if person_id := entry.options.get(CONF_PERSON_ID):
-        entities.append(MyAvailabilitySensor(c, person_id))
     for v in data.get("vehicles") or []:
         entities.append(
             VerdiListSensor(
@@ -101,6 +101,34 @@ async def async_setup_entry(
             )
         )
     async_add_entities(entities)
+    if c.personal is not None:
+        async_add_entities([MyAvailabilitySensor(c.personal.fast)])
+        _add_statistics_sensors(entry, c.personal.statistics, async_add_entities)
+
+
+def _add_statistics_sensors(
+    entry: VerdiConfigEntry,
+    coordinator: LookupCoordinator,
+    async_add_entities: AddConfigEntryEntitiesCallback,
+) -> None:
+    """Add a sensor for each station and counter as soon as statistics list it."""
+    added: set[tuple[str, str]] = set()
+
+    @callback
+    def add_new() -> None:
+        stats = (coordinator.data or {}).get("statistics") or {}
+        new = [
+            StatisticSensor(coordinator, kind, item)
+            for kind in (AVAILABILITY_YEAR, TIMES_CALLED)
+            for item in stats.get(kind) or []
+            if (kind, item["id"]) not in added
+        ]
+        added.update((s.kind, s.item_id) for s in new)
+        if new:
+            async_add_entities(new)
+
+    add_new()
+    entry.async_on_unload(coordinator.async_add_listener(add_new))
 
 
 class VerdiListSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
@@ -196,32 +224,72 @@ class TokenExpirySensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
         return token_expiry(self.coordinator.api.token)
 
 
-class MyAvailabilitySensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
-    """Your own availability, for the person GUID set in the integration options."""
+class MyAvailabilitySensor(CoordinatorEntity[LookupCoordinator], SensorEntity):
+    """Your own availability now, from the Verdi app route."""
 
     _attr_has_entity_name = True
     _attr_translation_key = "my_availability"
 
-    def __init__(self, coordinator: VerdiCoordinator, person_id: str) -> None:
+    def __init__(self, coordinator: LookupCoordinator) -> None:
         super().__init__(coordinator)
-        self._person_id = person_id
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_my_availability"
         self._attr_device_info = device_info(coordinator.config_entry)
 
     @property
-    def _person(self) -> dict[str, Any] | None:
-        persons = ((self.coordinator.data or {}).get("personnel") or {}).get("persons")
-        return find(persons, self._person_id)
+    def _mine(self) -> dict[str, Any] | None:
+        return (self.coordinator.data or {}).get("availability")
 
     @property
     def available(self) -> bool:
-        return super().available and self._person is not None
+        return super().available and self._mine is not None
 
     @property
     def native_value(self) -> str | None:
-        return self._person["availability"] if self._person else None
+        return self._mine["availability"] if self._mine else None
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        p = self._person
-        return {k: p[k] for k in ("on_intervention", "on_pre_alert", "present")} if p else None
+        return {k: self._mine[k] for k in MY_AVAILABILITY_ATTRS} if self._mine else None
+
+
+class StatisticSensor(CoordinatorEntity[LookupCoordinator], SensorEntity):
+    """Your availability this year at a station, or how often you were called for a service."""
+
+    _attr_has_entity_name = True
+
+    def __init__(self, coordinator: LookupCoordinator, kind: str, item: dict[str, Any]) -> None:
+        super().__init__(coordinator)
+        self.kind, self.item_id = kind, item["id"]
+        self._attr_translation_key = kind
+        self._attr_translation_placeholders = {"station": item["station"]}
+        if kind == AVAILABILITY_YEAR:
+            self._attr_native_unit_of_measurement = PERCENTAGE
+            self._attr_state_class = SensorStateClass.MEASUREMENT
+        else:
+            self._attr_translation_placeholders["service"] = item["service"]
+            self._attr_state_class = SensorStateClass.TOTAL_INCREASING
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{kind}_{item['id']}"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def _item(self) -> dict[str, Any] | None:
+        stats = (self.coordinator.data or {}).get("statistics") or {}
+        return find(stats.get(self.kind), self.item_id)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._item is not None
+
+    @property
+    def native_value(self) -> float | int | None:
+        if not self._item:
+            return None
+        return self._item["percentage"] if self.kind == AVAILABILITY_YEAR else self._item["value"]
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        if not self._item:
+            return None
+        if self.kind == AVAILABILITY_YEAR:
+            return {"years": self._item["years"]}
+        return {"last_called": self._item["last_called"]}

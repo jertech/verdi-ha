@@ -125,7 +125,7 @@ async def test_options_suggest_detected_person(hass: HomeAssistant, config_entry
     await hass.async_block_till_done()
     assert config_entry.options["scan_interval"] == 60
     assert isinstance(config_entry.options["scan_interval"], int)
-    assert hass.states.get("sensor.verdi_my_availability").state == "Available"
+    assert hass.states.get("sensor.verdi_my_availability").state == "Available 5 min"
 
 
 async def test_options_no_suggestion_when_guid_unknown(hass: HomeAssistant, config_entry, mock_api):
