@@ -13,7 +13,7 @@ anyone's name. If a report needs such data, say so and we will agree on a safe w
 ## Scope
 
 - The Home Assistant integration in `custom_components/verdi`.
-- The Verdi Token Grabber app and script in `verdi_token_grabber`.
+- The Verdi Token Relay app and script in `verdi_token_relay`.
 
 Problems in Verdi itself are out of scope; report those to its publisher.
 

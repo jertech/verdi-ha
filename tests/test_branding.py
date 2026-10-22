@@ -15,5 +15,5 @@ def test_brand_icon_present():
 
 def test_manifest_and_addon_versions_match():
     manifest = json.loads((ROOT / "custom_components" / "verdi" / "manifest.json").read_text())
-    addon = (ROOT / "verdi_token_grabber" / "config.yaml").read_text()
+    addon = (ROOT / "verdi_token_relay" / "config.yaml").read_text()
     assert f'version: "{manifest["version"]}"' in addon

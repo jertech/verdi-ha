@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Verdi (onofficieel)",
-        "description": "Onofficieel, niet verbonden aan Cevi of Verdi, niet voor operationeel gebruik. Het Verdi-adres ziet eruit als {example_url}. Zie de README om de ID's te vinden (deel nooit schermafbeeldingen van het netwerktabblad van je browser: daarin staat je token). Tokens worden geleverd door de Verdi Token Grabber-app; het tokenveld is alleen om te testen.",
+        "description": "Onofficieel, niet verbonden aan Cevi of Verdi, niet voor operationeel gebruik. Het Verdi-adres ziet eruit als {example_url}. Zie de README om de ID's te vinden (deel nooit schermafbeeldingen van het netwerktabblad van je browser: daarin staat je token). Tokens worden geleverd door de Verdi Token Relay-app; het tokenveld is alleen om te testen.",
         "data": {
           "accept_disclaimer": "Ik begrijp dat dit een onofficiële integratie is, niet verbonden aan Cevi of Verdi, niet bedoeld voor operationeel gebruik, en dat ze mijn eigen Verdi-account met al zijn rechten gebruikt, op eigen risico.",
           "verdi_url": "Verdi-adres",
@@ -31,7 +31,7 @@
       },
       "reauth_confirm": {
         "title": "Verdi heeft een nieuw token nodig",
-        "description": "Verdi heeft het token geweigerd, of er kwam geen token binnen. Meestal lost de Verdi Token Grabber-app dit zelf op:\n\n1. Controleer of de Verdi Token Grabber-app draait.\n2. Als het logboek van de app meldt dat de aanmelding interactie nodig heeft, doe de eenmalige aanmelding opnieuw op een pc met het grabber-script.\n3. Kopieer de nieuwe verdi_state.json naar de configuratiemap van de app en herstart de app.\n\nDeze melding sluit vanzelf zodra het volgende token binnenkomt. Hieronder een token plakken is alleen om te testen.",
+        "description": "Verdi heeft het token geweigerd, of er kwam geen token binnen. Meestal lost de Verdi Token Relay-app dit zelf op:\n\n1. Controleer of de Verdi Token Relay-app draait.\n2. Als het logboek van de app meldt dat de aanmelding interactie nodig heeft, doe de eenmalige aanmelding opnieuw op een pc met het relay-script.\n3. Kopieer de nieuwe verdi_state.json naar de configuratiemap van de app en herstart de app.\n\nDeze melding sluit vanzelf zodra het volgende token binnenkomt. Hieronder een token plakken is alleen om te testen.",
         "data": {
           "token": "Bearer-token (alleen om te testen, verloopt na ongeveer een uur)"
         }
@@ -43,7 +43,7 @@
       "must_accept": "Je moet dit aanvaarden om verder te gaan.",
       "invalid_auth": "Verdi heeft het token geweigerd.",
       "cannot_connect": "Kan Verdi niet bereiken. Controleer het adres en je netwerk.",
-      "no_token": "Plak een token, of wacht op de token grabber.",
+      "no_token": "Plak een token, of wacht op de token relay.",
       "invalid_token": "Dit is geen geldig token.",
       "token_expired": "Dit token is verlopen.",
       "token_wrong_site": "Dit token hoort bij een ander Verdi-adres.",
@@ -119,16 +119,16 @@
       "message": "Verplichte Verdi-instellingen ontbreken. Gebruik Opnieuw configureren."
     },
     "waiting_for_token": {
-      "message": "Wachten tot de Verdi Token Grabber een token levert."
+      "message": "Wachten tot de Verdi Token Relay een token levert."
     },
     "no_token": {
-      "message": "Geen geldig Verdi-token. Controleer of de Verdi Token Grabber-app draait."
+      "message": "Geen geldig Verdi-token. Controleer of de Verdi Token Relay-app draait."
     },
     "no_token_after_wait": {
-      "message": "Binnen 10 minuten kwam er geen token van de Verdi Token Grabber. Controleer of de app draait en of het logboek geen aanmeldprobleem toont."
+      "message": "Binnen 10 minuten kwam er geen token van de Verdi Token Relay. Controleer of de app draait en of het logboek geen aanmeldprobleem toont."
     },
     "token_expired": {
-      "message": "Het Verdi-token is verlopen en er kwam geen nieuw token binnen. Controleer of de Verdi Token Grabber-app draait."
+      "message": "Het Verdi-token is verlopen en er kwam geen nieuw token binnen. Controleer of de Verdi Token Relay-app draait."
     },
     "token_rejected": {
       "message": "Verdi heeft het token geweigerd."

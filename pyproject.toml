@@ -13,7 +13,7 @@ ignore = ["PLR0911", "PLR0912", "PLR0913", "PLR0915", "PLR0917", "PLR2004", "S10
 [tool.ruff.lint.per-file-ignores]
 "custom_components/verdi/const.py" = ["S105"]  # key names, not secrets
 "tests/**" = ["S", "PLC0415", "B017", "E501"]
-"verdi_token_grabber/**" = ["S310", "PLC0415"]
+"verdi_token_relay/**" = ["S310", "PLC0415"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["custom_components", "tests"]

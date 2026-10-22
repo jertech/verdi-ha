@@ -1,12 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-name: Verdi Token Grabber
-version: "0.5.6"
-slug: verdi_token_grabber
+name: Verdi Token Relay
+version: "0.6.0"
+slug: verdi_token_relay
 description: >-
   Unofficial, not affiliated with Cevi or Verdi, not for operational use, uses your
   own Verdi account and its permissions, use at your own risk.
 url: https://github.com/jertech/verdi-ha
-image: ghcr.io/jertech/verdi-ha-token-grabber
+image: ghcr.io/jertech/verdi-ha-token-relay
 arch:
   - amd64
   - aarch64

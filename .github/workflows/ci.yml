@@ -91,6 +91,6 @@ jobs:
       - name: Build the app image (amd64, not pushed)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
-          context: verdi_token_grabber
+          context: verdi_token_relay
           platforms: linux/amd64
           push: false

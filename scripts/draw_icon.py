@@ -32,7 +32,7 @@ CHECK_WIDTH = 35.75
 OUTPUTS = {
     "custom_components/verdi/brand/icon.png": 256,
     "custom_components/verdi/brand/icon@2x.png": 512,
-    "verdi_token_grabber/icon.png": 128,
+    "verdi_token_relay/icon.png": 128,
 }
 
 Point = tuple[float, float]

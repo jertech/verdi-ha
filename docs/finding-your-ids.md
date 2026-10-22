@@ -24,7 +24,7 @@ web interface makes while you use its dashboard.
 
 Lists go into the integration comma-separated.
 
-## Tenant name (for the Token Grabber)
+## Tenant name (for the Token Relay)
 
 Sign out, keep the network tab open with **Preserve log** on, and filter on `authorize`. Start the
 login and click the **first** request to `/auth/connect/authorize`. Its `acr_values` parameter
