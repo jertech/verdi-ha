@@ -63,6 +63,26 @@ PERSONAL_RETRY_SECONDS = 300
 STATISTICS_DAILY_AT = (0, 5)
 STATISTICS_AFTER_INTERVENTION = 120
 
+# When to poll what (schedule.py, signals.py). Randomness spreads the load on Verdi.
+JITTER = 0.1  # paces and safety intervals vary ±10 % per run
+BOUNDARY_DELAY = (30, 120)  # seconds after a team rotation or roster boundary
+END_DELAY = (5, 30)  # seconds after your availability or a pre-alert ends
+STARTUP_DELAY = (60, 600)  # seconds before your events and statistics are first fetched
+TRIGGER_DELAY = (0, 60)  # extra seconds on triggered event and statistics fetches
+CALL_GAP = (0.2, 1.0)  # seconds between the calls of one run
+STATISTICS_MAX_DELAY = 600  # a burst of triggers delays statistics at most this long
+DAILY_OFFSET_MAX = 2700  # per-entry seconds after 00:05 for the daily statistics refresh
+DAILY_JITTER = 900  # plus up to this many seconds per day: between 00:05 and 01:05
+MIN_WAKE = 5  # seconds; a coordinator never wakes sooner
+IDLE_WAKE = 3600  # seconds; wake this often when nothing is due at all
+
+# Per entry (guard.py): calls per minute over all coordinators, backoff cap, and how long
+# 401/403 answers are tolerated without a success before asking to sign in again.
+CALL_CAP = 30
+BACKOFF_MAX = 300
+REJECTED_WINDOW = 120
+CALENDAR_CACHE = 300  # seconds a roster calendar range is served from memory
+
 # After Home Assistant starts, wait this long for the token relay to push a token
 # before asking the user to re-authenticate.
 TOKEN_GRACE_SECONDS = 600

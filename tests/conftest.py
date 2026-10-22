@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import base64
 import json
+import random
 import time
 from unittest.mock import patch
 
@@ -28,6 +29,15 @@ from custom_components.verdi.token import get_store
 from tests import responses as r
 
 VERDI = "https://zone.verdi.example"
+
+
+class MidRandom(random.Random):
+    """Always the middle of the range, so jitter and delays are predictable in tests."""
+
+    def uniform(self, a: float, b: float) -> float:
+        return (a + b) / 2
+
+
 BASE_URL = f"{VERDI}/verdi-core/api/v1"
 SUB = "11111111-2222-4333-8444-555555555555"
 
