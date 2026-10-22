@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Entities for your own data."""
 
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
@@ -67,3 +67,61 @@ async def test_statistics_sensors_appear_after_a_failed_start(hass: HomeAssistan
         async_fire_time_changed(hass)
         await hass.async_block_till_done()
         assert hass.states.get("sensor.verdi_times_called_station_north_fire").state == "17"
+
+
+PRE, GARRISON = "GetPersonCurrentPreAlertInformationCommand", "GetPersonCurrentGarrisonInformationCommand"
+
+
+async def test_pre_alert_and_garrison_off(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    assert hass.states.get("binary_sensor.verdi_pre_alert").state == "off"
+    assert hass.states.get("binary_sensor.verdi_garrison").state == "off"
+
+
+async def test_pre_alert_and_garrison_on(hass: HomeAssistant, config_entry):
+    responses = r.all_ok()
+    responses[APP_ROUTE].update({PRE: r.PRE_ALERTS, GARRISON: r.GARRISON})
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(responses)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+    pre = hass.states.get("binary_sensor.verdi_pre_alert")
+    assert pre.state == "on"
+    assert (pre.attributes["description"], pre.attributes["station"], pre.attributes["function"]) == (
+        "Storm watch",
+        "Station North",
+        "Driver",
+    )
+    garrison = hass.states.get("binary_sensor.verdi_garrison")
+    assert garrison.state == "on"
+    assert (garrison.attributes["station"], garrison.attributes["city"]) == ("Station North", "Northville")
+
+
+async def test_personal_calendars(hass: HomeAssistant, config_entry, hass_client, freezer):
+    calls: list = []
+    await hass.config.async_set_time_zone("Europe/Brussels")
+    real_now = datetime.now(UTC)
+    freezer.move_to("2026-06-15T18:00:00+02:00")
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(r.all_ok(), calls)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+        assert hass.states.get("calendar.verdi_my_shifts").state == "off"
+        assert hass.states.get("calendar.verdi_my_availability").state == "on"
+        before = len(calls)
+        freezer.move_to(real_now)  # the test client's access token is only valid around now
+        client = await hass_client()
+        resp = await client.get(
+            "/api/calendars/calendar.verdi_my_shifts?start=2026-06-22T00:00:00Z&end=2026-06-24T00:00:00Z"
+        )
+        shifts = await resp.json()
+        resp = await client.get(
+            "/api/calendars/calendar.verdi_my_availability?start=2026-06-15T00:00:00Z&end=2026-06-16T00:00:00Z"
+        )
+        availability = await resp.json()
+        assert len(calls) == before  # served from the last poll
+    assert [e["summary"] for e in shifts] == ["🚑 Ambulance 1 · Escort", "🚑 Ambulance 1 · Driver"]
+    assert shifts[0]["description"] == "Crew"
+    assert [e["summary"] for e in availability] == ["Not available", "All 5 min", "Urgent"]

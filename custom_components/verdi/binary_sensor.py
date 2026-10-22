@@ -14,7 +14,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import VerdiConfigEntry
-from .coordinator import VerdiCoordinator
+from .coordinator import LookupCoordinator, VerdiCoordinator
 from .entity import device_info, find
 
 PARALLEL_UPDATES = 0
@@ -52,6 +52,19 @@ async def async_setup_entry(
                 {"vehicle": v["name"] or "?"},
             )
         )
+    if c.personal is not None:
+        entities += [
+            PersonalBinarySensor(
+                c.personal.fast, "pre_alert", "pre_alerts", bool, lambda v: v[0] if v else None
+            ),
+            PersonalBinarySensor(
+                c.personal.fast,
+                "garrison",
+                "garrison",
+                lambda v: v["active"],
+                lambda v: {"station": v["station"], "city": v["city"]} if v["active"] else None,
+            ),
+        ]
     async_add_entities(entities)
 
 
@@ -90,3 +103,39 @@ class VerdiListBinarySensor(CoordinatorEntity[VerdiCoordinator], BinarySensorEnt
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         return self._attrs(self._item) if self._item else None
+
+
+class PersonalBinarySensor(CoordinatorEntity[LookupCoordinator], BinarySensorEntity):
+    """On while you have a pre-alert, or while you're on garrison."""
+
+    _attr_has_entity_name = True
+
+    def __init__(
+        self,
+        coordinator: LookupCoordinator,
+        translation_key: str,
+        key: str,
+        value: Callable[[Any], bool],
+        attrs: Callable[[Any], dict[str, Any] | None],
+    ) -> None:
+        super().__init__(coordinator)
+        self._key, self._value, self._attrs = key, value, attrs
+        self._attr_translation_key = translation_key
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{translation_key}"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def _data(self) -> Any:
+        return (self.coordinator.data or {}).get(self._key)
+
+    @property
+    def available(self) -> bool:
+        return super().available and self._data is not None
+
+    @property
+    def is_on(self) -> bool | None:
+        return self._value(self._data) if self._data is not None else None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        return self._attrs(self._data) if self._data is not None else None
