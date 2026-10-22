@@ -1,0 +1,47 @@
+{
+ "globalAvailability": {
+  "availabilityName": "Availability 1",
+  "availabilityColor": "#08f133",
+  "canReturnToPlanning": true,
+  "end": "2026-06-15T23:00:00.0000000+02:00",
+  "isGarrisonCrew": false
+ },
+ "stationAvailabilities": [
+  {
+   "stationId": "00000000-0000-4000-8000-000000000001",
+   "stationName": "Station A",
+   "availabilityName": "Availability 1",
+   "availabilityColor": "#08f133",
+   "canReturnToPlanning": true,
+   "end": "2026-06-15T23:00:00.0000000+02:00",
+   "isGarrisonCrew": false
+  }
+ ],
+ "stationPlanningGroupAvailabilities": [
+  {
+   "stationId": "00000000-0000-4000-8000-000000000001",
+   "stationName": "Station A",
+   "planningGroupId": "00000000-0000-4000-8000-000000000002",
+   "planningGroupName": "Planning group 1",
+   "availabilityName": "Availability 1",
+   "availabilityColor": "#08f133",
+   "canReturnToPlanning": false,
+   "end": "2026-06-15T23:00:00.0000000+02:00",
+   "isGarrisonCrew": false
+  }
+ ],
+ "planningGroupAvailabilities": [
+  {
+   "planningGroupId": "00000000-0000-4000-8000-000000000002",
+   "planningGroupName": "Planning group 1",
+   "availabilityName": "Availability 1",
+   "availabilityColor": "#08f133",
+   "canReturnToPlanning": false,
+   "end": "2026-06-15T23:00:00.0000000+02:00",
+   "isGarrisonCrew": false
+  }
+ ],
+ "result": "Success",
+ "warningFeedback": [],
+ "errorFeedback": []
+}

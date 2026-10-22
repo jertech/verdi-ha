@@ -1,0 +1,51 @@
+{
+ "interventionCounters": [
+  {
+   "station": "Station A",
+   "values": [
+    {
+     "name": "Service 1: laatst opgeroepen",
+     "value": 16,
+     "timestamp": "ma. 15 jun, 17:00"
+    },
+    {
+     "name": "Service 2: laatst opgeroepen",
+     "value": 17,
+     "timestamp": "ma. 15 jun, 17:00"
+    }
+   ]
+  }
+ ],
+ "availabilityCounters": [
+  {
+   "name": "Beschikbaarheid (jaar) - Station A",
+   "intervals": [
+    {
+     "name": "2026",
+     "period": "",
+     "percentage": 34.73
+    },
+    {
+     "name": "2025",
+     "period": "",
+     "percentage": 44.06
+    }
+   ]
+  },
+  {
+   "name": "Beschikbaarheid (jaar) - Station B",
+   "intervals": []
+  },
+  {
+   "name": "Beschikbaarheid (jaar) - Station C",
+   "intervals": []
+  },
+  {
+   "name": "Beschikbaarheid (jaar) - Station D",
+   "intervals": []
+  }
+ ],
+ "result": "Success",
+ "warningFeedback": [],
+ "errorFeedback": []
+}

@@ -1,0 +1,229 @@
+{
+ "calendarURI": "calendarURI 1",
+ "groups": [
+  {
+   "title": "title 1",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000003",
+     "type": "Single",
+     "color": "#ff0000",
+     "title": "title 1",
+     "startDate": "2025-07-26T08:00:00+01:00",
+     "start": "start 1",
+     "endDate": "2027-02-21T10:00:00+02:00",
+     "end": "end 1",
+     "name": "name 1",
+     "position": "position 1"
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000004",
+     "type": "Exception",
+     "color": "#08f133",
+     "icon": "❗",
+     "title": "title 2",
+     "startDate": "2026-06-15T17:00:00.0000000+02:00",
+     "start": "start 1",
+     "endDate": "2026-06-15T23:00:00.0000000+02:00",
+     "end": "end 2",
+     "name": "name 2",
+     "position": "position 1"
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000005",
+     "type": "Single",
+     "color": "#7fedff",
+     "title": "title 3 ",
+     "startDate": "2026-06-15T18:00:00+02:00",
+     "start": "start 1",
+     "endDate": "2026-06-16T06:00:00+02:00",
+     "end": "end 3",
+     "name": "name 1",
+     "position": "position 1"
+    }
+   ]
+  },
+  {
+   "title": "title 2",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000006",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-06-25T07:00:00+01:00",
+     "start": "start 2",
+     "endDate": "2026-06-25T11:00:00+01:00",
+     "end": "end 4",
+     "name": "name 3",
+     "position": "position 2"
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000007",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-06-25T11:00:00+01:00",
+     "start": "start 3",
+     "endDate": "2026-06-25T15:00:00+01:00",
+     "end": "end 5",
+     "name": "name 3",
+     "position": "position 2"
+    }
+   ]
+  },
+  {
+   "title": "title 3",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000008",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-01T19:00:00+01:00",
+     "start": "start 4",
+     "endDate": "2026-07-01T23:00:00+01:00",
+     "end": "end 6",
+     "name": "name 3",
+     "position": "position 2"
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000009",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-01T23:00:00+01:00",
+     "start": "start 5",
+     "endDate": "2026-07-02T03:00:00+01:00",
+     "end": "end 7",
+     "name": "name 3",
+     "position": "position 2"
+    }
+   ]
+  },
+  {
+   "title": "title 4",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000010",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-03T19:00:00+01:00",
+     "start": "start 4",
+     "endDate": "2026-07-03T23:00:00+01:00",
+     "end": "end 6",
+     "name": "name 3",
+     "position": "position 2"
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000011",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-03T23:00:00+01:00",
+     "start": "start 5",
+     "endDate": "2026-07-04T03:00:00+01:00",
+     "end": "end 7",
+     "name": "name 3",
+     "position": "position 2"
+    }
+   ]
+  },
+  {
+   "title": "title 5",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000012",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-04T03:00:00+01:00",
+     "start": "start 6",
+     "endDate": "2026-07-04T07:00:00+01:00",
+     "end": "end 8",
+     "name": "name 3",
+     "position": "position 2"
+    }
+   ]
+  },
+  {
+   "title": "title 6",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000013",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-08T19:00:00+01:00",
+     "start": "start 4",
+     "endDate": "2026-07-08T23:00:00+01:00",
+     "end": "end 6",
+     "name": "name 3",
+     "position": "position 2"
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000014",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-08T23:00:00+01:00",
+     "start": "start 5",
+     "endDate": "2026-07-09T03:00:00+01:00",
+     "end": "end 7",
+     "name": "name 3",
+     "position": "position 2"
+    }
+   ]
+  },
+  {
+   "title": "title 7",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000015",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-15T19:00:00+01:00",
+     "start": "start 4",
+     "endDate": "2026-07-15T23:00:00+01:00",
+     "end": "end 6",
+     "name": "name 3",
+     "position": "position 3"
+    },
+    {
+     "guid": "00000000-0000-4000-8000-000000000016",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-15T23:00:00+01:00",
+     "start": "start 5",
+     "endDate": "2026-07-16T03:00:00+01:00",
+     "end": "end 7",
+     "name": "name 3",
+     "position": "position 2"
+    }
+   ]
+  },
+  {
+   "title": "title 8",
+   "items": [
+    {
+     "guid": "00000000-0000-4000-8000-000000000017",
+     "type": "Shift",
+     "icon": "🗓",
+     "title": "title 4 ",
+     "startDate": "2026-07-16T03:00:00+01:00",
+     "start": "start 6",
+     "endDate": "2026-07-16T07:00:00+01:00",
+     "end": "end 8",
+     "name": "name 3",
+     "position": "position 2"
+    }
+   ]
+  }
+ ],
+ "result": "Success",
+ "warningFeedback": [],
+ "errorFeedback": []
+}
