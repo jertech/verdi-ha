@@ -5,6 +5,7 @@ import random
 
 from homeassistant.core import HomeAssistant
 
+from custom_components.verdi.const import BACKOFF_MAX
 from custom_components.verdi.guard import Guard, drop_guard, get_guard
 
 
@@ -85,3 +86,12 @@ async def test_one_guard_per_entry(hass: HomeAssistant):
     assert get_guard(hass, "entry-2", random.Random()) is not first
     drop_guard(hass, "entry-1")
     assert get_guard(hass, "entry-1", random.Random()) is not first
+
+
+def test_backoff_never_polls_faster_than_the_normal_pace():
+    guard, _ = make()
+    guard.unavailable()
+    for base in (600, 3600):
+        samples = [guard.delay(base) for _ in range(50)]
+        assert min(samples) >= base
+        assert max(samples) <= max(base, BACKOFF_MAX)

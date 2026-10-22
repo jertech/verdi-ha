@@ -68,8 +68,8 @@ class Guard:
         wait = base
         if self.level:
             start = base or 60.0
-            cap = min(start * 2**self.level, BACKOFF_MAX)
-            wait = self._rng.uniform(min(start, cap), cap)
+            cap = max(start, min(start * 2**self.level, BACKOFF_MAX))
+            wait = self._rng.uniform(start, cap)
         if (left := self._wait_until - self._clock()) > 0:
             wait = max(wait or 0.0, left)
         return wait
