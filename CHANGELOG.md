@@ -5,6 +5,28 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.7.0] - unreleased
+
+### Integration
+- Your own data, read with the same token through the read commands of Verdi's mobile app route
+  (option "Your own data from the Verdi app", on by default):
+  - "My availability" now shows your overall availability with its end time, per station and per
+    planning group. It no longer needs your person GUID; the entity and its history stay.
+  - Binary sensors "Pre-alert" and "Garrison".
+  - "Availability this year" per station (earlier years as attributes) and "Times called" per
+    station and service (with the last call).
+  - Calendars "My shifts" and "My availability" (availability you set, and exceptions), about a
+    month ahead.
+- New options: poll intervals for your availability, pre-alert and garrison (default 60 s, at
+  least 10 s), your calendars (default 10 min) and your statistics (default 6 h; statistics also
+  refresh just after midnight and two minutes after a vehicle of your station starts or ends an
+  intervention).
+- The "My person GUID" option is gone; existing entries are migrated (config entry version 3).
+- Diagnostics show counts for your own data, never its content.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.6.0] - unreleased
 
 ### App

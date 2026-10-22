@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.0
+
+- No changes; the version follows the integration.
+
 ## 0.6.0
 
 - Renamed from "Verdi Token Grabber" to "Verdi Token Relay"; the slug changed from
