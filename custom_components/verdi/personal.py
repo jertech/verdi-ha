@@ -23,9 +23,9 @@ from . import parse_personal
 from .api import VerdiApi, VerdiError
 from .const import (
     CONF_EVENTS_INTERVAL,
-    CONF_PERSONAL_INTERVAL,
     CONF_STATISTICS_INTERVAL,
     DOMAIN,
+    LEGACY_PERSONAL_INTERVAL,
     PERSONAL_RETRY_SECONDS,
     STATISTICS_AFTER_INTERVENTION,
     STATISTICS_DAILY_AT,
@@ -93,7 +93,7 @@ def create_personal(hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoord
     return Personal(
         fast=coordinator(
             "personal",
-            CONF_PERSONAL_INTERVAL,
+            LEGACY_PERSONAL_INTERVAL,
             {
                 "availability": (api.my_availability, parse_personal.my_availability),
                 "pre_alerts": (api.pre_alerts, parse_personal.pre_alerts),

@@ -93,11 +93,16 @@ def predictable(monkeypatch):
     monkeypatch.setattr("custom_components.verdi.coordinator.CALL_GAP", (0.0, 0.0))
 
 
+ALL_OFF = dict.fromkeys(
+    ("my_availability", "paged", "pre_alert", "garrison", "my_events", "statistics"), False
+)
+
+
 @pytest.fixture
 def config_entry() -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
-        version=3,
+        version=4,
         unique_id="station-1",
         title="Verdi",
         data=dict(DATA),

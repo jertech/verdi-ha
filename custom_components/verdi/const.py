@@ -16,10 +16,23 @@ CONF_FUNCTION_CALENDAR_ID = "function_calendar_id"
 CONF_ACCOUNT_SUB = "account_sub"
 
 # entry.options
-CONF_SCAN_INTERVAL = "scan_interval"
+CONF_SCAN_INTERVAL = "scan_interval"  # seconds: the station's normal tick
+CONF_INTERVENTION_INTERVAL = "intervention_interval"  # seconds: the tick during an intervention
+CONF_WATCHED_VEHICLES = "watched_vehicles"  # vehicle ids that count for triggers; empty = all
 CONF_SHOW_NAMES = "show_names"
-CONF_PERSONAL_DATA = "personal_data"
-CONF_PERSONAL_INTERVAL = "personal_interval"  # seconds
+# Your own data, one switch each.
+CONF_MY_AVAILABILITY = "my_availability"
+CONF_PAGED = "paged"  # stored for the paging feature; not used yet
+CONF_PRE_ALERT = "pre_alert"
+CONF_GARRISON = "garrison"
+CONF_MY_EVENTS = "my_events"
+CONF_STATISTICS = "statistics"
+# Safety intervals: the longest time between two fetches of a lookup.
+CONF_READINESS_SAFETY = "readiness_safety"  # minutes
+CONF_ROSTER_SAFETY = "roster_safety"  # minutes; roster and roster calendar
+CONF_TEAMS_SAFETY = "teams_safety"  # hours
+CONF_AVAILABILITY_SAFETY = "availability_safety"  # minutes
+CONF_ALERTS_SAFETY = "alerts_safety"  # minutes; pre-alert and garrison
 CONF_EVENTS_INTERVAL = "events_interval"  # minutes
 CONF_STATISTICS_INTERVAL = "statistics_interval"  # hours
 
@@ -34,6 +47,12 @@ LEGACY_TOKEN_KEYS = ("token", "token_file")
 # Removed in config entry version 3: your person GUID now comes from security/users/authorize.
 LEGACY_PERSON_ID = "person_id"
 
+# Removed in config entry version 4: one switch per kind of your own data, and triggers.
+LEGACY_PERSONAL_DATA = "personal_data"
+LEGACY_PERSONAL_INTERVAL = "personal_interval"
+# Version 1 entries were migrated with this floor for the station interval.
+LEGACY_MIN_SCAN_INTERVAL = 60
+
 API_PATH = "/verdi-core/api/v1"
 
 REQUIRED_DATA = (
@@ -46,17 +65,35 @@ REQUIRED_DATA = (
 )
 
 # This is an emergency-service platform: keep the load low.
-MIN_SCAN_INTERVAL = 60
-DEFAULT_SCAN_INTERVAL = 120
-DEFAULT_PERSONAL_DATA = True
+MIN_SCAN_INTERVAL = 30
+DEFAULT_SCAN_INTERVAL = 60
+
+# Your own data: which kinds are on by default.
+FEATURES = {
+    CONF_MY_AVAILABILITY: True,
+    CONF_PAGED: True,
+    CONF_PRE_ALERT: False,
+    CONF_GARRISON: False,
+    CONF_MY_EVENTS: True,
+    CONF_STATISTICS: True,
+}
 
 # Interval options: (default, minimum, maximum, seconds per unit).
 INTERVALS = {
     CONF_SCAN_INTERVAL: (DEFAULT_SCAN_INTERVAL, MIN_SCAN_INTERVAL, 3600, 1),
-    CONF_PERSONAL_INTERVAL: (60, 10, 3600, 1),
-    CONF_EVENTS_INTERVAL: (10, 1, 1440, 60),
-    CONF_STATISTICS_INTERVAL: (6, 1, 168, 3600),
+    CONF_INTERVENTION_INTERVAL: (30, 15, 3600, 1),
+    CONF_READINESS_SAFETY: (15, 5, 1440, 60),
+    CONF_ROSTER_SAFETY: (30, 10, 1440, 60),
+    CONF_TEAMS_SAFETY: (6, 1, 168, 3600),
+    CONF_AVAILABILITY_SAFETY: (30, 5, 1440, 60),
+    CONF_ALERTS_SAFETY: (60, 10, 1440, 60),
+    CONF_EVENTS_INTERVAL: (60, 10, 1440, 60),
+    CONF_STATISTICS_INTERVAL: (24, 1, 168, 3600),
+    # The fast personal lookups' poll interval; no longer an option.
+    LEGACY_PERSONAL_INTERVAL: (60, 10, 3600, 1),
 }
+# Defaults before version 4, moved to the new defaults on migration when unchanged.
+OLD_DEFAULTS = {CONF_SCAN_INTERVAL: 120, CONF_EVENTS_INTERVAL: 10, CONF_STATISTICS_INTERVAL: 6}
 # Your own data: poll a failed lookup again this soon; refresh statistics daily at this local
 # time, and this many seconds after a vehicle of the station starts or ends an intervention.
 PERSONAL_RETRY_SECONDS = 300

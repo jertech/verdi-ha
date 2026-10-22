@@ -35,6 +35,7 @@ from .const import (
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
     DOMAIN,
+    FEATURES,
     IDLE_WAKE,
     INTERVALS,
     MIN_WAKE,
@@ -71,6 +72,11 @@ def minimum(key: str) -> float:
 def pace(options: Mapping[str, Any], key: str) -> tuple[float, float]:
     """A tick interval option: (seconds, minimum seconds)."""
     return interval(options, key).total_seconds(), minimum(key)
+
+
+def enabled(options: Mapping[str, Any], key: str) -> bool:
+    """Whether a kind of your own data is switched on."""
+    return bool(options.get(key, FEATURES[key]))
 
 
 def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:

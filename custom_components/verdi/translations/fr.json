@@ -60,14 +60,43 @@
     "step": {
       "init": {
         "title": "Options Verdi",
-        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent pourvu ou vacant et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. « Vos propres données de l'app Verdi » ajoute votre disponibilité, votre pré-alerte, l'effectif en caserne, vos statistiques et votre planning, lus avec le même jeton via les commandes de lecture de l'app Verdi.",
+        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent pourvu ou vacant et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. Chaque lecture n'a lieu que lorsqu'elle est nécessaire : le personnel et les véhicules à chaque cycle, le reste quand les données du poste montrent un changement, à une heure annoncée par Verdi, ou après l'intervalle de sécurité.",
         "data": {
-          "scan_interval": "Intervalle d'interrogation du poste (secondes, au moins 60)",
-          "show_names": "Afficher les noms des collègues",
-          "personal_data": "Vos propres données de l'app Verdi",
-          "personal_interval": "Votre disponibilité, pré-alerte et effectif en caserne : intervalle d'interrogation (secondes, au moins 10)",
-          "events_interval": "Vos calendriers de shifts et de disponibilité : intervalle d'interrogation (minutes, au moins 1)",
-          "statistics_interval": "Vos statistiques : intervalle d'interrogation (heures, au moins 1 ; aussi juste après minuit et après une intervention)"
+          "show_names": "Afficher les noms des collègues"
+        },
+        "sections": {
+          "station": {
+            "name": "Poste",
+            "data": {
+              "scan_interval": "Cycle (secondes, au moins 30)",
+              "intervention_interval": "Cycle pendant une intervention (secondes, au moins 15)",
+              "watched_vehicles": "Véhicules pris en compte pour les interventions (aucun choisi : tous)"
+            }
+          },
+          "own_data": {
+            "name": "Vos propres données de l'app Verdi",
+            "description": "Lues avec le même jeton via les commandes de lecture de l'app Verdi. Désactivé : rien n'est lu et les entités ne sont pas créées.",
+            "data": {
+              "my_availability": "Ma disponibilité",
+              "pre_alert": "Pré-alerte",
+              "garrison": "Effectif en caserne",
+              "my_events": "Calendriers de mes shifts et de ma disponibilité",
+              "statistics": "Statistiques"
+            }
+          },
+          "safety": {
+            "name": "Intervalles de sécurité",
+            "description": "Le temps maximal entre deux lectures lorsque rien n'indique un changement.",
+            "data": {
+              "readiness_safety": "Disponibilité de départs (minutes, au moins 5)",
+              "roster_safety": "Planning et calendrier du planning (minutes, au moins 10)",
+              "teams_safety": "Équipe de garde (heures, au moins 1)",
+              "availability_safety": "Ma disponibilité (minutes, au moins 5)",
+              "alerts_safety": "Pré-alerte et effectif en caserne (minutes, au moins 10)",
+              "events_interval": "Mes calendriers (minutes, au moins 10)",
+              "statistics_interval": "Statistiques (heures, au moins 1 ; aussi chaque jour après minuit et après une intervention)"
+            }
+          }
         }
       }
     }

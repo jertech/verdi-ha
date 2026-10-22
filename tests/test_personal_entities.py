@@ -10,7 +10,7 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
 from tests import responses as r
-from tests.conftest import fake_command, setup_with_token
+from tests.conftest import ALL_OFF, fake_command, setup_with_token
 
 STATS = "AppGetPersonStatisticsCommand"
 
@@ -29,7 +29,7 @@ async def test_my_availability_from_the_app_route(hass: HomeAssistant, config_en
 
 
 async def test_no_personal_sensors_when_off(hass: HomeAssistant, config_entry, mock_api):
-    await setup_with_token(hass, config_entry, options={"personal_data": False})
+    await setup_with_token(hass, config_entry, options=ALL_OFF)
     assert hass.states.get("sensor.verdi_my_availability") is None
     assert hass.states.get("sensor.verdi_times_called_station_north_fire") is None
 

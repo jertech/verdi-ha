@@ -15,6 +15,7 @@ from homeassistant.helpers.update_coordinator import UpdateFailed
 from custom_components.verdi.api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable
 from custom_components.verdi.const import (
     CONF_EVENTS_INTERVAL,
+    CONF_INTERVENTION_INTERVAL,
     CONF_SCAN_INTERVAL,
     CONF_STATISTICS_INTERVAL,
 )
@@ -257,8 +258,9 @@ async def test_recovery_and_failure_are_logged_once(hass: HomeAssistant, config_
 
 
 def test_interval_options():
-    assert interval({}, CONF_SCAN_INTERVAL) == timedelta(seconds=120)
-    assert interval({CONF_SCAN_INTERVAL: 5}, CONF_SCAN_INTERVAL) == timedelta(seconds=60)
-    assert interval({}, CONF_EVENTS_INTERVAL) == timedelta(minutes=10)
-    assert interval({}, CONF_STATISTICS_INTERVAL) == timedelta(hours=6)
+    assert interval({}, CONF_SCAN_INTERVAL) == timedelta(seconds=60)
+    assert interval({CONF_SCAN_INTERVAL: 5}, CONF_SCAN_INTERVAL) == timedelta(seconds=30)
+    assert interval({}, CONF_INTERVENTION_INTERVAL) == timedelta(seconds=30)
+    assert interval({}, CONF_EVENTS_INTERVAL) == timedelta(minutes=60)
+    assert interval({}, CONF_STATISTICS_INTERVAL) == timedelta(hours=24)
     assert interval({CONF_STATISTICS_INTERVAL: 0}, CONF_STATISTICS_INTERVAL) == timedelta(hours=1)

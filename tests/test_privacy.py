@@ -11,7 +11,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
 )
 
 from tests import responses as r
-from tests.conftest import BASE_URL, DATA, VERDI, setup_with_token
+from tests.conftest import ALL_OFF, BASE_URL, DATA, VERDI, setup_with_token
 
 NAME_PARTS = ("Alex", "Example", "Sam", "Sample", "Robin", "Test")
 
@@ -102,6 +102,6 @@ async def test_calendar_feed_link_never_leaves_the_response(
 
 async def test_diagnostics_without_personal_data(hass: HomeAssistant, config_entry, mock_api, hass_client):
     assert await async_setup_component(hass, "diagnostics", {})
-    await setup_with_token(hass, config_entry, options={"personal_data": False})
+    await setup_with_token(hass, config_entry, options=ALL_OFF)
     diag = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
     assert diag["personal"] is None

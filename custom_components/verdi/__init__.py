@@ -18,20 +18,23 @@ from homeassistant.helpers.event import async_call_later
 from homeassistant.helpers.typing import ConfigType
 
 from .const import (
-    CONF_PERSONAL_DATA,
+    CONF_PAGED,
     CONF_SCAN_INTERVAL,
     CONF_SHOW_NAMES,
-    DEFAULT_PERSONAL_DATA,
-    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    FEATURES,
+    INTERVALS,
     ISSUE_MISSING_CONFIG,
+    LEGACY_MIN_SCAN_INTERVAL,
     LEGACY_PERSON_ID,
+    LEGACY_PERSONAL_DATA,
+    LEGACY_PERSONAL_INTERVAL,
     LEGACY_TOKEN_KEYS,
-    MIN_SCAN_INTERVAL,
+    OLD_DEFAULTS,
     REQUIRED_DATA,
     TOKEN_GRACE_SECONDS,
 )
-from .coordinator import VerdiCoordinator
+from .coordinator import VerdiCoordinator, enabled
 from .guard import drop_guard
 from .personal import async_setup_personal
 from .token import VerdiTokenView, get_store
@@ -95,7 +98,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
 
     coordinator = VerdiCoordinator(hass, entry, token)
     await coordinator.async_config_entry_first_refresh()
-    if entry.options.get(CONF_PERSONAL_DATA, DEFAULT_PERSONAL_DATA):
+    if any(enabled(entry.options, key) for key in FEATURES if key != CONF_PAGED):
         coordinator.personal = await async_setup_personal(hass, entry, coordinator)
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -113,7 +116,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> No
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bool:
-    if entry.version > 3:
+    if entry.version > 4:
         return False
     if entry.version == 1:
         # Version 2 keeps tokens in memory only, and adds the names toggle. Existing
@@ -121,7 +124,7 @@ async def async_migrate_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> b
         data = {k: v for k, v in entry.data.items() if k not in LEGACY_TOKEN_KEYS}
         options = dict(entry.options)
         options[CONF_SCAN_INTERVAL] = max(
-            int(options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)), MIN_SCAN_INTERVAL
+            int(options.get(CONF_SCAN_INTERVAL, OLD_DEFAULTS[CONF_SCAN_INTERVAL])), LEGACY_MIN_SCAN_INTERVAL
         )
         options.setdefault(CONF_SHOW_NAMES, True)
         hass.config_entries.async_update_entry(entry, data=data, options=options, version=2)
@@ -130,4 +133,16 @@ async def async_migrate_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> b
         options = {k: v for k, v in entry.options.items() if k != LEGACY_PERSON_ID}
         hass.config_entries.async_update_entry(entry, options=options, version=3)
         _LOGGER.debug("Migrated Verdi entry to version 3")
+    if entry.version == 3:
+        # One switch per kind of your own data; intervals still on an old default move to the new one.
+        personal = bool(entry.options.get(LEGACY_PERSONAL_DATA, True))
+        drop = (LEGACY_PERSONAL_DATA, LEGACY_PERSONAL_INTERVAL)
+        options = {k: v for k, v in entry.options.items() if k not in drop}
+        options.update({key: default and personal for key, default in FEATURES.items()})
+        for key, old in OLD_DEFAULTS.items():
+            if key in options:
+                value = int(options[key])
+                options[key] = INTERVALS[key][0] if value == old else max(value, INTERVALS[key][1])
+        hass.config_entries.async_update_entry(entry, options=options, version=4)
+        _LOGGER.debug("Migrated Verdi entry to version 4")
     return True

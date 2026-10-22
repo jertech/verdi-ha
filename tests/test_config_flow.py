@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
-from homeassistant.data_entry_flow import FlowResultType
+from homeassistant.data_entry_flow import FlowResultType, section
 
 from custom_components.verdi.api import VerdiAuthError
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
@@ -113,41 +113,88 @@ async def test_reauth_with_pasted_token(hass: HomeAssistant, config_entry, mock_
     assert config_entry.data[CONF_ACCOUNT_SUB] == SUB
 
 
+def _defaults(schema) -> dict:
+    out = {}
+    for marker, value in schema.schema.items():
+        if isinstance(value, section):
+            out[str(marker)] = _defaults(value.schema)
+        else:
+            out[str(marker)] = marker.default() if callable(marker.default) else None
+    return out
+
+
 async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
-    await setup_with_token(hass, config_entry)
+    await setup_with_token(hass, config_entry, options={"paged": True})
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
-    schema = {str(k): k for k in result["data_schema"].schema}
-    assert "person_id" not in schema
-    defaults = {key: schema[key].default() for key in schema}
-    assert defaults == {
-        "scan_interval": 120,
+    schema = result["data_schema"]
+    assert _defaults(schema) == {
         "show_names": False,
-        "personal_data": True,
-        "personal_interval": 60,
-        "events_interval": 10,
-        "statistics_interval": 6,
+        "station": {"scan_interval": 60, "intervention_interval": 30, "watched_vehicles": []},
+        "own_data": {
+            "my_availability": True,
+            "pre_alert": False,
+            "garrison": False,
+            "my_events": True,
+            "statistics": True,
+        },
+        "safety": {
+            "readiness_safety": 15,
+            "roster_safety": 30,
+            "teams_safety": 6,
+            "availability_safety": 30,
+            "alerts_safety": 60,
+            "events_interval": 60,
+            "statistics_interval": 24,
+        },
     }
+    safety = next(v for k, v in schema.schema.items() if str(k) == "safety")
+    assert safety.options["collapsed"] is True
+    vehicles = next(v for k, v in schema.schema.items() if str(k) == "station").schema.schema
+    selector = next(v for k, v in vehicles.items() if str(k) == "watched_vehicles")
+    assert [o["value"] for o in selector.config["options"]] == ["v1"]
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
         {
-            "scan_interval": 60.0,
-            "show_names": False,
-            "personal_data": False,
-            "personal_interval": 10.0,
-            "events_interval": 1.0,
-            "statistics_interval": 1.0,
+            "show_names": True,
+            "station": {"scan_interval": 45.0, "intervention_interval": 15.0, "watched_vehicles": ["v1"]},
+            "own_data": {
+                "my_availability": True,
+                "pre_alert": True,
+                "garrison": False,
+                "my_events": False,
+                "statistics": True,
+            },
+            "safety": {
+                "readiness_safety": 5.0,
+                "roster_safety": 10.0,
+                "teams_safety": 1.0,
+                "availability_safety": 5.0,
+                "alerts_safety": 10.0,
+                "events_interval": 10.0,
+                "statistics_interval": 1.0,
+            },
         },
     )
     await hass.async_block_till_done()
     assert config_entry.options == {
-        "scan_interval": 60,
-        "show_names": False,
-        "personal_data": False,
-        "personal_interval": 10,
-        "events_interval": 1,
+        "show_names": True,
+        "paged": True,
+        "scan_interval": 45,
+        "intervention_interval": 15,
+        "watched_vehicles": ["v1"],
+        "my_availability": True,
+        "pre_alert": True,
+        "garrison": False,
+        "my_events": False,
+        "statistics": True,
+        "readiness_safety": 5,
+        "roster_safety": 10,
+        "teams_safety": 1,
+        "availability_safety": 5,
+        "alerts_safety": 10,
+        "events_interval": 10,
         "statistics_interval": 1,
     }
-    assert all(isinstance(v, int) for k, v in config_entry.options.items() if k.endswith("interval"))
-    # Reloaded with personal data off: the registry entry remains, but nothing provides its state.
-    state = hass.states.get("sensor.verdi_my_availability")
-    assert state is None or (state.state == "unavailable" and state.attributes.get("restored"))
+    assert all(
+        isinstance(v, int) for k, v in config_entry.options.items() if k.endswith(("interval", "safety"))
+    )

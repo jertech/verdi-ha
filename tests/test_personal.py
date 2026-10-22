@@ -13,7 +13,7 @@ from custom_components.verdi.api import APP_COMMANDS, APP_ROUTE, VerdiError
 from custom_components.verdi.personal import request_language
 from custom_components.verdi.token import get_store
 from tests import responses as r
-from tests.conftest import fake_command, make_token, setup_with_token
+from tests.conftest import ALL_OFF, fake_command, make_token, setup_with_token
 
 STATS, EVENTS = "AppGetPersonStatisticsCommand", "AppGetUpcomingEventsCommand"
 VEHICLES = "configuration/vehicles/commands"
@@ -57,13 +57,13 @@ async def test_setup_calls_each_personal_lookup_once(hass: HomeAssistant, config
     assert user.call_count == 1
     personal = config_entry.runtime_data.personal
     assert personal.fast.update_interval == timedelta(seconds=60)
-    assert personal.events.update_interval == timedelta(minutes=10)
-    assert personal.statistics.update_interval == timedelta(hours=6)
+    assert personal.events.update_interval == timedelta(minutes=60)
+    assert personal.statistics.update_interval == timedelta(hours=24)
 
 
 async def test_personal_data_off_makes_no_app_calls(hass: HomeAssistant, config_entry, api):
     _, calls, user = api
-    await setup_with_token(hass, config_entry, options={"personal_data": False})
+    await setup_with_token(hass, config_entry, options=ALL_OFF)
     assert app_calls(calls) == []
     assert user.call_count == 0
     assert config_entry.runtime_data.personal is None
