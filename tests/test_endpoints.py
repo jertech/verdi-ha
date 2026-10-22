@@ -54,4 +54,34 @@ async def test_every_lookup_is_allowed():
     await api.roster(["c"])
     await api.calendar_events("c", now, now)
     await api.current_user()
+    await api.my_availability()
+    await api.pre_alerts()
+    await api.garrison()
+    await api.statistics("p", "nl")
+    await api.upcoming_events("p", "nl")
     assert set(calls) == set(ALLOWED_ENDPOINTS)
+
+
+async def test_app_route_bodies():
+    bodies = []
+
+    class Recorder(VerdiApi):
+        async def _request(self, method, path, body):
+            bodies.append((path, body))
+            return {}
+
+    api = Recorder(None, "https://x.example", "t")  # type: ignore[arg-type]
+    await api.my_availability()
+    await api.statistics("person-1", "fr")
+    await api.upcoming_events("person-1", "en")
+    assert bodies == [
+        ("mobile/app/commands", {"command": "GetPersonCurrentAvailabilityCarouselInformationCommand"}),
+        (
+            "mobile/app/commands",
+            {"command": "AppGetPersonStatisticsCommand", "personId": "person-1", "language": "fr"},
+        ),
+        (
+            "mobile/app/commands",
+            {"command": "AppGetUpcomingEventsCommand", "personId": "person-1", "language": "en"},
+        ),
+    ]

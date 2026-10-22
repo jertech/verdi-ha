@@ -3,7 +3,6 @@
 
 from unittest.mock import patch
 
-import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
@@ -114,34 +113,41 @@ async def test_reauth_with_pasted_token(hass: HomeAssistant, config_entry, mock_
     assert config_entry.data[CONF_ACCOUNT_SUB] == SUB
 
 
-async def test_options_suggest_detected_person(hass: HomeAssistant, config_entry, mock_api):
+async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
     await setup_with_token(hass, config_entry)
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
     schema = {str(k): k for k in result["data_schema"].schema}
-    assert schema["person_id"].description == {"suggested_value": "me-1"}
+    assert "person_id" not in schema
+    defaults = {key: schema[key].default() for key in schema}
+    assert defaults == {
+        "scan_interval": 120,
+        "show_names": False,
+        "personal_data": True,
+        "personal_interval": 60,
+        "events_interval": 10,
+        "statistics_interval": 6,
+    }
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], {"scan_interval": 60, "show_names": False, "person_id": "me-1"}
+        result["flow_id"],
+        {
+            "scan_interval": 60.0,
+            "show_names": False,
+            "personal_data": False,
+            "personal_interval": 10.0,
+            "events_interval": 1.0,
+            "statistics_interval": 1.0,
+        },
     )
     await hass.async_block_till_done()
-    assert config_entry.options["scan_interval"] == 60
-    assert isinstance(config_entry.options["scan_interval"], int)
-    assert hass.states.get("sensor.verdi_my_availability").state == "Available"
-
-
-async def test_options_no_suggestion_when_guid_unknown(hass: HomeAssistant, config_entry, mock_api):
-    await setup_with_token(hass, config_entry)
-    with patch(
-        "custom_components.verdi.api.VerdiApi.current_user", return_value={"personGuid": "not-listed"}
-    ):
-        result = await hass.config_entries.options.async_init(config_entry.entry_id)
-    schema = {str(k): k for k in result["data_schema"].schema}
-    assert schema["person_id"].description == {}
-
-
-@pytest.mark.parametrize("user", [{"personGuid": ""}, {}])
-async def test_options_no_suggestion_without_guid(hass: HomeAssistant, config_entry, mock_api, user):
-    await setup_with_token(hass, config_entry)
-    with patch("custom_components.verdi.api.VerdiApi.current_user", return_value=user):
-        result = await hass.config_entries.options.async_init(config_entry.entry_id)
-    schema = {str(k): k for k in result["data_schema"].schema}
-    assert schema["person_id"].description == {}
+    assert config_entry.options == {
+        "scan_interval": 60,
+        "show_names": False,
+        "personal_data": False,
+        "personal_interval": 10,
+        "events_interval": 1,
+        "statistics_interval": 1,
+    }
+    assert all(isinstance(v, int) for k, v in config_entry.options.items() if k.endswith("interval"))
+    # Reloaded with personal data off: the registry entry remains, but nothing provides its state.
+    state = hass.states.get("sensor.verdi_my_availability")
+    assert state is None or (state.state == "unavailable" and state.attributes.get("restored"))

@@ -13,6 +13,7 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.verdi.api import APP_ROUTE
 from custom_components.verdi.const import (
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
@@ -52,11 +53,20 @@ def make_token(*, sub: str | None = SUB, iss: str = f"{VERDI}/auth", lifetime: i
     return f"{_b64({'alg': 'RS256', 'typ': 'at+jwt'})}.{_b64(claims)}.c2lnbmF0dXJl"
 
 
-def fake_command(responses):
+def fake_command(responses, calls: list | None = None):
+    """Answer from responses[path]; the app route answers per command. An Exception value is raised."""
+
     async def _command(self, path, body):
         if isinstance(responses, Exception):
             raise responses
-        return responses[path]
+        if calls is not None:
+            calls.append((path, body.get("command"), body.get("language")))
+        value = responses[path]
+        if path == APP_ROUTE:
+            value = value[body["command"]]
+        if isinstance(value, Exception):
+            raise value
+        return value
 
     return _command
 
@@ -70,7 +80,7 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 def config_entry() -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
-        version=2,
+        version=3,
         unique_id="station-1",
         title="Verdi",
         data=dict(DATA),
@@ -87,11 +97,16 @@ def mock_api():
         yield
 
 
-async def setup_with_token(hass: HomeAssistant, entry: MockConfigEntry, names: bool = False) -> None:
+async def setup_with_token(
+    hass: HomeAssistant, entry: MockConfigEntry, names: bool = False, options: dict | None = None
+) -> None:
     """Add the entry with a pushed token already in memory, and set it up."""
     entry.add_to_hass(hass)
-    if names:
-        hass.config_entries.async_update_entry(entry, options={**entry.options, "show_names": True})
+    if names or options:
+        new = {**entry.options, **(options or {})}
+        if names:
+            new["show_names"] = True
+        hass.config_entries.async_update_entry(entry, options=new)
     get_store(hass).tokens[entry.entry_id] = make_token()
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()

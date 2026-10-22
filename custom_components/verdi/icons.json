@@ -2,7 +2,13 @@
   "entity": {
     "binary_sensor": {
       "readiness": { "default": "mdi:shield-check" },
-      "vehicle_on_intervention": { "default": "mdi:alarm-light" }
+      "vehicle_on_intervention": { "default": "mdi:alarm-light" },
+      "pre_alert": { "default": "mdi:bell-alert" },
+      "garrison": { "default": "mdi:shield-home" }
+    },
+    "calendar": {
+      "my_shifts": { "default": "mdi:calendar-account" },
+      "my_availability": { "default": "mdi:calendar-check" }
     },
     "sensor": {
       "vehicles": { "default": "mdi:fire-truck" },
@@ -11,6 +17,8 @@
       "on_duty_name": { "default": "mdi:account-clock" },
       "personnel": { "default": "mdi:account-multiple" },
       "my_availability": { "default": "mdi:account-check" },
+      "availability_year": { "default": "mdi:percent-circle" },
+      "times_called": { "default": "mdi:bell-ring" },
       "token_expiry": { "default": "mdi:key-chain-variant" }
     }
   }

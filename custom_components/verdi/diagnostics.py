@@ -18,12 +18,13 @@ from .const import (
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
     CONF_FUNCTION_CALENDAR_ID,
-    CONF_PERSON_ID,
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
+    LEGACY_PERSON_ID,
 )
 from .coordinator import lookup_counts
+from .personal import personal_counts
 from .token import get_store
 
 TO_REDACT = {
@@ -32,7 +33,7 @@ TO_REDACT = {
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
     CONF_FUNCTION_CALENDAR_ID,
-    CONF_PERSON_ID,
+    LEGACY_PERSON_ID,
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
@@ -57,5 +58,6 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
             "expires": (exp.isoformat() if (exp := token_expiry(token)) else None),
         },
         "counts": lookup_counts(data),
+        "personal": personal_counts(coordinator.personal) if coordinator else None,
         "last_update_success": coordinator.last_update_success if coordinator else None,
     }

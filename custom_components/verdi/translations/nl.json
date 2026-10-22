@@ -60,11 +60,14 @@
     "step": {
       "init": {
         "title": "Verdi-opties",
-        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Als je persoons-GUID gevonden werd, wordt die hieronder voorgesteld.",
+        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. \"Je eigen gegevens uit de Verdi-app\" voegt je eigen beschikbaarheid, vooralarm, herbestaffing, statistieken en planning toe, gelezen met hetzelfde token via de leesopdrachten van de Verdi-app.",
         "data": {
-          "scan_interval": "Pollinterval (seconden, minstens 60)",
+          "scan_interval": "Pollinterval post (seconden, minstens 60)",
           "show_names": "Namen van collega's tonen",
-          "person_id": "Mijn persoons-GUID (voor de sensor 'Mijn beschikbaarheid')"
+          "personal_data": "Je eigen gegevens uit de Verdi-app",
+          "personal_interval": "Je beschikbaarheid, vooralarm en herbestaffing: pollinterval (seconden, minstens 10)",
+          "events_interval": "Je kalenders met shifts en beschikbaarheid: pollinterval (minuten, minstens 1)",
+          "statistics_interval": "Je statistieken: pollinterval (uren, minstens 1; ook net na middernacht en na een interventie)"
         }
       }
     }
@@ -76,6 +79,12 @@
       },
       "vehicle_on_intervention": {
         "name": "{vehicle} op interventie"
+      },
+      "pre_alert": {
+        "name": "Vooralarm"
+      },
+      "garrison": {
+        "name": "Herbestaffing"
       }
     },
     "sensor": {
@@ -98,6 +107,12 @@
       "my_availability": {
         "name": "Mijn beschikbaarheid"
       },
+      "availability_year": {
+        "name": "Beschikbaarheid dit jaar {station}"
+      },
+      "times_called": {
+        "name": "Aantal keer opgeroepen {station} {service}"
+      },
       "token_expiry": {
         "name": "Token verloopt"
       }
@@ -105,6 +120,12 @@
     "calendar": {
       "roster": {
         "name": "Rooster"
+      },
+      "my_shifts": {
+        "name": "Mijn shifts"
+      },
+      "my_availability": {
+        "name": "Mijn beschikbaarheid"
       }
     }
   },

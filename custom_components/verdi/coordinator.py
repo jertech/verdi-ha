@@ -1,14 +1,15 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""Polls all Verdi lookups on one schedule."""
+"""Polls Verdi lookups on schedules: the station's here, your own in personal.py."""
 
 from __future__ import annotations
 
 import logging
 import time
+from collections.abc import Awaitable, Callable, Mapping
 from datetime import timedelta
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -27,13 +28,24 @@ from .const import (
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
-    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
-    MIN_SCAN_INTERVAL,
+    INTERVALS,
 )
 from .token import get_store
 
+if TYPE_CHECKING:
+    from .personal import Personal
+
 _LOGGER = logging.getLogger(__name__)
+
+type Fetch = Callable[[], Awaitable[dict[str, Any]]]
+type Parser = Callable[[dict[str, Any]], Any]
+
+
+def interval(options: Mapping[str, Any], key: str) -> timedelta:
+    """An interval option as a timedelta, never below its minimum."""
+    default, minimum, _maximum, unit = INTERVALS[key]
+    return timedelta(seconds=max(int(options.get(key, default)), minimum) * unit)
 
 
 def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:
@@ -46,39 +58,34 @@ def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:
     } | {"personnel": personnel.get("total")}
 
 
-class VerdiCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """Runs a few lookups on one schedule. A failing lookup keeps its previous value.
+
+    keep_on_failure: when every lookup fails, keep showing earlier values instead of marking the
+    entities unavailable. retry: after a failed lookup, poll again this soon.
+    """
+
     config_entry: ConfigEntry
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, token: str) -> None:
-        interval = max(int(entry.options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)), MIN_SCAN_INTERVAL)
-        super().__init__(
-            hass,
-            _LOGGER,
-            config_entry=entry,
-            name=DOMAIN,
-            update_interval=timedelta(seconds=interval),
-        )
-        d = entry.data
-        self.show_names: bool = bool(entry.options.get(CONF_SHOW_NAMES, False))
-        self.api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
-        names = self.show_names
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        api: VerdiApi,
+        name: str,
+        update_interval: timedelta,
+        lookups: dict[str, tuple[Fetch, Parser]],
+        *,
+        keep_on_failure: bool = False,
+        retry: timedelta | None = None,
+    ) -> None:
+        super().__init__(hass, _LOGGER, config_entry=entry, name=name, update_interval=update_interval)
+        self.api = api
+        self._lookups = lookups
+        self._interval = update_interval
+        self._keep_on_failure = keep_on_failure
+        self._retry = retry
         self._failing: set[str] = set()
-        self._lookups = {
-            "readiness": (
-                lambda: self.api.readiness(d[CONF_STATION_ID], d[CONF_VEHICLE_TRAIN_IDS]),
-                parse.readiness_trains,
-            ),
-            "personnel": (
-                lambda: self.api.personnel(d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS]),
-                parse.personnel_summary,
-            ),
-            "vehicles": (lambda: self.api.vehicles(d[CONF_STATION_ID]), parse.vehicles),
-            "teams": (lambda: self.api.team_on_duty(d[CONF_TEAM_GROUP_ID]), parse.teams_on_duty),
-            "roster": (
-                lambda: self.api.roster(d[CONF_CREW_FUNCTION_IDS]),
-                lambda data: parse.roster(data, names=names),
-            ),
-        }
 
     def _refresh_token(self) -> None:
         """Pick up the newest pushed token before each poll."""
@@ -118,7 +125,38 @@ class VerdiCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if key in self._failing:
                     _LOGGER.info("Verdi lookup %s works again", key)
         self._failing = set(errors)
-        if len(errors) == len(self._lookups):
+        if self._retry is not None:
+            self.update_interval = min(self._interval, self._retry) if errors else self._interval
+        nothing_to_show = not (self._keep_on_failure and any(v is not None for v in data.values()))
+        if len(errors) == len(self._lookups) and nothing_to_show:
             raise UpdateFailed(f"All Verdi lookups failed: {', '.join(errors)}")
         _LOGGER.debug("Verdi poll took %.1f s: %s", time.monotonic() - started, lookup_counts(data))
         return data
+
+
+class VerdiCoordinator(LookupCoordinator):
+    """The station's lookups. Your own lookups, when enabled, are in .personal."""
+
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, token: str) -> None:
+        d = entry.data
+        names = bool(entry.options.get(CONF_SHOW_NAMES, False))
+        api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
+        lookups: dict[str, tuple[Fetch, Parser]] = {
+            "readiness": (
+                lambda: api.readiness(d[CONF_STATION_ID], d[CONF_VEHICLE_TRAIN_IDS]),
+                parse.readiness_trains,
+            ),
+            "personnel": (
+                lambda: api.personnel(d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS]),
+                parse.personnel_summary,
+            ),
+            "vehicles": (lambda: api.vehicles(d[CONF_STATION_ID]), parse.vehicles),
+            "teams": (lambda: api.team_on_duty(d[CONF_TEAM_GROUP_ID]), parse.teams_on_duty),
+            "roster": (
+                lambda: api.roster(d[CONF_CREW_FUNCTION_IDS]),
+                lambda data: parse.roster(data, names=names),
+            ),
+        }
+        super().__init__(hass, entry, api, DOMAIN, interval(entry.options, CONF_SCAN_INTERVAL), lookups)
+        self.show_names: bool = names
+        self.personal: Personal | None = None

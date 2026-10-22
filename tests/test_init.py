@@ -104,12 +104,29 @@ async def test_migration_v1_drops_tokens_and_keeps_names(hass: HomeAssistant, mo
     get_store(hass).tokens[entry.entry_id] = make_token()
     assert await hass.config_entries.async_setup(entry.entry_id)
     await hass.async_block_till_done()
-    assert entry.version == 2
+    assert entry.version == 3
     assert "token" not in entry.data and "token_file" not in entry.data
     assert entry.data == DATA
-    assert entry.options == {"scan_interval": 60, "person_id": "me-1", "show_names": True}
-    assert hass.states.get("sensor.verdi_my_availability").state == "Available"
+    assert entry.options == {"scan_interval": 60, "show_names": True}
+    assert hass.states.get("sensor.verdi_my_availability").state == "Available 5 min"
     assert hass.states.get("sensor.verdi_on_duty_officer").state == "Sam Sample"
+
+
+async def test_migrate_v2_drops_person_id(hass: HomeAssistant, mock_api):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=2,
+        title="Verdi",
+        unique_id="station-1",
+        data=dict(DATA),
+        options={"scan_interval": 120, "show_names": False, "person_id": "me-1"},
+    )
+    entry.add_to_hass(hass)
+    get_store(hass).tokens[entry.entry_id] = make_token()
+    assert await hass.config_entries.async_setup(entry.entry_id)
+    await hass.async_block_till_done()
+    assert entry.version == 3
+    assert entry.options == {"scan_interval": 120, "show_names": False}
 
 
 async def test_unload(hass: HomeAssistant, config_entry, mock_api):

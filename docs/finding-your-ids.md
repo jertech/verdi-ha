@@ -31,8 +31,3 @@ login and click the **first** request to `/auth/connect/authorize`. Its `acr_val
 reads `tenant:<name>`; the part after `tenant:` is your tenant name.
 
 Do not copy the later `/callback` address: it contains your tokens.
-
-## Your person GUID (for "My availability")
-
-The integration suggests it in its options when it can confirm it. Otherwise, find your own
-entry in the `configuration/persons/commands` response (`guid` of your person record).

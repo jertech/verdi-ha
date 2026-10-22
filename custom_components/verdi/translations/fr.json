@@ -60,11 +60,14 @@
     "step": {
       "init": {
         "title": "Options Verdi",
-        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent pourvu ou vacant et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. Si votre GUID de personne a pu être détecté, il est proposé ci-dessous.",
+        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent pourvu ou vacant et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. « Vos propres données de l'app Verdi » ajoute votre disponibilité, votre pré-alerte, l'effectif en caserne, vos statistiques et votre planning, lus avec le même jeton via les commandes de lecture de l'app Verdi.",
         "data": {
-          "scan_interval": "Intervalle d'interrogation (secondes, au moins 60)",
+          "scan_interval": "Intervalle d'interrogation du poste (secondes, au moins 60)",
           "show_names": "Afficher les noms des collègues",
-          "person_id": "Mon GUID de personne (pour le capteur « Ma disponibilité »)"
+          "personal_data": "Vos propres données de l'app Verdi",
+          "personal_interval": "Votre disponibilité, pré-alerte et effectif en caserne : intervalle d'interrogation (secondes, au moins 10)",
+          "events_interval": "Vos calendriers de shifts et de disponibilité : intervalle d'interrogation (minutes, au moins 1)",
+          "statistics_interval": "Vos statistiques : intervalle d'interrogation (heures, au moins 1 ; aussi juste après minuit et après une intervention)"
         }
       }
     }
@@ -76,6 +79,12 @@
       },
       "vehicle_on_intervention": {
         "name": "{vehicle} sur intervention"
+      },
+      "pre_alert": {
+        "name": "Pré-alerte"
+      },
+      "garrison": {
+        "name": "Effectif en caserne"
       }
     },
     "sensor": {
@@ -98,6 +107,12 @@
       "my_availability": {
         "name": "Ma disponibilité"
       },
+      "availability_year": {
+        "name": "Disponibilité cette année {station}"
+      },
+      "times_called": {
+        "name": "Nombre de fois alarmé {station} {service}"
+      },
       "token_expiry": {
         "name": "Expiration du jeton"
       }
@@ -105,6 +120,12 @@
     "calendar": {
       "roster": {
         "name": "Planning"
+      },
+      "my_shifts": {
+        "name": "Mes shifts"
+      },
+      "my_availability": {
+        "name": "Ma disponibilité"
       }
     }
   },

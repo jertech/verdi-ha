@@ -40,18 +40,21 @@ from .const import (
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
+    CONF_EVENTS_INTERVAL,
     CONF_FUNCTION_CALENDAR_ID,
-    CONF_PERSON_ID,
+    CONF_PERSONAL_DATA,
+    CONF_PERSONAL_INTERVAL,
     CONF_SCAN_INTERVAL,
     CONF_SHOW_NAMES,
     CONF_STATION_ID,
+    CONF_STATISTICS_INTERVAL,
     CONF_TEAM_GROUP_ID,
     CONF_TOKEN,
     CONF_VEHICLE_TRAIN_IDS,
     CONF_VERDI_URL,
-    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_PERSONAL_DATA,
     DOMAIN,
-    MIN_SCAN_INTERVAL,
+    INTERVALS,
 )
 from .token import get_store, is_usable, origin
 
@@ -138,7 +141,7 @@ async def _validate_token(hass: HomeAssistant, data: dict[str, Any], token: str)
 
 
 class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
-    VERSION = 2
+    VERSION = 3
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -232,40 +235,34 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
             options = dict(user_input)
-            options[CONF_PERSON_ID] = (options.get(CONF_PERSON_ID) or "").strip()
-            if not options[CONF_PERSON_ID]:
-                options.pop(CONF_PERSON_ID)
-            options[CONF_SCAN_INTERVAL] = max(int(options[CONF_SCAN_INTERVAL]), MIN_SCAN_INTERVAL)
+            for key, (_default, minimum, _maximum, _unit) in INTERVALS.items():
+                options[key] = max(int(options[key]), minimum)
             return self.async_create_entry(data=options)
 
         options = self.config_entry.options
-        person = options.get(CONF_PERSON_ID) or await self._detect_person()
-        fields: dict[Any, Any] = {
-            vol.Required(
-                CONF_SCAN_INTERVAL, default=options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
-            ): NumberSelector(
-                NumberSelectorConfig(min=MIN_SCAN_INTERVAL, max=3600, step=1, mode=NumberSelectorMode.BOX)
-            ),
-            vol.Required(CONF_SHOW_NAMES, default=options.get(CONF_SHOW_NAMES, False)): BooleanSelector(),
-            vol.Optional(CONF_PERSON_ID, description={"suggested_value": person} if person else {}): TEXT,
-        }
+
+        def number(key: str) -> tuple[vol.Required, NumberSelector]:
+            default, minimum, maximum, _unit = INTERVALS[key]
+            return vol.Required(key, default=options.get(key, default)), NumberSelector(
+                NumberSelectorConfig(min=minimum, max=maximum, step=1, mode=NumberSelectorMode.BOX)
+            )
+
+        fields: dict[Any, Any] = dict(
+            [
+                number(CONF_SCAN_INTERVAL),
+                (
+                    vol.Required(CONF_SHOW_NAMES, default=options.get(CONF_SHOW_NAMES, False)),
+                    BooleanSelector(),
+                ),
+                (
+                    vol.Required(
+                        CONF_PERSONAL_DATA, default=options.get(CONF_PERSONAL_DATA, DEFAULT_PERSONAL_DATA)
+                    ),
+                    BooleanSelector(),
+                ),
+                number(CONF_PERSONAL_INTERVAL),
+                number(CONF_EVENTS_INTERVAL),
+                number(CONF_STATISTICS_INTERVAL),
+            ]
+        )
         return self.async_show_form(step_id="init", data_schema=vol.Schema(fields))
-
-    async def _detect_person(self) -> str | None:
-        """Suggest your own person GUID, only if it is in the personnel list.
-
-        security/users/authorize returns the signed-in user's personGuid. It is only
-        suggested when the same GUID appears in the personnel lookup, so a mismatch
-        leaves the field empty instead of pointing at the wrong person.
-        """
-        coordinator = getattr(self.config_entry, "runtime_data", None)
-        if coordinator is None:
-            return None
-        persons = ((coordinator.data or {}).get("personnel") or {}).get("persons") or []
-        try:
-            me = (await coordinator.api.current_user()).get("personGuid")
-        except VerdiError:
-            return None
-        if isinstance(me, str) and any(p.get("id") == me for p in persons):
-            return me
-        return None

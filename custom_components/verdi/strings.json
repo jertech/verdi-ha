@@ -60,11 +60,14 @@
     "step": {
       "init": {
         "title": "Verdi options",
-        "description": "With \"Show colleagues' names\" off, on-duty sensors show filled or open and calendar events show only the function. When on, colleagues' names and shift times are stored in Home Assistant's history. If your person GUID could be detected, it is suggested below.",
+        "description": "With \"Show colleagues' names\" off, on-duty sensors show filled or open and calendar events show only the function. When on, colleagues' names and shift times are stored in Home Assistant's history. \"Your own data from the Verdi app\" adds your own availability, pre-alert, garrison, statistics and planning, read with the same token through the read commands of Verdi's app route.",
         "data": {
-          "scan_interval": "Poll interval (seconds, at least 60)",
+          "scan_interval": "Station poll interval (seconds, at least 60)",
           "show_names": "Show colleagues' names",
-          "person_id": "My person GUID (for the 'My availability' sensor)"
+          "personal_data": "Your own data from the Verdi app",
+          "personal_interval": "Your availability, pre-alert and garrison: poll interval (seconds, at least 10)",
+          "events_interval": "Your shifts and availability calendars: poll interval (minutes, at least 1)",
+          "statistics_interval": "Your statistics: poll interval (hours, at least 1; also just after midnight and after an intervention)"
         }
       }
     }
@@ -76,6 +79,12 @@
       },
       "vehicle_on_intervention": {
         "name": "{vehicle} on intervention"
+      },
+      "pre_alert": {
+        "name": "Pre-alert"
+      },
+      "garrison": {
+        "name": "Garrison"
       }
     },
     "sensor": {
@@ -98,6 +107,12 @@
       "my_availability": {
         "name": "My availability"
       },
+      "availability_year": {
+        "name": "Availability this year {station}"
+      },
+      "times_called": {
+        "name": "Times called {station} {service}"
+      },
       "token_expiry": {
         "name": "Token expires"
       }
@@ -105,6 +120,12 @@
     "calendar": {
       "roster": {
         "name": "Roster"
+      },
+      "my_shifts": {
+        "name": "My shifts"
+      },
+      "my_availability": {
+        "name": "My availability"
       }
     }
   },
