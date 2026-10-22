@@ -167,3 +167,5 @@ def accept_token(hass: HomeAssistant, entry: ConfigEntry, token: str, new_sub: s
     elif entry.state is ConfigEntryState.LOADED:
         _LOGGER.debug("Token for %s received, valid until %s", entry.title, exp)
         entry.runtime_data.api.set_token(token)
+        # Coordinators only notify on data changes; the expiry sensor reads the token.
+        entry.runtime_data.async_update_listeners()

@@ -86,6 +86,13 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
+@pytest.fixture(autouse=True)
+def predictable(monkeypatch):
+    """Jitter and delays take the middle of their range; no pause between calls."""
+    monkeypatch.setattr("custom_components.verdi.schedule.make_rng", MidRandom)
+    monkeypatch.setattr("custom_components.verdi.coordinator.CALL_GAP", (0.0, 0.0))
+
+
 @pytest.fixture
 def config_entry() -> MockConfigEntry:
     return MockConfigEntry(

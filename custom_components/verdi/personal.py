@@ -30,7 +30,7 @@ from .const import (
     STATISTICS_AFTER_INTERVENTION,
     STATISTICS_DAILY_AT,
 )
-from .coordinator import Fetch, LookupCoordinator, Parser, VerdiCoordinator, interval
+from .coordinator import Fetch, Lookup, LookupCoordinator, Parser, VerdiCoordinator, pace
 
 
 def request_language(hass: HomeAssistant) -> str:
@@ -66,7 +66,8 @@ class Personal:
         return (self.fast, self.events, self.statistics)
 
 
-def create_personal(hass: HomeAssistant, entry: ConfigEntry, api: VerdiApi) -> Personal:
+def create_personal(hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator) -> Personal:
+    api = station.api
     person, language = PersonId(api), request_language(hass)
 
     async def events() -> dict[str, Any]:
@@ -81,10 +82,12 @@ def create_personal(hass: HomeAssistant, entry: ConfigEntry, api: VerdiApi) -> P
             entry,
             api,
             f"{DOMAIN} {name}",
-            interval(entry.options, option),
-            lookups,
-            keep_on_failure=True,
+            {key: Lookup(fetch, parser) for key, (fetch, parser) in lookups.items()},
+            pace=lambda: pace(entry.options, option),
             retry=timedelta(seconds=PERSONAL_RETRY_SECONDS),
+            keep_on_failure=True,
+            guard=station.guard,
+            rng=station.rng,
         )
 
     return Personal(
@@ -132,11 +135,11 @@ class StatisticsTriggers:
         entry.async_on_unload(self._cancel)
 
     async def _daily(self, _now: datetime) -> None:
-        await self._statistics.async_request_refresh()
+        await self._statistics.async_refresh_lookup("statistics")
 
     async def _after_intervention(self, _now: datetime) -> None:
         self._pending = None
-        await self._statistics.async_request_refresh()
+        await self._statistics.async_refresh_lookup("statistics")
 
     @callback
     def _station_updated(self) -> None:
@@ -161,7 +164,7 @@ class StatisticsTriggers:
 async def async_setup_personal(
     hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator
 ) -> Personal:
-    personal = create_personal(hass, entry, station.api)
+    personal = create_personal(hass, entry, station)
     for coordinator in personal.coordinators:
         await coordinator.async_refresh()
     StatisticsTriggers(hass, entry, station, personal.statistics)

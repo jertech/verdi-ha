@@ -62,14 +62,17 @@ async def test_reauth_when_grace_ends(hass: HomeAssistant, config_entry, mock_ap
     assert list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
 
 
-async def test_rejected_token_starts_reauth(hass: HomeAssistant, config_entry):
-    with patch("custom_components.verdi.api.VerdiApi.command", fake_command(VerdiAuthError("401"))):
+async def test_rejected_token_at_setup_retries_first(hass: HomeAssistant, config_entry):
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(VerdiAuthError("401"))),
+        patch("custom_components.verdi.api.VerdiApi.current_user", side_effect=VerdiAuthError("401")),
+    ):
         config_entry.add_to_hass(hass)
         get_store(hass).tokens[config_entry.entry_id] = make_token()
         await hass.config_entries.async_setup(config_entry.entry_id)
         await hass.async_block_till_done()
-    assert config_entry.state is ConfigEntryState.SETUP_ERROR
-    assert list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert not list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
 
 
 async def test_expired_token_is_not_used(hass: HomeAssistant, config_entry, mock_api):

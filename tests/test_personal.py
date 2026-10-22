@@ -76,10 +76,10 @@ async def test_statistics_refresh_after_intervention_changes(hass: HomeAssistant
     on_intervention = copy.deepcopy(r.VEHICLES)
     on_intervention["data"][0]["isOnIntervention"] = True
     responses[VEHICLES] = on_intervention
-    await station.async_refresh()
+    await station.async_refresh_lookup("vehicles")
     await tick(hass, freezer, 60)
     responses[VEHICLES] = r.VEHICLES
-    await station.async_refresh()  # a second change restarts the wait
+    await station.async_refresh_lookup("vehicles")  # a second change restarts the wait
     await tick(hass, freezer, 61)
     assert len(app_calls(calls, STATS)) == 1  # only setup's
     await tick(hass, freezer, 60)
