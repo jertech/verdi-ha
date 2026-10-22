@@ -386,4 +386,11 @@ def all_ok() -> dict:
         "configuration/team/groups/commands": TEAMS,
         "planning/functioncalendars/commands": ROSTER,
         "planning/functioncalendar/events/commands": CALENDAR,
+        "mobile/app/commands": {
+            "GetPersonCurrentAvailabilityCarouselInformationCommand": CAROUSEL,
+            "GetPersonCurrentPreAlertInformationCommand": PRE_ALERTS_NONE,
+            "GetPersonCurrentGarrisonInformationCommand": GARRISON_NONE,
+            "AppGetPersonStatisticsCommand": STATISTICS,
+            "AppGetUpcomingEventsCommand": UPCOMING,
+        },
     }
