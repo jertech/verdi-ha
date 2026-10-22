@@ -18,10 +18,10 @@ from .const import (
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
     CONF_FUNCTION_CALENDAR_ID,
-    CONF_PERSON_ID,
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
+    LEGACY_PERSON_ID,
 )
 from .coordinator import lookup_counts
 from .token import get_store
@@ -32,7 +32,7 @@ TO_REDACT = {
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
     CONF_FUNCTION_CALENDAR_ID,
-    CONF_PERSON_ID,
+    LEGACY_PERSON_ID,
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,

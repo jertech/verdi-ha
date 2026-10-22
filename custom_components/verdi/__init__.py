@@ -25,6 +25,7 @@ from .const import (
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
     ISSUE_MISSING_CONFIG,
+    LEGACY_PERSON_ID,
     LEGACY_TOKEN_KEYS,
     MIN_SCAN_INTERVAL,
     REQUIRED_DATA,
@@ -110,7 +111,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> No
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bool:
-    if entry.version > 2:
+    if entry.version > 3:
         return False
     if entry.version == 1:
         # Version 2 keeps tokens in memory only, and adds the names toggle. Existing
@@ -123,4 +124,8 @@ async def async_migrate_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> b
         options.setdefault(CONF_SHOW_NAMES, True)
         hass.config_entries.async_update_entry(entry, data=data, options=options, version=2)
         _LOGGER.debug("Migrated Verdi entry to version 2")
+    if entry.version == 2:
+        options = {k: v for k, v in entry.options.items() if k != LEGACY_PERSON_ID}
+        hass.config_entries.async_update_entry(entry, options=options, version=3)
+        _LOGGER.debug("Migrated Verdi entry to version 3")
     return True

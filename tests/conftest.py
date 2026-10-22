@@ -80,7 +80,7 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 def config_entry() -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
-        version=2,
+        version=3,
         unique_id="station-1",
         title="Verdi",
         data=dict(DATA),

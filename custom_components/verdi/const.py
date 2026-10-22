@@ -17,7 +17,6 @@ CONF_ACCOUNT_SUB = "account_sub"
 
 # entry.options
 CONF_SCAN_INTERVAL = "scan_interval"
-CONF_PERSON_ID = "person_id"
 CONF_SHOW_NAMES = "show_names"
 CONF_PERSONAL_DATA = "personal_data"
 CONF_PERSONAL_INTERVAL = "personal_interval"  # seconds
@@ -31,6 +30,9 @@ CONF_ACCEPT = "accept_disclaimer"
 
 # Removed in config entry version 2.
 LEGACY_TOKEN_KEYS = ("token", "token_file")
+
+# Removed in config entry version 3: your person GUID now comes from security/users/authorize.
+LEGACY_PERSON_ID = "person_id"
 
 API_PATH = "/verdi-core/api/v1"
 
