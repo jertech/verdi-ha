@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import json
 from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from typing import Any
 
 import aiohttp
@@ -52,6 +53,34 @@ class VerdiError(Exception):
 
 class VerdiAuthError(VerdiError):
     """The token is missing, expired or rejected."""
+
+
+class VerdiUnavailable(VerdiError):
+    """Verdi is busy or unreachable: 429, 5xx, a timeout or a connection error.
+
+    retry_after: seconds Verdi asked to wait, if it said so.
+    """
+
+    def __init__(self, message: str, retry_after: float | None = None) -> None:
+        super().__init__(message)
+        self.retry_after = retry_after
+
+
+def retry_after(value: str | None) -> float | None:
+    """Seconds from a Retry-After header (seconds or an HTTP date), between 0 and an hour."""
+    if not value:
+        return None
+    try:
+        seconds = float(value)
+    except ValueError:
+        try:
+            when = parsedate_to_datetime(value)
+        except (TypeError, ValueError):
+            return None
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=UTC)
+        seconds = (when - datetime.now(UTC)).total_seconds()
+    return min(max(seconds, 0.0), 3600.0)
 
 
 def clean_token(token: str) -> str:
@@ -122,11 +151,17 @@ class VerdiApi:
             ) as resp:
                 if resp.status in (401, 403):
                     raise VerdiAuthError(f"{path}: HTTP {resp.status}")
+                if resp.status == 429 or resp.status >= 500:
+                    raise VerdiUnavailable(
+                        f"{path}: HTTP {resp.status}", retry_after(resp.headers.get("Retry-After"))
+                    )
                 if resp.status != 200:
                     raise VerdiError(f"{path}: HTTP {resp.status}")
                 data = await resp.json(content_type=None)
         except aiohttp.ClientError as err:
-            raise VerdiError(f"{path}: {type(err).__name__}") from err
+            raise VerdiUnavailable(f"{path}: {type(err).__name__}") from err
+        except TimeoutError as err:
+            raise VerdiUnavailable(f"{path}: timeout") from err
         except ValueError as err:
             raise VerdiError(f"{path}: invalid JSON") from err
         if not isinstance(data, dict):
