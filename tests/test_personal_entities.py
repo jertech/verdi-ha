@@ -110,6 +110,7 @@ async def test_pre_alert_and_garrison_on(hass: HomeAssistant, config_entry):
         "Station North",
         "Driver",
     )
+    assert "end" not in pre.attributes
     garrison = hass.states.get("binary_sensor.verdi_garrison")
     assert garrison.state == "on"
     assert (garrison.attributes["station"], garrison.attributes["city"]) == ("Station North", "Northville")

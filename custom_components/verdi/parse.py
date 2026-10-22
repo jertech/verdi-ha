@@ -99,6 +99,7 @@ def personnel_summary(data: dict[str, Any]) -> dict[str, Any]:
                 "on_intervention": bool(p.get("isOnIntervention")),
                 "on_pre_alert": bool(p.get("isOnPreAlert")),
                 "present": bool(p.get("isPresent")),
+                "garrison_crew": bool(p.get("isGarrisonCrew")),
             }
             for p in persons
         ],
@@ -124,26 +125,35 @@ def teams_on_duty(data: dict[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
-def _shift(slot: dict[str, Any] | None, names: bool) -> dict[str, Any] | None:
+def _shift(slot: dict[str, Any] | None, names: bool, me: str | None) -> dict[str, Any] | None:
     if not slot:
         return None
-    shift = {"start": slot.get("start"), "end": slot.get("end")}
+    # Only whether the shift is yours is kept, never another person's ID.
+    shift = {
+        "start": slot.get("start"),
+        "end": slot.get("end"),
+        "mine": bool(me) and slot.get("personId") == me,
+    }
     if names:
         shift["name"] = full_name(slot)
     return shift
 
 
-def roster(data: dict[str, Any], names: bool = False) -> list[dict[str, Any]]:
+def roster(data: dict[str, Any], names: bool = False, me: str | None = None) -> list[dict[str, Any]]:
     return [
         {
             "id": item.get("functionCalendarCrewFunctionId"),
             "function": clean(item.get("crewFunctionName")),
             "description": clean(item.get("functionCalendarCrewFunctionDescription")),
-            "current": _shift(item.get("current"), names),
-            "next": _shift(item.get("next"), names),
+            "current": _shift(item.get("current"), names, me),
+            "next": _shift(item.get("next"), names, me),
         }
         for item in data.get("items") or []
     ]
+
+
+def calendar_summary(function: str | None, person: str | None) -> str:
+    return f"{function}: {person}" if person and function else person or function or "Shift"
 
 
 def calendar_events(
@@ -159,14 +169,15 @@ def calendar_events(
         function_id = (e.get("functionCalendarCrewFunction") or {}).get("guid")
         function = function_names.get(function_id)
         person = (full_name(e.get("person")) or "?") if names else None
-        summary = f"{function}: {person}" if person and function else person or function or "Shift"
+        person = (full_name(e.get("person")) or "?") if names else None
         events.append(
             {
                 "id": e.get("guid"),
                 "start": e.get("start"),
                 "end": e.get("end"),
-                "summary": summary,
+                "summary": calendar_summary(function, person),
                 "function_id": function_id,
+                "person": person,
             }
         )
     return events

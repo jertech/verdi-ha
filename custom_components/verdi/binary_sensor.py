@@ -22,6 +22,14 @@ PARALLEL_UPDATES = 0
 READINESS_ATTRS = ("group", "fastest_response_time", "slowest_response_time", "positions")
 
 
+def _first_pre_alert(alerts: list[dict[str, Any]] | None) -> dict[str, Any] | None:
+    """The first pre-alert; its end is left out until Verdi sends one."""
+    if not alerts:
+        return None
+    first = alerts[0]
+    return {k: v for k, v in first.items() if k != "end"} if first.get("end") is None else first
+
+
 async def async_setup_entry(
     hass: HomeAssistant, entry: VerdiConfigEntry, async_add_entities: AddConfigEntryEntitiesCallback
 ) -> None:
@@ -54,9 +62,7 @@ async def async_setup_entry(
         )
     if c.personal is not None:
         entities += [
-            PersonalBinarySensor(
-                c.personal.fast, "pre_alert", "pre_alerts", bool, lambda v: v[0] if v else None
-            ),
+            PersonalBinarySensor(c.personal.fast, "pre_alert", "pre_alerts", bool, _first_pre_alert),
             PersonalBinarySensor(
                 c.personal.fast,
                 "garrison",

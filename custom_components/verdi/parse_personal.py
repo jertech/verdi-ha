@@ -86,6 +86,10 @@ def my_availability(data: dict[str, Any]) -> dict[str, Any] | None:
     overall = data.get("globalAvailability")
     if not isinstance(overall, dict):
         return None
+    blocks = [overall]
+    for key in ("stationAvailabilities", "stationPlanningGroupAvailabilities", "planningGroupAvailabilities"):
+        blocks += [b for b in data.get(key) or [] if isinstance(b, dict)]
+    ends = sorted({end for b in blocks if (end := _moment(b.get("end")))})
     return {
         "availability": clean(overall.get("availabilityName")),
         "end": _moment(overall.get("end")),
@@ -93,6 +97,7 @@ def my_availability(data: dict[str, Any]) -> dict[str, Any] | None:
         "garrison_crew": bool(overall.get("isGarrisonCrew")),
         "stations": _by_name(data.get("stationAvailabilities"), "stationName"),
         "planning_groups": _by_name(data.get("planningGroupAvailabilities"), "planningGroupName"),
+        "ends": ends,
     }
 
 
@@ -103,6 +108,11 @@ def pre_alerts(data: dict[str, Any]) -> list[dict[str, Any]]:
             "station": _label(alert.get("station")),
             "function": _label(alert.get("function")),
             "start": _moment(alert.get("start")),
+            "end": _moment(
+                (alert.get("current") or {}).get("end")
+                if isinstance(alert.get("current"), dict)
+                else alert.get("end")
+            ),
         }
         for alert in data.get("preAlarms") or []
         if isinstance(alert, dict)
