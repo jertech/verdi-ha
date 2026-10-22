@@ -1,0 +1,167 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Parsing the app route's answers about yourself, against synthetic responses and scrubbed fixtures."""
+
+import json
+from datetime import datetime
+from pathlib import Path
+from zoneinfo import ZoneInfo
+
+import pytest
+
+from custom_components.verdi import parse_personal as p
+from tests import responses as r
+
+FIX = Path(__file__).parent / "fixtures"
+TZ = ZoneInfo("Europe/Brussels")
+NOW = datetime(2026, 6, 15, 20, 0, tzinfo=TZ)
+
+
+def load(name: str) -> dict:
+    return json.loads((FIX / f"{name}.json").read_text(encoding="utf-8"))
+
+
+@pytest.mark.parametrize(
+    "text", ["wo. 21 okt, 17:31", "mer.. 21 oct., 17:31", "Wed. 21 Oct, 17:31", "21 okt., 17:31"]
+)
+def test_last_called_in_each_language(text):
+    now = datetime(2026, 10, 22, 12, 0, tzinfo=TZ)
+    assert p.last_called(text, now) == datetime(2026, 10, 21, 17, 31, tzinfo=TZ)
+
+
+@pytest.mark.parametrize(
+    ("word", "month"),
+    [("mrt", 3), ("mars", 3), ("Mar", 3), ("mei", 5), ("mai", 5), ("May", 5), ("févr", 2), ("août", 8),
+     ("juil", 7), ("déc", 12), ("Dec", 12), ("sept", 9)],
+)  # fmt: skip
+def test_last_called_months(word, month):
+    now = datetime(2026, 12, 31, 23, 0, tzinfo=TZ)
+    assert p.last_called(f"vr. 10 {word}, 10:00", now).month == month
+
+
+def test_last_called_new_year_belongs_to_previous_year():
+    now = datetime(2027, 1, 1, 8, 0, tzinfo=TZ)
+    assert p.last_called("do. 31 dec, 23:00", now) == datetime(2026, 12, 31, 23, 0, tzinfo=TZ)
+
+
+@pytest.mark.parametrize(
+    "text", ["", None, 17, "gisteren", "15 xyz, 10:00", "32 jun, 10:00", "15 jun, 25:00"]
+)
+def test_last_called_unknown_text(text):
+    assert p.last_called(text, NOW) is None
+
+
+def test_my_availability():
+    mine = p.my_availability(r.CAROUSEL)
+    assert mine["availability"] == "Available 5 min"
+    assert mine["end"] == datetime(2026, 6, 15, 23, 59, 10, 598243, tzinfo=TZ)
+    assert mine["color"] == "#00ff00"
+    assert mine["garrison_crew"] is False
+    assert mine["stations"] == {"Station North": "Available 5 min"}
+    assert mine["planning_groups"] == {"All functions": "Available 5 min"}
+    assert p.my_availability({"result": "Success"}) is None
+
+
+def test_pre_alerts_accept_objects_and_text():
+    assert p.pre_alerts(r.PRE_ALERTS) == [
+        {
+            "description": "Storm watch",
+            "station": "Station North",
+            "function": "Driver",
+            "start": datetime(2026, 6, 15, 18, 0, tzinfo=TZ),
+        }
+    ]
+    text = {"preAlarms": [{"description": "Storm watch", "station": "Station North", "function": "Driver"}]}
+    assert p.pre_alerts(text)[0]["station"] == "Station North"
+    assert p.pre_alerts(text)[0]["start"] is None
+    assert p.pre_alerts(r.PRE_ALERTS_NONE) == []
+    assert p.pre_alerts({}) == []
+
+
+def test_garrison():
+    assert p.garrison(r.GARRISON) == {"active": True, "station": "Station North", "city": "Northville"}
+    assert p.garrison(r.GARRISON_NONE) == {"active": False, "station": None, "city": None}
+    assert p.garrison({"currentGarrison": {"guid": None, "station": None}})["active"] is False
+    as_object = {"currentGarrison": {"guid": "g", "station": {"guid": "s", "name": "Station North"}}}
+    assert p.garrison(as_object)["station"] == "Station North"
+
+
+def test_statistics():
+    stats = p.statistics(r.STATISTICS, NOW)
+    assert stats["availability_year"] == [
+        {
+            "id": "station_north",
+            "station": "Station North",
+            "percentage": 34.7,
+            "years": {"2026": 34.7, "2025": 44.1},
+        }
+    ]
+    assert stats["times_called"] == [
+        {
+            "id": "station_north_2_ambulance",
+            "station": "Station North",
+            "service": "2° Ambulance",
+            "value": 16,
+            "last_called": datetime(2026, 6, 15, 17, 0, tzinfo=TZ),
+        },
+        {
+            "id": "station_north_fire",
+            "station": "Station North",
+            "service": "Fire",
+            "value": 17,
+            "last_called": datetime(2026, 6, 15, 12, 0, tzinfo=TZ),
+        },
+    ]
+
+
+def test_statistics_keeps_count_without_readable_time():
+    data = {
+        "interventionCounters": [
+            {"station": "Station North", "values": [{"name": "Fire", "value": 3, "timestamp": "?"}]}
+        ]
+    }
+    assert p.statistics(data, NOW)["times_called"] == [
+        {
+            "id": "station_north_fire",
+            "station": "Station North",
+            "service": "Fire",
+            "value": 3,
+            "last_called": None,
+        }
+    ]
+
+
+def test_upcoming_events_split_dedupe_sort():
+    events = p.upcoming_events(r.UPCOMING)
+    assert [e["summary"] for e in events["shifts"]] == ["🚑 Ambulance 1 · Escort", "🚑 Ambulance 1 · Driver"]
+    assert events["shifts"][0]["description"] == "Crew"
+    assert [e["summary"] for e in events["availability"]] == ["Not available", "All 5 min", "Urgent"]
+    assert events["availability"][1]["description"] == "Station North · All functions"
+    assert events["availability"][0]["end"] == datetime(2027, 6, 30, 10, 0, tzinfo=TZ)
+
+
+def test_upcoming_events_never_carry_the_feed_link():
+    text = json.dumps(p.upcoming_events(r.UPCOMING), default=str)
+    assert "secret-feed-id" not in text
+    assert "calendar/" not in text
+
+
+def test_fixture_availability():
+    mine = p.my_availability(load("app_availability"))
+    assert mine["availability"]
+    assert mine["end"].tzinfo is not None
+    assert len(mine["stations"]) == 1
+    assert len(mine["planning_groups"]) == 1
+
+
+def test_fixture_statistics():
+    stats = p.statistics(load("app_statistics"), NOW)
+    assert len(stats["availability_year"]) == 1  # only one station has intervals
+    assert list(stats["availability_year"][0]["years"]) == ["2026", "2025"]
+    assert len(stats["times_called"]) == 2
+    assert {c["last_called"] for c in stats["times_called"]} == {datetime(2026, 6, 15, 17, 0, tzinfo=TZ)}
+
+
+def test_fixture_upcoming_events():
+    events = p.upcoming_events(load("app_upcoming_events"))
+    assert len(events["shifts"]) == 12
+    assert len(events["availability"]) == 3
