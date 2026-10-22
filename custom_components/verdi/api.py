@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import base64
 import json
+import math
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -80,6 +81,8 @@ def retry_after(value: str | None) -> float | None:
         if when.tzinfo is None:
             when = when.replace(tzinfo=UTC)
         seconds = (when - datetime.now(UTC)).total_seconds()
+    if math.isnan(seconds):
+        return None
     return min(max(seconds, 0.0), 3600.0)
 
 

@@ -58,6 +58,7 @@ async def test_429_with_retry_after_date():
 def test_retry_after_parsing():
     assert retry_after(None) is None
     assert retry_after("soon") is None
+    assert retry_after("nan") is None
     assert retry_after("99999") == 3600
     assert retry_after("-5") == 0
 
