@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.0
+
+- Renamed from "Verdi Token Grabber" to "Verdi Token Relay"; the slug changed from
+  `verdi_token_grabber` to `verdi_token_relay`. Home Assistant treats the renamed app as new:
+  uninstall the old one (this removes its `/data`, including the login state), install this one,
+  and seed `verdi_state.json` again.
+
 ## 0.5.6
 
 - Dutch and French option texts reviewed.

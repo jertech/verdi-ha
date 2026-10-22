@@ -5,7 +5,7 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: pip
-    directory: /verdi_token_grabber
+    directory: /verdi_token_relay
     schedule:
       interval: weekly
   - package-ecosystem: pip
@@ -13,6 +13,6 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: docker
-    directory: /verdi_token_grabber
+    directory: /verdi_token_relay
     schedule:
       interval: weekly

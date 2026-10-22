@@ -43,7 +43,7 @@ REQUIRED_DATA = (
 MIN_SCAN_INTERVAL = 60
 DEFAULT_SCAN_INTERVAL = 120
 
-# After Home Assistant starts, wait this long for the token grabber to push a token
+# After Home Assistant starts, wait this long for the token relay to push a token
 # before asking the user to re-authenticate.
 TOKEN_GRACE_SECONDS = 600
 # Tokens with less time left than this are treated as expired.

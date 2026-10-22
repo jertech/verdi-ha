@@ -49,7 +49,7 @@ Diagnostics downloads contain only counts and settings with every identifier rem
 
 - Home Assistant 2026.4 or later.
 - For automatic token refresh: Home Assistant OS or Supervised (the app), or any machine that can
-  run a long-lived container or service ([standalone grabber](docs/standalone-grabber.md)).
+  run a long-lived container or service ([standalone relay](docs/standalone-relay.md)).
 - A PC with a screen for the one-time login (Windows, macOS or Linux, with Python 3.11+).
 
 ## Installation
@@ -60,11 +60,11 @@ Diagnostics downloads contain only counts and settings with every identifier rem
    with type **Integration**.
 2. Install **Verdi (unofficial)** and restart Home Assistant.
 
-### 2. Token Grabber app (Home Assistant OS)
+### 2. Token Relay app (Home Assistant OS)
 
 1. Go to **Settings > Apps > App store** (called *Add-on store* in older versions), open the menu,
    choose **Repositories** and add `https://github.com/jertech/verdi-ha`.
-2. Install **Verdi Token Grabber**. Don't start it yet.
+2. Install **Verdi Token Relay**. Don't start it yet.
 
 ### 3. One-time login on a PC
 
@@ -75,19 +75,19 @@ python3 -m venv ~/.venvs/verdi && . ~/.venvs/verdi/bin/activate   # Windows: py 
 pip install playwright==1.64.0
 playwright install chromium
 export VERDI_URL=https://yourzone.verdi.cloud VERDI_TENANT=YourTenant VERDI_STATE=~/verdi_state.json   # Windows: set ...
-python3 verdi_token_grabber/verdi_token_grabber.py login
+python3 verdi_token_relay/verdi_token_relay.py login
 ```
 
 Keep the virtual environment and `verdi_state.json` outside the repository folder, as above.
 
-The script is [verdi_token_grabber/verdi_token_grabber.py](verdi_token_grabber/verdi_token_grabber.py).
+The script is [verdi_token_relay/verdi_token_relay.py](verdi_token_relay/verdi_token_relay.py).
 Your tenant name is the value after `tenant:` in the web login (see [docs/finding-your-ids.md](docs/finding-your-ids.md)).
 Sign in in the window that opens. The script saves `verdi_state.json`: **treat it like a password.**
 
 ### 4. Give the login to the app
 
 1. Copy `verdi_state.json` into the app's configuration folder (for example through the Samba app,
-   into the Verdi Token Grabber's folder in the `apps_configs` share).
+   into the Verdi Token Relay's folder in the `apps_configs` share).
 2. In the app's **Configuration** tab, set your Verdi address and tenant, then start the app.
    It moves the file into its private data folder and deletes the copy you dropped in.
 
@@ -103,7 +103,7 @@ suggests it.
 
 ## How the token gets to Home Assistant
 
-The app (or standalone grabber) keeps the current token in memory and posts it to
+The app (or standalone relay) keeps the current token in memory and posts it to
 `POST /api/verdi/token` on Home Assistant every 90 seconds, and right away when Home Assistant
 comes back after a restart. Shortly before a token expires, it runs the normal web login in a
 headless browser, which completes without interaction thanks to the saved login state. After a
@@ -119,7 +119,7 @@ the app.
 
 ## Not using Home Assistant OS?
 
-See [docs/standalone-grabber.md](docs/standalone-grabber.md) for running the grabber as a service.
+See [docs/standalone-relay.md](docs/standalone-relay.md) for running the relay as a service.
 
 ## Security
 

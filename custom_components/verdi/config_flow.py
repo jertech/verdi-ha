@@ -3,7 +3,7 @@
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
 """Config, reconfigure, reauth and options flows for Verdi.
 
-Tokens normally arrive from the Verdi Token Grabber through POST /api/verdi/token.
+Tokens normally arrive from the Verdi Token Relay through POST /api/verdi/token.
 A pasted token is accepted for testing only: it expires in about an hour.
 """
 
@@ -195,7 +195,7 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
         return await self.async_step_reauth_confirm()
 
     async def async_step_reauth_confirm(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
-        """Normally resolved by the grabber's next push, which aborts this flow.
+        """Normally resolved by the relay's next push, which aborts this flow.
 
         Pasting a token here is for testing only.
         """

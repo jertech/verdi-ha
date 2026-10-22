@@ -14,15 +14,15 @@ ROOT = Path(__file__).resolve().parent.parent
 
 def main() -> int:
     manifest = json.loads((ROOT / "custom_components/verdi/manifest.json").read_text())["version"]
-    match = re.search(r'^version:\s*"([^"]+)"', (ROOT / "verdi_token_grabber/config.yaml").read_text(), re.M)
+    match = re.search(r'^version:\s*"([^"]+)"', (ROOT / "verdi_token_relay/config.yaml").read_text(), re.M)
     addon = match.group(1) if match else None
     errors = []
     if addon != manifest:
         errors.append(f"app version {addon} != integration version {manifest}")
-    script = (ROOT / "verdi_token_grabber/verdi_token_grabber.py").read_text()
+    script = (ROOT / "verdi_token_relay/verdi_token_relay.py").read_text()
     match = re.search(r'^VERSION = "([^"]+)"', script, re.M)
     if (match.group(1) if match else None) != manifest:
-        errors.append(f"VERSION in verdi_token_grabber.py != integration version {manifest}")
+        errors.append(f"VERSION in verdi_token_relay.py != integration version {manifest}")
     if len(sys.argv) > 1:
         tag = sys.argv[1].removeprefix("refs/tags/").removeprefix("v")
         if tag != manifest:

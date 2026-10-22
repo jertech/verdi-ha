@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""Token hand-off: the token grabber pushes tokens to POST /api/verdi/token.
+"""Token hand-off: the token relay pushes tokens to POST /api/verdi/token.
 
 Tokens live in memory only, never in the config entry, a file or a log. The view is
 admin-only and write-only: it answers with a fixed result code and never echoes input.

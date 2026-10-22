@@ -8,11 +8,11 @@ RUN pip install --no-cache-dir -r /app/requirements.txt \
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 
-COPY verdi_token_grabber.py run.sh /app/
+COPY verdi_token_relay.py run.sh /app/
 RUN chmod +x /app/run.sh
 
 LABEL org.opencontainers.image.source="https://github.com/jertech/verdi-ha" \
       org.opencontainers.image.licenses="GPL-3.0-or-later" \
-      org.opencontainers.image.description="Verdi Token Grabber (unofficial)"
+      org.opencontainers.image.description="Verdi Token Relay (unofficial)"
 
 CMD ["/app/run.sh"]

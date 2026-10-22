@@ -12,9 +12,9 @@ if [ -n "${SUPERVISOR_TOKEN:-}" ]; then
         # When this login state was made: the app logs its age with every new token.
         date -u +%Y-%m-%dT%H:%M:%S+00:00 > /data/verdi_state.json.seeded
     fi
-    exec python3 /app/verdi_token_grabber.py run --addon
+    exec python3 /app/verdi_token_relay.py run --addon
 fi
 
 # Standalone container: settings from environment variables, state under /data.
 export VERDI_STATE="${VERDI_STATE:-/data/verdi_state.json}"
-exec python3 /app/verdi_token_grabber.py run
+exec python3 /app/verdi_token_relay.py run

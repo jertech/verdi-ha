@@ -27,7 +27,7 @@ async def test_no_token_after_grace_warns(hass: HomeAssistant, config_entry, moc
     get_store(hass).started = time.monotonic() - 3600
     await hass.config_entries.async_setup(config_entry.entry_id)
     await hass.async_block_till_done()
-    assert warnings_with(caplog, "No token arrived from the Verdi Token Grabber within 10 minutes") == 1
+    assert warnings_with(caplog, "No token arrived from the Verdi Token Relay within 10 minutes") == 1
 
 
 async def test_expired_token_warns_once(hass: HomeAssistant, config_entry, mock_api, caplog):

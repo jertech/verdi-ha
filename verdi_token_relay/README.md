@@ -1,4 +1,4 @@
-# Verdi Token Grabber (unofficial)
+# Verdi Token Relay (unofficial)
 
 Unofficial, not affiliated with Cevi or Verdi, not for operational use, uses your own Verdi
 account and its permissions, use at your own risk.

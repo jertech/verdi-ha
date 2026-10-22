@@ -5,6 +5,20 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.6.0] - unreleased
+
+### App
+- Renamed the app from "Verdi Token Grabber" to "Verdi Token Relay". The name describes it better:
+  it signs in with your own account and relays your token to Home Assistant. The add-on slug changed
+  from `verdi_token_grabber` to `verdi_token_relay`, and the image from `verdi-ha-token-grabber` to
+  `verdi-ha-token-relay`. Because the slug changed, Home Assistant treats this as a new add-on:
+  uninstall the old one (this removes its `/data`, including the login state), install the renamed
+  one, and seed `verdi_state.json` again.
+
+### Integration
+- Wording that referred to the "Token Grabber" now says "Token Relay". Entity IDs and behaviour do
+  not change.
+
 ## [0.5.6] - unreleased
 
 ### Integration
@@ -75,7 +89,7 @@ First public release.
 
 ### Integration
 - Configurable for any Verdi zone; no zone-specific defaults.
-- Tokens are delivered by the Token Grabber through `POST /api/verdi/token` (administrators only)
+- Tokens are delivered by the Token Relay through `POST /api/verdi/token` (administrators only)
   and kept in memory only. The token file and the stored token are removed.
 - New option "Show colleagues' names", off by default for new setups. Existing setups keep names.
 - Your person GUID is entered as text; the integration suggests it when it can confirm it.
@@ -85,7 +99,7 @@ First public release.
 - Removed: the "My intervention" sensor.
 - Config entry version 2: existing entries migrate automatically.
 
-### App (Verdi Token Grabber)
+### App (Verdi Token Relay)
 - Pushes the token to Home Assistant instead of writing a token file; no `/share` access.
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.

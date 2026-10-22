@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""Verdi Token Grabber: keeps a Verdi token in Home Assistant, without stored passwords.
+"""Verdi Token Relay: keeps a Verdi token in Home Assistant, without stored passwords.
 
 Unofficial, not affiliated with Cevi or Verdi, not for operational use. It uses your own
 Verdi account and its permissions. Use at your own risk.
@@ -52,9 +52,9 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-LOG = logging.getLogger("verdi_token_grabber")
+LOG = logging.getLogger("verdi_token_relay")
 
-VERSION = "0.5.6"  # scripts/check_version.py keeps this equal to the app and integration
+VERSION = "0.6.0"  # scripts/check_version.py keeps this equal to the app and integration
 
 PUSH_INTERVAL = 90  # seconds between re-pushes of the current token
 TICK = 10  # main loop resolution; also how fast an HA outage is noticed as over
@@ -271,7 +271,7 @@ def run(s: Settings, addon: bool = False) -> None:
         sys.exit(f"No login state at {s.state}. Run the one-time 'login' step on a PC first.")
     handle_stop_signal()
     LOG.info(
-        "Verdi Token Grabber %s (%s), pushing to Home Assistant every %s s",
+        "Verdi Token Relay %s (%s), pushing to Home Assistant every %s s",
         VERSION,
         "app" if addon else "standalone",
         PUSH_INTERVAL,

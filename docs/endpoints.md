@@ -16,5 +16,5 @@ Paths are relative to `<your Verdi address>/verdi-core/api/v1/`.
 | POST | `planning/functioncalendar/events/commands` | `FunctionCalendarEventGetForCalendarCommand` | Roster calendar |
 | GET | `security/users/authorize` | - | Suggesting your own person GUID in the options |
 
-The token grabber additionally opens the web login (`<your Verdi address>/auth/connect/authorize`)
+The token relay additionally opens the web login (`<your Verdi address>/auth/connect/authorize`)
 with the same parameters the web app uses, and reads the token from the redirect.
