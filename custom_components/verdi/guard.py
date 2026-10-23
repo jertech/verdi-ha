@@ -52,7 +52,7 @@ class Guard:
             self._wait_until = max(self._wait_until, self._clock() + seconds)
 
     def unavailable(self, retry_after: float | None = None, pace: float = BACKOFF_START) -> None:
-        """Calls to Verdi failed with 429/5xx or could not reach it; once per failed run.
+        """The station's tick failed with 429/5xx or could not reach Verdi; once per failed tick.
 
         No calls until a random time between pace and pace doubled per level (capped), and at
         least retry_after. pace is the caller's normal interval, so backoff is never faster.

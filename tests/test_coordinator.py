@@ -221,7 +221,7 @@ async def test_cap_stops_the_run_and_keeps_the_rest_due(hass: HomeAssistant, con
     assert (a.call_count, b.call_count) == (3, 2)
 
 
-async def test_backoff_does_not_bring_a_retry_forward(hass: HomeAssistant, config_entry):
+async def test_a_failing_lookup_without_a_tick_does_not_back_off(hass: HomeAssistant, config_entry):
     c = make(
         hass,
         config_entry,
@@ -230,7 +230,9 @@ async def test_backoff_does_not_bring_a_retry_forward(hass: HomeAssistant, confi
         keep=True,
     )
     await c.async_refresh()
-    assert c.update_interval == RETRY  # backoff wants 60-120 s, the retry is later
+    assert c.update_interval == RETRY
+    assert c.guard.level == 0
+    assert c.guard.can_call()
 
 
 async def test_manual_refresh_during_a_tick_run(hass: HomeAssistant, config_entry):
@@ -377,6 +379,35 @@ async def test_one_failing_lookup_keeps_the_normal_tick(hass: HomeAssistant, con
     assert (a.call_count, b.call_count, readiness.call_count) == (4, 4, 4)
 
 
+async def test_a_retry_before_the_tick_does_not_back_off(hass: HomeAssistant, config_entry, freezer):
+    """The jittered tick (54-66 s) often comes after a failed lookup's retry (60 s): that run
+    calls only the failing lookup, fetches nothing, and must not back off the whole entry."""
+    a, b = value(1), value(2)
+    readiness = AsyncMock(side_effect=UNAVAILABLE)
+    c = make(
+        hass,
+        config_entry,
+        {
+            "a": Lookup(a, parse),
+            "b": Lookup(b, parse),
+            "readiness": Lookup(readiness, parse, LookupSchedule(safety=timedelta(minutes=15))),
+        },
+        pace=(66.0, 30.0),
+        retry=timedelta(seconds=60),
+    )
+    await c.async_refresh()  # a and b fine, readiness fails: retry at 60 s, tick at 66 s
+    assert c.update_interval == timedelta(seconds=60)
+    freezer.tick(timedelta(seconds=60))
+    await c.async_refresh()  # readiness alone, fails again
+    assert (a.call_count, b.call_count, readiness.call_count) == (1, 1, 2)
+    assert c.guard.level == 0
+    assert c.guard.can_call()
+    assert c.update_interval == timedelta(seconds=6)  # the tick stays at 66 s
+    freezer.tick(timedelta(seconds=6))
+    await c.async_refresh()
+    assert (a.call_count, b.call_count) == (2, 2)
+
+
 async def test_a_mark_during_the_fetch_fetches_again(hass: HomeAssistant, config_entry, freezer):
     calls = []
 
@@ -441,9 +472,14 @@ async def test_person_id_reports_trouble_to_the_guard(hass: HomeAssistant):
     person = PersonId(api, guard)
     api.current_user = AsyncMock(side_effect=VerdiUnavailable("security/users/authorize: timeout"))
     with pytest.raises(VerdiUnavailable):
+        await person.get()
+    assert guard.level == 0  # only a failed station tick backs off
+    assert guard.can_call()
+    api.current_user.side_effect = VerdiUnavailable("security/users/authorize: HTTP 429", retry_after=600)
+    with pytest.raises(VerdiUnavailable):
         await person.get(report=False)  # inside a run: the run reports
-    assert guard.level == 0
+    assert guard.can_call()
     with pytest.raises(VerdiUnavailable):
         await person.get()
-    assert guard.level == 1
+    assert guard.level == 0
     assert not guard.can_call()

@@ -122,8 +122,8 @@ def calendar_change(events: list[dict[str, Any]], now: datetime) -> datetime | N
 class PersonId:
     """Your person GUID from security/users/authorize, asked once and kept in memory.
 
-    The call goes through the guard. report: tell the guard how it went; off inside a
-    coordinator run, which reports for the whole lookup.
+    The call goes through the guard. report: tell the guard how it went (a success, or a
+    Retry-After to honour); off inside a coordinator run, which reports for the whole lookup.
     """
 
     def __init__(self, api: VerdiApi, guard: Guard) -> None:
@@ -139,7 +139,7 @@ class PersonId:
                 user = await self._api.current_user()
             except VerdiUnavailable as err:
                 if report:
-                    self._guard.unavailable(err.retry_after)
+                    self._guard.wait(err.retry_after)
                 raise
             if report:
                 self._guard.succeeded()
@@ -266,7 +266,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         tick = only is None and (self._tick_at is None or now >= self._tick_at - timedelta(seconds=1))
         fetched: list[str] = []
         failed: list[str] = []
-        rejected = blocked = False
+        rejected = blocked = back_off = False
         trouble: VerdiUnavailable | None = None
         for index, (key, lookup) in enumerate(self.lookups.items()):
             if only not in (None, key):
@@ -313,7 +313,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 lookup.schedule.failed(now, reason, self._retry)
                 failed.append(key)
                 if isinstance(err, VerdiUnavailable):
-                    trouble = err
+                    trouble, back_off = err, tick and lookup.schedule.always
                     if tick:
                         self._keep_tick_due(index + 1)
                     break  # Verdi has trouble: no more calls in this run
@@ -327,12 +327,13 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 fetched.append(key)
                 self._fetched(key, value, old)
         self._failing = (self._failing - set(fetched)) | set(failed)
-        if trouble is not None:
-            if fetched:  # Verdi works; the failing lookup has its own retry
-                self.guard.wait(trouble.retry_after)
-            else:
-                current = self._pace()
-                self.guard.unavailable(trouble.retry_after, current[0] if current else BACKOFF_START)
+        if back_off and trouble is not None:
+            # The tick's own lookups failed: the whole entry waits. Any other failing lookup
+            # has its own retry and must not slow the station down.
+            current = self._pace()
+            self.guard.unavailable(trouble.retry_after, current[0] if current else BACKOFF_START)
+        elif trouble is not None:
+            self.guard.wait(trouble.retry_after)
         if self.on_run:
             self.on_run(data, previous)
         if tick and (current := self._pace()):
