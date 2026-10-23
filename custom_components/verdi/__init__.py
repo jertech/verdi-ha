@@ -101,6 +101,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     coordinator = VerdiCoordinator(hass, entry, token)
     personal = create_personal(hass, entry, coordinator)
     signals = Signals(hass, entry, coordinator, personal)
+    # Without the list, personnel only lists the configured availabilities; a failure is retried later.
+    with suppress(VerdiError):
+        await coordinator.availabilities.load()
     if personal is not None:
         # Your own line in personnel and your roster shifts need it; a failure is retried later.
         with suppress(VerdiError):

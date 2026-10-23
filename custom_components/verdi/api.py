@@ -42,6 +42,7 @@ ALLOWED_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
             "planning/functioncalendar/events/commands",
             "FunctionCalendarEventGetForCalendarCommand",
         ),
+        ("POST", "domaindata/person/availabilities/displayitems", None),
         ("GET", "security/users/authorize", None),
     }
     | {("POST", APP_ROUTE, command) for command in APP_COMMANDS}
@@ -212,6 +213,20 @@ class VerdiApi:
                 "teamFilter": None,
                 "functionCalendarFilter": None,
                 "vehicleCalendarFilter": None,
+            },
+        )
+
+    async def availabilities(self, station_id: str, skip: int, take: int) -> dict[str, Any]:
+        """The station's plannable availabilities, as the web app's availability filter lists them."""
+        return await self.command(
+            "domaindata/person/availabilities/displayitems",
+            {
+                "filter": [
+                    {"field": "allowPlanning", "value": "true", "operator": "Eq"},
+                    {"field": "station", "value": station_id, "operator": "Contains"},
+                ],
+                "skip": skip,
+                "take": take,
             },
         )
 

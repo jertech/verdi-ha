@@ -22,7 +22,8 @@ web interface makes while you use its dashboard.
 | Crew function IDs | `planning/functioncalendars/commands` | `functionCalendarCrewFunctionIds` |
 | Function calendar ID | `planning/functioncalendar/events/commands` (open the roster) | `functionCalendarId` |
 
-Lists go into the integration comma-separated.
+Lists go into the integration comma-separated. Once the integration runs, the availabilities can
+also be picked by name in its options (**Station**).
 
 ## Tenant name (for the Token Relay)
 

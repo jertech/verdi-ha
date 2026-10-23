@@ -11,6 +11,7 @@ during an intervention, and refreshes statistics once a day between 00:05 and 01
 from __future__ import annotations
 
 import zlib
+from contextlib import suppress
 from datetime import date, datetime, timedelta
 from typing import Any
 
@@ -57,7 +58,7 @@ class Signals:
         self._picked = set(entry.options.get(CONF_WATCHED_VEHICLES) or [])
         self._ready = self._marked = False
         self._stats_first: datetime | None = None
-        self._person_retry_at: datetime | None = None
+        self._retry_at: datetime | None = None
         self._unsub_daily: CALLBACK_TYPE | None = None
         self._stopped = False
         station.on_fetched, station.on_run = self._station_fetched, self._station_run
@@ -106,8 +107,8 @@ class Signals:
         if mine is None:
             for key in OWN:
                 self._mark(key, "trigger:no_own_line")
-            if me is None:
-                self._retry_person()
+            if me is None or self._station.availabilities.listed is None:
+                self._retry_missing()
             return
         was = _person(old, me)
         if old is None:
@@ -126,19 +127,21 @@ class Signals:
         if mine["on_intervention"] != bool(was.get("on_intervention")):
             self._statistics_soon("trigger:own_intervention")
 
-    def _retry_person(self) -> None:
+    def _retry_missing(self) -> None:
+        """Ask again for your person GUID or the availability list, whichever is missing."""
         now = dt_util.now()
-        if self._person_retry_at and now < self._person_retry_at:
+        if self._retry_at and now < self._retry_at:
             return
-        self._person_retry_at = now + timedelta(seconds=PERSONAL_RETRY_SECONDS)
+        self._retry_at = now + timedelta(seconds=PERSONAL_RETRY_SECONDS)
 
         async def ask() -> None:
-            try:
+            with suppress(VerdiError):
                 await self._station.person.get()
-            except VerdiError:
-                return
+            if self._station.availabilities.listed is None:
+                with suppress(VerdiError):
+                    await self._station.availabilities.load()
 
-        self._entry.async_create_background_task(self._hass, ask(), "verdi person retry")
+        self._entry.async_create_background_task(self._hass, ask(), "verdi own line retry")
 
     def _statistics_soon(self, reason: str) -> None:
         """Statistics a while after a trigger; later triggers push it back, within a limit."""

@@ -5,6 +5,22 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.8.2] - unreleased
+
+### Integration
+- Your own availability, pre-alert, garrison and intervention are now seen in the personnel list
+  whatever your availability. Personnel is requested with all of the station's availabilities, so
+  your line is there even when your availability isn't one of the configured ones (such as "not
+  available"); before, your availability was then fetched separately on every tick. The personnel
+  sensor still counts only the configured availabilities.
+- The availabilities are listed by name in the options (Station), so you no longer need their IDs;
+  configured IDs the list doesn't have stay selectable.
+- New read: the station's availability list (`domaindata/person/availabilities/displayitems`), once
+  per load of the integration.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.8.1] - unreleased
 
 ### Integration

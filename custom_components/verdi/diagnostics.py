@@ -60,6 +60,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
             "expires": (exp.isoformat() if (exp := token_expiry(token)) else None),
         },
         "counts": lookup_counts(data),
+        "availabilities": coordinator.availabilities.diagnostics() if coordinator else None,
         "personal": personal_counts(coordinator.personal) if coordinator else None,
         "schedules": {
             "station": coordinator.schedule_diagnostics(now) if coordinator else None,

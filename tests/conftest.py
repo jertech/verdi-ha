@@ -48,7 +48,7 @@ DATA = {
     CONF_FUNCTION_CALENDAR_ID: "cal-1",
     CONF_VEHICLE_TRAIN_IDS: ["train-1"],
     CONF_CREW_FUNCTION_IDS: ["cf-1"],
-    CONF_AVAILABILITY_IDS: ["av-1"],
+    CONF_AVAILABILITY_IDS: ["av-1", "av-2"],
 }
 
 

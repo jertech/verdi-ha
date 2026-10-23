@@ -260,16 +260,30 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class VerdiOptionsFlow(OptionsFlowWithReload):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
+        errors: dict[str, str] = {}
         if user_input is not None:
+            entry = self.config_entry
             # Keys the form doesn't show (such as paged) stay as they are.
-            options = dict(self.config_entry.options)
+            options = dict(entry.options)
             options[CONF_SHOW_NAMES] = bool(user_input[CONF_SHOW_NAMES])
             for name in (STATION, OWN_DATA, SAFETY):
                 options.update(user_input.get(name) or {})
+            # The availabilities are settings in entry.data, picked here by name.
+            availability_ids = [str(v) for v in options.pop(CONF_AVAILABILITY_IDS, None) or []]
             for key in (*STATION_INTERVALS, *SAFETY_INTERVALS):
                 options[key] = max(int(options[key]), INTERVALS[key][1])
             options[CONF_WATCHED_VEHICLES] = [str(v) for v in options.get(CONF_WATCHED_VEHICLES) or []]
-            return self.async_create_entry(data=options)
+            if not availability_ids:
+                errors["base"] = "no_availability"
+            else:
+                if availability_ids != list(entry.data.get(CONF_AVAILABILITY_IDS) or []):
+                    self.hass.config_entries.async_update_entry(
+                        entry, data={**entry.data, CONF_AVAILABILITY_IDS: availability_ids}
+                    )
+                    if options == dict(entry.options):
+                        # The flow only reloads the entry when the options change.
+                        self.hass.config_entries.async_schedule_reload(entry.entry_id)
+                return self.async_create_entry(data=options)
 
         options = self.config_entry.options
 
@@ -285,6 +299,15 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
         ] = SelectSelector(
             SelectSelectorConfig(options=self._vehicles(), multiple=True, mode=SelectSelectorMode.DROPDOWN)
         )
+        station[
+            vol.Required(
+                CONF_AVAILABILITY_IDS, default=list(self.config_entry.data.get(CONF_AVAILABILITY_IDS) or [])
+            )
+        ] = SelectSelector(
+            SelectSelectorConfig(
+                options=self._availabilities(), multiple=True, mode=SelectSelectorMode.DROPDOWN
+            )
+        )
         own = {vol.Required(key, default=enabled(options, key)): BooleanSelector() for key in OWN_SWITCHES}
         fields: dict[Any, Any] = {
             vol.Required(CONF_SHOW_NAMES, default=options.get(CONF_SHOW_NAMES, False)): BooleanSelector(),
@@ -294,7 +317,7 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
                 vol.Schema(dict(number(key) for key in SAFETY_INTERVALS)), {"collapsed": True}
             ),
         }
-        return self.async_show_form(step_id="init", data_schema=vol.Schema(fields))
+        return self.async_show_form(step_id="init", data_schema=vol.Schema(fields), errors=errors)
 
     def _vehicles(self) -> list[SelectOptionDict]:
         """The station's vehicles from the last poll, plus watched ones no longer listed."""
@@ -303,4 +326,13 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
         seen = {v["id"]: v["name"] or v["id"] for v in vehicles if v.get("id")}
         for vehicle_id in self.config_entry.options.get(CONF_WATCHED_VEHICLES) or []:
             seen.setdefault(vehicle_id, vehicle_id)
+        return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]
+
+    def _availabilities(self) -> list[SelectOptionDict]:
+        """The station's availabilities by name, plus configured ones the list doesn't have."""
+        coordinator = getattr(self.config_entry, "runtime_data", None)
+        listed = (coordinator.availabilities.listed or {}) if coordinator else {}
+        seen = dict(listed)
+        for availability_id in self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []:
+            seen.setdefault(availability_id, availability_id)
         return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]

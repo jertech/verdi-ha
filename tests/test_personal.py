@@ -57,7 +57,7 @@ async def test_setup_burst_is_small(hass: HomeAssistant, config_entry, api, free
     hass.config.language = "fr"
     await setup_with_token(hass, config_entry)
     assert [c[1] for c in app_calls(calls)] == [AVAILABILITY]
-    assert len([c for c in calls if c[0] != APP_ROUTE]) == 6
+    assert len([c for c in calls if c[0] != APP_ROUTE]) == 7  # the availability list and 6 lookups
     assert user.call_count == 1
     await tick(hass, freezer, 330)
     assert sorted(c[1] for c in app_calls(calls)) == sorted([AVAILABILITY, EVENTS, STATS])
