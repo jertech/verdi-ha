@@ -17,8 +17,8 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `sensor.<name>_team_on_duty_<group>` | Current team, next team and rotation time |
 | `sensor.<name>_on_duty_<function>` | Whether a crew function is filled now (or who, see privacy) |
 | `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group (with "Your own data") |
-| `binary_sensor.<name>_pre_alert` | Whether you have a pre-alert |
-| `binary_sensor.<name>_garrison` | Whether you're on garrison |
+| `binary_sensor.<name>_pre_alert` | Whether you have a pre-alert (off by default; switch on in the options) |
+| `binary_sensor.<name>_garrison` | Whether you're on garrison (off by default; switch on in the options) |
 | `sensor.<name>_availability_this_year_<station>` | Your availability % this year at a station; earlier years as attributes |
 | `sensor.<name>_times_called_<station>_<service>` | How often you were called for a service, with the last call |
 | `calendar.<name>_my_shifts` | Your own shifts, about a month ahead |
@@ -28,8 +28,11 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 
 The integration only reads. It calls the endpoints listed in [docs/endpoints.md](docs/endpoints.md),
 with the same requests the Verdi web interface makes for the station data, and the read commands of
-Verdi's app route for your own data. The station data is polled every 120 seconds by default
-(60 seconds at the fastest).
+Verdi's app route for your own data. Each lookup is fetched only when it's due: personnel and vehicles every tick (60 seconds by
+default, 30 seconds during an intervention), the rest when the station data shows a change, at a
+time Verdi announced (a team rotation, a shift change, the end of your availability), or after a
+safety interval. While Verdi has trouble, polling slows down; it never makes more than 30 calls a
+minute.
 
 ## Privacy
 
@@ -108,11 +111,14 @@ Sign in in the window that opens. The script saves `verdi_state.json`: **treat i
 Verdi address and the IDs ([how to find them](docs/finding-your-ids.md)). The app delivers a token
 within about 90 seconds; until then the integration shows as "retrying setup".
 
-Options (**Configure** on the integration): the station poll interval, "Show colleagues' names",
-and "Your own data from the Verdi app" (on by default) with its poll intervals: your availability,
-pre-alert and garrison every 60 seconds (at least 10), your calendars every 10 minutes, and your
-statistics every 6 hours, plus just after midnight and two minutes after a vehicle of your station
-starts or ends an intervention.
+Options (**Configure** on the integration):
+- "Show colleagues' names";
+- **Station:** the tick (default 60 seconds, at least 30), the tick during an intervention
+  (default 30, at least 15) and the vehicles that count for interventions (none picked: all);
+- **Your own data from the Verdi app:** one switch each for your availability, pre-alert,
+  garrison, your calendars and your statistics (pre-alert and garrison off by default);
+- **Safety intervals:** the longest time between two fetches of readiness, roster, team on duty,
+  your availability, pre-alert and garrison, your calendars and your statistics.
 
 ## How the token gets to Home Assistant
 

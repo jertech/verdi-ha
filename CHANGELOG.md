@@ -5,6 +5,34 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.8.0] - unreleased
+
+### Integration
+- Each lookup is fetched only when it's due, which cuts the load on Verdi by more than half:
+  - personnel and vehicles every tick (default 60 s, at least 30 s; was 120 s), and every 30 s
+    (at least 15 s) while a vehicle or a person of your station is on an intervention or a pre-alert;
+  - readiness when personnel or vehicles changed, team on duty at its rotation time, roster and
+    roster calendar at their next shift change;
+  - your availability when your own line in the personnel list changes or your availability ends,
+    pre-alert and garrison when your flags there change, your calendars when your availability or
+    your roster shifts change, statistics after an intervention and once a day between 00:05 and 01:05;
+  - every lookup also after a safety interval (options).
+- New options, in sections: the tick during an intervention, the vehicles that count for
+  interventions, one switch per kind of your own data, and the safety intervals.
+- Pre-alert and garrison are now **off by default**, also for existing installs; switch them on
+  in the options if your zone uses them. Existing entries are migrated (config entry version 4);
+  intervals still on an old default move to the new one.
+- A short glitch where Verdi rejects the token no longer asks you to sign in again: that only
+  happens when it lasts two minutes. While Verdi has trouble (busy, errors, timeouts), polling
+  slows down to at most every 5 minutes and honours Retry-After; at most 30 calls a minute.
+- The roster calendar's current shift no longer freezes after startup; calendar views are kept
+  in memory for 5 minutes.
+- "Update entity" on a Verdi entity fetches only that entity's data.
+- Diagnostics show per lookup how often and why it ran.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.7.0] - unreleased
 
 ### Integration
