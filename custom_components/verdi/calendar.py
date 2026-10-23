@@ -30,10 +30,10 @@ async def async_setup_entry(
     entities: list[CalendarEntity] = []
     if entry.data.get(CONF_FUNCTION_CALENDAR_ID):
         entities.append(VerdiRosterCalendar(c))
-    if c.personal is not None:
+    if (p := c.personal) is not None and "events" in p.lookups:
         entities += [
-            PersonalCalendar(c.personal.events, "my_shifts", "shifts"),
-            PersonalCalendar(c.personal.events, "my_availability", "availability"),
+            PersonalCalendar(p, "my_shifts", "shifts"),
+            PersonalCalendar(p, "my_availability", "availability"),
         ]
     async_add_entities(entities)
 

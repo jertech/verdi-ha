@@ -59,17 +59,19 @@ async def async_setup_entry(
                 {"vehicle": v["name"] or "?"},
             )
         )
-    if c.personal is not None:
-        entities += [
-            PersonalBinarySensor(c.personal.fast, "pre_alert", "pre_alerts", bool, _first_pre_alert),
-            PersonalBinarySensor(
-                c.personal.fast,
-                "garrison",
-                "garrison",
-                lambda v: v["active"],
-                lambda v: {"station": v["station"], "city": v["city"]} if v["active"] else None,
-            ),
-        ]
+    if (p := c.personal) is not None:
+        if "pre_alerts" in p.lookups:
+            entities.append(PersonalBinarySensor(p, "pre_alert", "pre_alerts", bool, _first_pre_alert))
+        if "garrison" in p.lookups:
+            entities.append(
+                PersonalBinarySensor(
+                    p,
+                    "garrison",
+                    "garrison",
+                    lambda v: v["active"],
+                    lambda v: {"station": v["station"], "city": v["city"]} if v["active"] else None,
+                )
+            )
     async_add_entities(entities)
 
 

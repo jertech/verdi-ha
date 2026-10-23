@@ -20,7 +20,6 @@ from homeassistant.helpers.typing import ConfigType
 
 from .api import VerdiError
 from .const import (
-    CONF_PAGED,
     CONF_SCAN_INTERVAL,
     CONF_SHOW_NAMES,
     DOMAIN,
@@ -36,9 +35,9 @@ from .const import (
     REQUIRED_DATA,
     TOKEN_GRACE_SECONDS,
 )
-from .coordinator import VerdiCoordinator, enabled
+from .coordinator import VerdiCoordinator
 from .guard import drop_guard
-from .personal import async_setup_personal
+from .personal import StatisticsTriggers, create_personal
 from .token import VerdiTokenView, get_store
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,14 +98,16 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
         )
 
     coordinator = VerdiCoordinator(hass, entry, token)
-    personal_on = any(enabled(entry.options, key) for key in FEATURES if key != CONF_PAGED)
-    if personal_on:
+    personal = create_personal(hass, entry, coordinator)
+    if personal is not None:
         # Your own line in personnel and your roster shifts need it; a failure is retried later.
         with suppress(VerdiError):
             await coordinator.person.get()
     await coordinator.async_config_entry_first_refresh()
-    if personal_on:
-        coordinator.personal = await async_setup_personal(hass, entry, coordinator)
+    if personal is not None:
+        await personal.async_refresh()
+        StatisticsTriggers(hass, entry, coordinator, personal)
+    coordinator.personal = personal
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

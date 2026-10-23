@@ -13,7 +13,7 @@ import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -49,9 +49,6 @@ from .const import (
 from .guard import Guard, get_guard
 from .schedule import MANUAL, TICK, LookupSchedule, earliest_after, jittered
 from .token import get_store
-
-if TYPE_CHECKING:
-    from .personal import Personal
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -395,7 +392,7 @@ class VerdiCoordinator(LookupCoordinator):
             rng=rng,
         )
         self.show_names: bool = names
-        self.personal: Personal | None = None
+        self.personal: LookupCoordinator | None = None
 
     def _tick(self) -> tuple[float, float]:
         key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL

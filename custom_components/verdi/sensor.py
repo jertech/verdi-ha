@@ -100,9 +100,11 @@ async def async_setup_entry(
             )
         )
     async_add_entities(entities)
-    if c.personal is not None:
-        async_add_entities([MyAvailabilitySensor(c.personal.fast)])
-        _add_statistics_sensors(entry, c.personal.statistics, async_add_entities)
+    if (p := c.personal) is not None:
+        if "availability" in p.lookups:
+            async_add_entities([MyAvailabilitySensor(p)])
+        if "statistics" in p.lookups:
+            _add_statistics_sensors(entry, p, async_add_entities)
 
 
 def _add_statistics_sensors(
