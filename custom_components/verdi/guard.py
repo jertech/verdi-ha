@@ -14,7 +14,7 @@ from typing import Any
 
 from homeassistant.core import HomeAssistant
 
-from .const import BACKOFF_MAX, CALL_CAP, DOMAIN, REJECTED_WINDOW
+from .const import BACKOFF_MAX, BACKOFF_START, CALL_CAP, DOMAIN, REJECTED_WINDOW
 
 GUARDS = f"{DOMAIN}_guards"
 
@@ -46,11 +46,20 @@ class Guard:
     def succeeded(self) -> None:
         self.level, self._rejected_since = 0, None
 
-    def unavailable(self, retry_after: float | None = None) -> None:
-        """Verdi answered 429/5xx or could not be reached."""
+    def wait(self, seconds: float | None) -> None:
+        """No calls for this many seconds."""
+        if seconds:
+            self._wait_until = max(self._wait_until, self._clock() + seconds)
+
+    def unavailable(self, retry_after: float | None = None, pace: float = BACKOFF_START) -> None:
+        """Calls to Verdi failed with 429/5xx or could not reach it; once per failed run.
+
+        No calls until a random time between pace and pace doubled per level (capped), and at
+        least retry_after. pace is the caller's normal interval, so backoff is never faster.
+        """
         self.level = min(self.level + 1, 10)
-        if retry_after:
-            self._wait_until = max(self._wait_until, self._clock() + retry_after)
+        cap = max(pace, min(pace * 2**self.level, BACKOFF_MAX))
+        self.wait(max(self._rng.uniform(pace, cap), retry_after or 0.0))
 
     def rejected(self) -> bool:
         """A 401/403. True once they have lasted REJECTED_WINDOW seconds without a success."""
@@ -63,16 +72,9 @@ class Guard:
     def backing_off(self) -> bool:
         return self.level > 0 or self._clock() < self._wait_until
 
-    def delay(self, base: float | None) -> float | None:
-        """Seconds until the next run: base, stretched while backing off or asked to wait."""
-        wait = base
-        if self.level:
-            start = base or 60.0
-            cap = max(start, min(start * 2**self.level, BACKOFF_MAX))
-            wait = self._rng.uniform(start, cap)
-        if (left := self._wait_until - self._clock()) > 0:
-            wait = max(wait or 0.0, left)
-        return wait
+    def delay(self, base: float) -> float:
+        """Seconds until the next run: base, or longer while calls have to wait."""
+        return max(base, self._wait_until - self._clock())
 
     def diagnostics(self) -> dict[str, Any]:
         since = self._rejected_since

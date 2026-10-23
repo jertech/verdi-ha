@@ -103,12 +103,9 @@ class LookupSchedule:
             return now
         return min((t for t in (self._later, self._known_at, self._safety_at) if t), default=None)
 
-    def _count(self, now: datetime, reason: str) -> None:
-        if self._day != now.date():
-            self._day, self.calls_today = now.date(), 0
-        self.calls_today += 1
-        self.last_fetch, self.last_reason = now, reason
-        # Times that have come are used up; a failure must not leave the lookup due at once.
+    def start(self, now: datetime) -> None:
+        """A fetch starts. Times that have come are used up, so a failure doesn't leave the
+        lookup due at once; a mark made while it is fetched still counts."""
         self._now_reason = None
         if self._later and self._later <= now:
             self._later = self._later_reason = None
@@ -116,6 +113,12 @@ class LookupSchedule:
             self._known_at = None
         if self._safety_at and self._safety_at <= now:
             self._safety_at = None
+
+    def _count(self, now: datetime, reason: str) -> None:
+        if self._day != now.date():
+            self._day, self.calls_today = now.date(), 0
+        self.calls_today += 1
+        self.last_fetch, self.last_reason = now, reason
 
     def fetched(self, now: datetime, value: Any, reason: str, rng: random.Random) -> None:
         self._count(now, reason)
@@ -129,7 +132,8 @@ class LookupSchedule:
 
     def failed(self, now: datetime, reason: str, retry: timedelta) -> None:
         self._count(now, reason)
-        self.mark_due(RETRY, now + retry, replace=True)
+        if not self.always:  # the next tick fetches it anyway
+            self.mark_due(RETRY, now + retry, replace=True)
 
     def diagnostics(self, now: datetime) -> dict[str, Any]:
         due = self.next_due(now)

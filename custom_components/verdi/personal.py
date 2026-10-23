@@ -57,10 +57,10 @@ def create_personal(
     person, language = station.person, request_language(hass)
 
     async def events() -> dict[str, Any]:
-        return await api.upcoming_events(await person.get(), language)
+        return await api.upcoming_events(await person.get(report=False), language)
 
     async def statistics() -> dict[str, Any]:
-        return await api.statistics(await person.get(), language)
+        return await api.statistics(await person.get(report=False), language)
 
     def later() -> datetime:
         return dt_util.now() + timedelta(seconds=station.rng.uniform(*STARTUP_DELAY))

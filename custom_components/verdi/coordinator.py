@@ -25,6 +25,7 @@ from homeassistant.util import dt as dt_util
 from . import parse, schedule
 from .api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable
 from .const import (
+    BACKOFF_START,
     CALL_GAP,
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
@@ -119,15 +120,30 @@ def calendar_change(events: list[dict[str, Any]], now: datetime) -> datetime | N
 
 
 class PersonId:
-    """Your person GUID from security/users/authorize, asked once and kept in memory."""
+    """Your person GUID from security/users/authorize, asked once and kept in memory.
 
-    def __init__(self, api: VerdiApi) -> None:
-        self._api = api
+    The call goes through the guard. report: tell the guard how it went; off inside a
+    coordinator run, which reports for the whole lookup.
+    """
+
+    def __init__(self, api: VerdiApi, guard: Guard) -> None:
+        self._api, self._guard = api, guard
         self.value: str | None = None
 
-    async def get(self) -> str:
+    async def get(self, *, report: bool = True) -> str:
         if self.value is None:
-            guid = (await self._api.current_user()).get("personGuid")
+            if not self._guard.can_call():
+                raise VerdiError("security/users/authorize: waiting before calling Verdi again")
+            self._guard.record_call()
+            try:
+                user = await self._api.current_user()
+            except VerdiUnavailable as err:
+                if report:
+                    self._guard.unavailable(err.retry_after)
+                raise
+            if report:
+                self._guard.succeeded()
+            guid = user.get("personGuid")
             if not isinstance(guid, str) or not guid:
                 raise VerdiError("security/users/authorize: no personGuid")
             self.value = guid
@@ -250,7 +266,8 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         tick = only is None and (self._tick_at is None or now >= self._tick_at - timedelta(seconds=1))
         fetched: list[str] = []
         failed: list[str] = []
-        rejected = False
+        rejected = blocked = False
+        trouble: VerdiUnavailable | None = None
         for index, (key, lookup) in enumerate(self.lookups.items()):
             if only not in (None, key):
                 continue
@@ -258,13 +275,13 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if reason is None:
                 continue
             if not self.guard.can_call():
-                if tick:  # the rest of this tick's lookups stay due for the next wake
-                    for rest in list(self.lookups.values())[index:]:
-                        if rest.schedule.always:
-                            rest.schedule.mark_due(TICK)
+                blocked = True
+                if tick:
+                    self._keep_tick_due(index)
                 break
             if fetched or failed:
                 await self._gap()
+            lookup.schedule.start(now)
             self.guard.record_call()
             try:
                 value = lookup.parse(await lookup.fetch())
@@ -285,8 +302,6 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 rejected = True
                 break  # the token applies to every lookup
             except (VerdiError, KeyError, TypeError, AttributeError) as err:
-                if isinstance(err, VerdiUnavailable):
-                    self.guard.unavailable(err.retry_after)
                 # One failing lookup should not take the other sensors down. The message
                 # holds only the path and status or error type, never response content.
                 if key not in self._failing:
@@ -297,6 +312,11 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     )
                 lookup.schedule.failed(now, reason, self._retry)
                 failed.append(key)
+                if isinstance(err, VerdiUnavailable):
+                    trouble = err
+                    if tick:
+                        self._keep_tick_due(index + 1)
+                    break  # Verdi has trouble: no more calls in this run
             else:
                 self.guard.succeeded()
                 self._rejected_logged = False
@@ -307,11 +327,20 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 fetched.append(key)
                 self._fetched(key, value, old)
         self._failing = (self._failing - set(fetched)) | set(failed)
+        if trouble is not None:
+            if fetched:  # Verdi works; the failing lookup has its own retry
+                self.guard.wait(trouble.retry_after)
+            else:
+                current = self._pace()
+                self.guard.unavailable(trouble.retry_after, current[0] if current else BACKOFF_START)
         if self.on_run:
             self.on_run(data, previous)
         if tick and (current := self._pace()):
             self._tick_at = now + timedelta(seconds=jittered(current[0], self.rng, current[1]))
         self.update_interval = self._next_interval(now)
+        if blocked and not previous:
+            # Entities are made from the first data; setup is tried again later.
+            raise UpdateFailed("Waiting before calling Verdi again")
         if failed and not fetched:
             # Off-tick and single-lookup runs never take earlier values away; a tick only
             # fails when nothing could be fetched and the coordinator doesn't keep values.
@@ -332,10 +361,13 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self._tick_at:
             moments.append(self._tick_at)
         wait = max((min(moments) - now).total_seconds(), MIN_WAKE) if moments else float(IDLE_WAKE)
-        if self.guard.backing_off:
-            current = self._pace()
-            wait = max(wait, self.guard.delay(min(wait, current[0]) if current else wait) or 0.0)
-        return timedelta(seconds=wait)
+        return timedelta(seconds=self.guard.delay(wait))
+
+    def _keep_tick_due(self, start: int) -> None:
+        """The tick's lookups from index start on weren't fetched: they stay due for the next wake."""
+        for rest in list(self.lookups.values())[start:]:
+            if rest.schedule.always:
+                rest.schedule.mark_due(TICK)
 
 
 class VerdiCoordinator(LookupCoordinator):
@@ -348,7 +380,8 @@ class VerdiCoordinator(LookupCoordinator):
         names = bool(o.get(CONF_SHOW_NAMES, False))
         rng = schedule.make_rng()
         api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
-        self.person = PersonId(api)
+        guard = get_guard(hass, entry.entry_id, rng)
+        self.person = PersonId(api, guard)
         self.intervention = False
         lookups = {
             "personnel": Lookup(
@@ -392,7 +425,7 @@ class VerdiCoordinator(LookupCoordinator):
             lookups,
             pace=self._tick,
             retry=interval(o, CONF_SCAN_INTERVAL),
-            guard=get_guard(hass, entry.entry_id, rng),
+            guard=guard,
             rng=rng,
         )
         self.show_names: bool = names
