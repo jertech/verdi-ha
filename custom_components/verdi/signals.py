@@ -11,7 +11,7 @@ during an intervention, and refreshes statistics once a day between 00:05 and 01
 from __future__ import annotations
 
 import zlib
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -59,6 +59,7 @@ class Signals:
         self._stats_first: datetime | None = None
         self._person_retry_at: datetime | None = None
         self._unsub_daily: CALLBACK_TYPE | None = None
+        self._stopped = False
         station.on_fetched, station.on_run = self._station_fetched, self._station_run
         if personal is not None:
             personal.on_fetched = self._personal_fetched
@@ -144,8 +145,8 @@ class Signals:
         if self._personal is None or "statistics" not in self._personal.lookups:
             return
         now = dt_util.now()
-        if self._stats_first is None:
-            self._stats_first = now
+        if self._stats_first is None or now - self._stats_first >= timedelta(seconds=STATISTICS_MAX_DELAY):
+            self._stats_first = now  # a burst starts; also after a failed fetch left the last one behind
         at = min(
             self._later(STATISTICS_AFTER_INTERVENTION),
             self._stats_first + timedelta(seconds=STATISTICS_MAX_DELAY),
@@ -171,12 +172,12 @@ class Signals:
         elif key == "availability" and old is not None and new != old:
             self._mark("events", "trigger:availability", self._later())
 
-    def _schedule_daily(self) -> None:
+    def _schedule_daily(self, first_day: date | None = None) -> None:
         hour, minute = STATISTICS_DAILY_AT
         offset = zlib.crc32(self._entry.entry_id.encode()) % DAILY_OFFSET_MAX
         offset += self._station.rng.uniform(0, DAILY_JITTER)
         now = dt_util.now()
-        day = now.date()
+        day = first_day or now.date()
         while True:
             when = dt_util.start_of_local_day(day) + timedelta(hours=hour, minutes=minute, seconds=offset)
             if when > now:
@@ -186,13 +187,17 @@ class Signals:
 
     async def _daily(self, _now: datetime) -> None:
         self._unsub_daily = None
-        if self._personal is not None:
-            self._personal.mark_due("statistics", "daily")
-            await self._personal.async_request_refresh()
-        self._schedule_daily()
+        try:
+            if self._personal is not None:
+                self._personal.mark_due("statistics", "daily")
+                await self._personal.async_request_refresh()
+        finally:
+            if not self._stopped:
+                self._schedule_daily(dt_util.now().date() + timedelta(days=1))
 
     @callback
     def _stop(self) -> None:
+        self._stopped = True
         if self._unsub_daily:
             self._unsub_daily()
             self._unsub_daily = None

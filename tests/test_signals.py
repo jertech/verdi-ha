@@ -11,10 +11,10 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
-from custom_components.verdi.const import DAILY_OFFSET_MAX
+from custom_components.verdi.const import DAILY_JITTER, DAILY_OFFSET_MAX
 from custom_components.verdi.token import get_store
 from tests import responses as r
-from tests.conftest import fake_command, make_token, setup_with_token
+from tests.conftest import MidRandom, fake_command, make_token, setup_with_token
 
 AVAILABILITY = "GetPersonCurrentAvailabilityCarouselInformationCommand"
 PRE, STATS, EVENTS = (
@@ -215,3 +215,51 @@ async def test_your_roster_shift_fetches_events(hass: HomeAssistant, config_entr
     await tick(hass, freezer, 60)
     await tick(hass, freezer, 31)
     assert count(calls, EVENTS) == base + 1
+
+
+async def test_one_daily_refresh_per_night(hass: HomeAssistant, config_entry, api, freezer, monkeypatch):
+    """A later jitter draw at rescheduling must not give a second refresh the same night."""
+    _, calls, _ = api
+    draws = iter([10.0, 800.0, 10.0, 800.0])
+
+    class Jitter(MidRandom):
+        def uniform(self, a, b):
+            return next(draws) if (a, b) == (0, DAILY_JITTER) else super().uniform(a, b)
+
+    monkeypatch.setattr("custom_components.verdi.schedule.make_rng", Jitter)
+    await hass.config.async_set_time_zone("Europe/Brussels")
+    freezer.move_to("2026-06-15T23:00:00+02:00")
+    await setup_with_token(hass, config_entry)
+    get_store(hass).tokens[config_entry.entry_id] = make_token(lifetime=86400 * 3)
+    await tick(hass, freezer, 330)
+    base = count(calls, STATS)
+    offset = zlib.crc32(config_entry.entry_id.encode()) % DAILY_OFFSET_MAX
+    freezer.move_to("2026-06-16T00:05:00+02:00")
+    await tick(hass, freezer, offset + 11)
+    assert count(calls, STATS) == base + 1
+    await tick(hass, freezer, 1000)  # past the second draw of the same night
+    assert count(calls, STATS) == base + 1
+    freezer.move_to("2026-06-17T00:05:00+02:00")
+    await tick(hass, freezer, offset + 11)
+    assert count(calls, STATS) == base + 2
+
+
+async def test_failed_statistics_do_not_skip_the_delay(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)
+    base = count(calls, STATS)
+    responses[APP_ROUTE][STATS] = VerdiError("down")
+    responses[VEHICLES]["data"][0]["isOnIntervention"] = True
+    await config_entry.runtime_data.async_refresh_lookup("vehicles")
+    await tick(hass, freezer, 151)  # the failed fetch
+    assert count(calls, STATS) == base + 1
+    await tick(hass, freezer, 700)  # still failing, retried every 300 s; past 600 s after the first flip
+    responses[APP_ROUTE][STATS] = r.all_ok()[APP_ROUTE][STATS]
+    before = count(calls, STATS)
+    responses[VEHICLES]["data"][0]["isOnIntervention"] = False
+    await config_entry.runtime_data.async_refresh_lookup("vehicles")
+    await tick(hass, freezer, 140)
+    assert count(calls, STATS) == before
+    await tick(hass, freezer, 11)
+    assert count(calls, STATS) == before + 1
