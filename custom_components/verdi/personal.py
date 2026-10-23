@@ -14,8 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import CALLBACK_TYPE, HassJob, HomeAssistant, callback
-from homeassistant.helpers.event import async_call_later, async_track_time_change
+from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from . import parse_personal
@@ -33,8 +32,6 @@ from .const import (
     END_DELAY,
     PERSONAL_RETRY_SECONDS,
     STARTUP_DELAY,
-    STATISTICS_AFTER_INTERVENTION,
-    STATISTICS_DAILY_AT,
 )
 from .coordinator import Lookup, LookupCoordinator, VerdiCoordinator, enabled, safety_schedule
 from .schedule import earliest_after
@@ -111,56 +108,6 @@ def create_personal(
         guard=station.guard,
         rng=station.rng,
     )
-
-
-def _on_intervention(data: dict[str, Any] | None) -> frozenset[str]:
-    return frozenset(v["id"] for v in (data or {}).get("vehicles") or [] if v.get("on_intervention"))
-
-
-class StatisticsTriggers:
-    """Refresh statistics at 00:05 local time, and a while after a vehicle of the station starts or
-    ends an intervention, when times called change. Changes close together cause one refresh."""
-
-    def __init__(
-        self, hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator, personal: LookupCoordinator
-    ) -> None:
-        self._hass, self._station, self._personal = hass, station, personal
-        self._seen = _on_intervention(station.data)
-        self._pending: CALLBACK_TYPE | None = None
-        hour, minute = STATISTICS_DAILY_AT
-        entry.async_on_unload(async_track_time_change(hass, self._daily, hour=hour, minute=minute, second=0))
-        entry.async_on_unload(station.async_add_listener(self._station_updated))
-        entry.async_on_unload(self._cancel)
-
-    async def _refresh(self, reason: str) -> None:
-        self._personal.mark_due("statistics", reason)
-        await self._personal.async_request_refresh()
-
-    async def _daily(self, _now: datetime) -> None:
-        await self._refresh("daily")
-
-    async def _after_intervention(self, _now: datetime) -> None:
-        self._pending = None
-        await self._refresh("trigger:vehicle")
-
-    @callback
-    def _station_updated(self) -> None:
-        seen = _on_intervention(self._station.data)
-        if seen == self._seen:
-            return
-        self._seen = seen
-        self._cancel()
-        self._pending = async_call_later(
-            self._hass,
-            STATISTICS_AFTER_INTERVENTION,
-            HassJob(self._after_intervention, cancel_on_shutdown=True),
-        )
-
-    @callback
-    def _cancel(self) -> None:
-        if self._pending:
-            self._pending()
-            self._pending = None
 
 
 def personal_counts(personal: LookupCoordinator | None) -> dict[str, Any] | None:

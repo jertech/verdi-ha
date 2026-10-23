@@ -37,7 +37,8 @@ from .const import (
 )
 from .coordinator import VerdiCoordinator
 from .guard import drop_guard
-from .personal import StatisticsTriggers, create_personal
+from .personal import create_personal
+from .signals import Signals
 from .token import VerdiTokenView, get_store
 
 _LOGGER = logging.getLogger(__name__)
@@ -99,6 +100,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
 
     coordinator = VerdiCoordinator(hass, entry, token)
     personal = create_personal(hass, entry, coordinator)
+    signals = Signals(hass, entry, coordinator, personal)
     if personal is not None:
         # Your own line in personnel and your roster shifts need it; a failure is retried later.
         with suppress(VerdiError):
@@ -106,8 +108,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     await coordinator.async_config_entry_first_refresh()
     if personal is not None:
         await personal.async_refresh()
-        StatisticsTriggers(hass, entry, coordinator, personal)
     coordinator.personal = personal
+    signals.start()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True

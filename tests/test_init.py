@@ -157,3 +157,20 @@ async def test_unload(hass: HomeAssistant, config_entry, mock_api):
     await setup_with_token(hass, config_entry)
     assert await hass.config_entries.async_unload(config_entry.entry_id)
     assert config_entry.state is ConfigEntryState.NOT_LOADED
+
+
+async def test_setup_rejected_token_retries_then_reauths(hass: HomeAssistant, config_entry, freezer):
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(VerdiAuthError("401"))),
+        patch("custom_components.verdi.api.VerdiApi.current_user", side_effect=VerdiAuthError("401")),
+    ):
+        config_entry.add_to_hass(hass)
+        get_store(hass).tokens[config_entry.entry_id] = make_token(lifetime=7200)
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+        assert config_entry.state is ConfigEntryState.SETUP_RETRY
+        freezer.tick(timedelta(seconds=121))
+        await hass.config_entries.async_reload(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))

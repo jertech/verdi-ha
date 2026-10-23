@@ -104,12 +104,13 @@ async def test_teams_at_rotation_and_roster_at_boundary(hass: HomeAssistant, con
 
 
 async def test_intervention_tick(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _, _ = api
     freezer.move_to(NOW)
     await setup_with_token(hass, config_entry)
-    station = config_entry.runtime_data
-    station.intervention = True
+    responses[VEHICLES] = copy.deepcopy(r.VEHICLES)
+    responses[VEHICLES]["data"][0]["isOnIntervention"] = True
     await run(hass, freezer, 60)
-    assert station.update_interval == timedelta(seconds=30)
+    assert config_entry.runtime_data.update_interval == timedelta(seconds=30)
 
 
 async def test_your_roster_shift_is_marked(hass: HomeAssistant, config_entry, api):

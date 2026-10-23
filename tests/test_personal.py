@@ -2,6 +2,7 @@
 """Your own data: which calls go out, in which language, and when."""
 
 import copy
+import zlib
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -10,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
+from custom_components.verdi.const import DAILY_OFFSET_MAX
 from custom_components.verdi.personal import request_language
 from custom_components.verdi.token import get_store
 from tests import responses as r
@@ -121,9 +123,9 @@ async def test_statistics_after_intervention_and_midnight(hass: HomeAssistant, c
     on_intervention["data"][0]["isOnIntervention"] = True
     responses[VEHICLES] = on_intervention
     await config_entry.runtime_data.async_refresh_lookup("vehicles")
-    await tick(hass, freezer, 121)
+    await tick(hass, freezer, 151)
     assert len(app_calls(calls, STATS)) == 2
+    offset = zlib.crc32(config_entry.entry_id.encode()) % DAILY_OFFSET_MAX + 450
     freezer.move_to("2026-06-16T00:05:00+02:00")
-    async_fire_time_changed(hass)
-    await hass.async_block_till_done()
+    await tick(hass, freezer, offset + 1)
     assert len(app_calls(calls, STATS)) == 3
