@@ -9,8 +9,10 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
+from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from .const import DOMAIN
+from .coordinator import LookupCoordinator
 
 
 def device_info(entry: ConfigEntry) -> DeviceInfo:
@@ -24,3 +26,16 @@ def device_info(entry: ConfigEntry) -> DeviceInfo:
 
 def find(items: list[dict[str, Any]] | None, item_id: str) -> dict[str, Any] | None:
     return next((i for i in items or [] if i.get("id") == item_id), None)
+
+
+class VerdiEntity(CoordinatorEntity[LookupCoordinator]):
+    """A Verdi entity on the entry's device. update_entity fetches only its own lookup."""
+
+    _attr_has_entity_name = True
+    lookup: str | None = None
+
+    async def async_update(self) -> None:
+        if self.lookup is None:
+            self.async_write_ha_state()
+            return
+        await self.coordinator.async_refresh_lookup(self.lookup)

@@ -11,11 +11,10 @@ from typing import Any
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import VerdiConfigEntry
 from .coordinator import LookupCoordinator, VerdiCoordinator
-from .entity import device_info, find
+from .entity import VerdiEntity, device_info, find
 
 PARALLEL_UPDATES = 0
 
@@ -74,8 +73,8 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class VerdiListBinarySensor(CoordinatorEntity[VerdiCoordinator], BinarySensorEntity):
-    _attr_has_entity_name = True
+class VerdiListBinarySensor(VerdiEntity, BinarySensorEntity):
+    coordinator: VerdiCoordinator
 
     def __init__(
         self,
@@ -89,6 +88,7 @@ class VerdiListBinarySensor(CoordinatorEntity[VerdiCoordinator], BinarySensorEnt
     ) -> None:
         super().__init__(coordinator)
         self._section, self._item_id, self._value, self._attrs = section, item_id, value, attrs
+        self.lookup = section
         self._attr_translation_key = translation_key
         self._attr_translation_placeholders = placeholders
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{section}_{item_id}_bin"
@@ -111,10 +111,8 @@ class VerdiListBinarySensor(CoordinatorEntity[VerdiCoordinator], BinarySensorEnt
         return self._attrs(self._item) if self._item else None
 
 
-class PersonalBinarySensor(CoordinatorEntity[LookupCoordinator], BinarySensorEntity):
+class PersonalBinarySensor(VerdiEntity, BinarySensorEntity):
     """On while you have a pre-alert, or while you're on garrison."""
-
-    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -126,6 +124,7 @@ class PersonalBinarySensor(CoordinatorEntity[LookupCoordinator], BinarySensorEnt
     ) -> None:
         super().__init__(coordinator)
         self._key, self._value, self._attrs = key, value, attrs
+        self.lookup = key
         self._attr_translation_key = translation_key
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{translation_key}"
         self._attr_device_info = device_info(coordinator.config_entry)

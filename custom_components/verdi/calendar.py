@@ -12,14 +12,13 @@ from typing import Any
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import VerdiConfigEntry, parse
 from .api import VerdiError
 from .const import CALENDAR_CACHE, CONF_FUNCTION_CALENDAR_ID
 from .coordinator import LookupCoordinator, VerdiCoordinator
-from .entity import device_info
+from .entity import VerdiEntity, device_info
 
 PARALLEL_UPDATES = 0
 
@@ -47,11 +46,12 @@ def _to_event(item: dict[str, Any]) -> CalendarEvent | None:
     return CalendarEvent(start=start, end=end, summary=item["summary"], uid=item["id"])
 
 
-class VerdiRosterCalendar(CoordinatorEntity[VerdiCoordinator], CalendarEntity):
+class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
     """Shifts of the function calendar. Current and next come from the station's polls; a
     calendar view asks Verdi for its range, served from memory for a few minutes."""
 
-    _attr_has_entity_name = True
+    coordinator: VerdiCoordinator
+    lookup = "roster_calendar"
     _attr_translation_key = "roster"
 
     def __init__(self, coordinator: VerdiCoordinator) -> None:
@@ -99,10 +99,10 @@ class VerdiRosterCalendar(CoordinatorEntity[VerdiCoordinator], CalendarEntity):
         return next((e for e in upcoming if e.end > now), None)
 
 
-class PersonalCalendar(CoordinatorEntity[LookupCoordinator], CalendarEntity):
+class PersonalCalendar(VerdiEntity, CalendarEntity):
     """Your own shifts, or your availability events, about a month ahead, from the last poll."""
 
-    _attr_has_entity_name = True
+    lookup = "events"
 
     def __init__(self, coordinator: LookupCoordinator, translation_key: str, section: str) -> None:
         super().__init__(coordinator)
