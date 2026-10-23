@@ -138,7 +138,7 @@ class Signals:
             except VerdiError:
                 return
 
-        self._entry.async_create_task(self._hass, ask())
+        self._entry.async_create_background_task(self._hass, ask(), "verdi person retry")
 
     def _statistics_soon(self, reason: str) -> None:
         """Statistics a while after a trigger; later triggers push it back, within a limit."""
@@ -163,7 +163,9 @@ class Signals:
         )
         if self._marked and self._ready and self._personal is not None:
             self._marked = False
-            self._entry.async_create_task(self._hass, self._personal.async_request_refresh())
+            self._entry.async_create_background_task(
+                self._hass, self._personal.async_request_refresh(), "verdi personal refresh"
+            )
 
     @callback
     def _personal_fetched(self, key: str, new: Any, old: Any) -> None:
