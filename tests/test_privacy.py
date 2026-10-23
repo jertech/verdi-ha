@@ -108,3 +108,21 @@ async def test_diagnostics_without_personal_data(hass: HomeAssistant, config_ent
     await setup_with_token(hass, config_entry, options=ALL_OFF)
     diag = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
     assert diag["personal"] is None
+
+
+async def test_diagnostics_show_schedules_and_pace(hass: HomeAssistant, config_entry, mock_api, hass_client):
+    assert await async_setup_component(hass, "diagnostics", {})
+    await setup_with_token(hass, config_entry)
+    diag = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
+    station = diag["schedules"]["station"]
+    assert set(station) == {"personnel", "vehicles", "readiness", "teams", "roster", "roster_calendar"}
+    assert set(station["teams"]) == {"calls_today", "last_fetch", "last_reason", "next_due"}
+    assert station["personnel"]["last_reason"] == "startup"
+    assert set(diag["schedules"]["personal"]) == {"availability", "events", "statistics"}
+    assert diag["pace"] in ("normal", "intervention")
+    assert set(diag["guard"]) == {
+        "backoff_level",
+        "calls_last_minute",
+        "cap_per_minute",
+        "rejected_for_seconds",
+    }

@@ -398,6 +398,12 @@ class VerdiCoordinator(LookupCoordinator):
         key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL
         return pace(self.config_entry.options, key)
 
+    @property
+    def pace_name(self) -> str:
+        if self.guard.backing_off:
+            return "backoff"
+        return "intervention" if self.intervention else "normal"
+
     def _fetched(self, key: str, new: Any, old: Any) -> None:
         if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
             self.mark_due("readiness", f"trigger:{key}")
