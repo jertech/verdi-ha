@@ -5,8 +5,8 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
-from datetime import datetime, timedelta
+import time
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
@@ -17,7 +17,7 @@ from homeassistant.util import dt as dt_util
 
 from . import VerdiConfigEntry, parse
 from .api import VerdiError
-from .const import CONF_FUNCTION_CALENDAR_ID
+from .const import CALENDAR_CACHE, CONF_FUNCTION_CALENDAR_ID
 from .coordinator import LookupCoordinator, VerdiCoordinator
 from .entity import device_info
 
@@ -48,6 +48,9 @@ def _to_event(item: dict[str, Any]) -> CalendarEvent | None:
 
 
 class VerdiRosterCalendar(CoordinatorEntity[VerdiCoordinator], CalendarEntity):
+    """Shifts of the function calendar. Current and next come from the station's polls; a
+    calendar view asks Verdi for its range, served from memory for a few minutes."""
+
     _attr_has_entity_name = True
     _attr_translation_key = "roster"
 
@@ -57,40 +60,43 @@ class VerdiRosterCalendar(CoordinatorEntity[VerdiCoordinator], CalendarEntity):
         self._calendar_id = entry.data[CONF_FUNCTION_CALENDAR_ID]
         self._attr_unique_id = f"{entry.entry_id}_roster_calendar"
         self._attr_device_info = device_info(entry)
-        self._upcoming: list[CalendarEvent] = []
+        self._cache: dict[tuple[datetime, datetime], tuple[float, list[CalendarEvent]]] = {}
 
-    def _function_names(self) -> dict[str, str]:
+    def _events(self, items: list[dict[str, Any]]) -> list[CalendarEvent]:
         roster = (self.coordinator.data or {}).get("roster") or []
-        return {r["id"]: r["function"] for r in roster if r.get("id")}
-
-    async def _fetch(self, start: datetime, end: datetime) -> list[CalendarEvent]:
-        data = await self.coordinator.api.calendar_events(self._calendar_id, start, end)
-        items = parse.calendar_events(data, self._function_names(), names=self.coordinator.show_names)
-        events = [_to_event(e) for e in items]
+        functions = {r["id"]: r["function"] for r in roster if r.get("id")}
+        events = [
+            _to_event({**i, "summary": parse.calendar_summary(functions.get(i["function_id"]), i["person"])})
+            for i in items
+        ]
         return sorted((e for e in events if e), key=lambda e: e.start)
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
+        key = (start_date, end_date)
+        cached = self._cache.get(key)
+        if cached and time.monotonic() - cached[0] < CALENDAR_CACHE:
+            return cached[1]
+        guard = self.coordinator.guard
+        if not guard.can_call():
+            return cached[1] if cached else []
+        guard.record_call()
         try:
-            return await self._fetch(start_date, end_date)
+            data = await self.coordinator.api.calendar_events(self._calendar_id, start_date, end_date)
         except VerdiError:
-            return []
-
-    async def async_update(self) -> None:
-        await super().async_update()
-        now = dt_util.utcnow()
-        with suppress(VerdiError):
-            self._upcoming = await self._fetch(now - timedelta(hours=24), now + timedelta(days=7))
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        await self.async_update()
+            return cached[1] if cached else []
+        events = self._events(parse.calendar_events(data, names=self.coordinator.show_names))
+        if key not in self._cache and len(self._cache) >= 8:
+            self._cache.pop(next(iter(self._cache)))
+        self._cache[key] = (time.monotonic(), events)
+        return events
 
     @property
     def event(self) -> CalendarEvent | None:
         now = dt_util.utcnow()
-        return next((e for e in self._upcoming if e.end > now), None)
+        upcoming = self._events((self.coordinator.data or {}).get("roster_calendar") or [])
+        return next((e for e in upcoming if e.end > now), None)
 
 
 class PersonalCalendar(CoordinatorEntity[LookupCoordinator], CalendarEntity):

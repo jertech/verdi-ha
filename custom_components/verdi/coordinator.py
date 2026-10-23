@@ -29,6 +29,7 @@ from .const import (
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
+    CONF_FUNCTION_CALENDAR_ID,
     CONF_INTERVENTION_INTERVAL,
     CONF_READINESS_SAFETY,
     CONF_ROSTER_SAFETY,
@@ -114,6 +115,10 @@ def roster_change(roster: list[dict[str, Any]], now: datetime) -> datetime | Non
         ),
         now,
     )
+
+
+def calendar_change(events: list[dict[str, Any]], now: datetime) -> datetime | None:
+    return earliest_after((moment for e in events for moment in (e.get("start"), e.get("end"))), now)
 
 
 class PersonId:
@@ -365,6 +370,19 @@ class VerdiCoordinator(LookupCoordinator):
                 safety_schedule(o, CONF_ROSTER_SAFETY, next_change=roster_change),
             ),
         }
+        if calendar_id := d.get(CONF_FUNCTION_CALENDAR_ID):
+
+            async def roster_calendar() -> dict[str, Any]:
+                now = dt_util.utcnow()
+                return await api.calendar_events(
+                    calendar_id, now - timedelta(hours=24), now + timedelta(days=7)
+                )
+
+            lookups["roster_calendar"] = Lookup(
+                roster_calendar,
+                lambda data: parse.calendar_events(data, names=names),
+                safety_schedule(o, CONF_ROSTER_SAFETY, next_change=calendar_change),
+            )
         super().__init__(
             hass,
             entry,
