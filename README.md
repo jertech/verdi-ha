@@ -16,7 +16,7 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `sensor.<name>_personnel` | Head count, with counts per availability as attributes |
 | `sensor.<name>_team_on_duty_<group>` | Current team, next team and rotation time |
 | `sensor.<name>_on_duty_<function>` | Whether a crew function is filled now (or who, see privacy) |
-| `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group (with "Your own data") |
+| `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group (with its switch under "Your own data from the Verdi app" on) |
 | `binary_sensor.<name>_pre_alert` | Whether you have a pre-alert (off by default; switch on in the options) |
 | `binary_sensor.<name>_garrison` | Whether you're on garrison (off by default; switch on in the options) |
 | `sensor.<name>_availability_this_year_<station>` | Your availability % this year at a station; earlier years as attributes |
@@ -28,11 +28,11 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 
 The integration only reads. It calls the endpoints listed in [docs/endpoints.md](docs/endpoints.md),
 with the same requests the Verdi web interface makes for the station data, and the read commands of
-Verdi's app route for your own data. Each lookup is fetched only when it's due: personnel and vehicles every tick (60 seconds by
-default, 30 seconds during an intervention), the rest when the station data shows a change, at a
-time Verdi announced (a team rotation, a shift change, the end of your availability), or after a
-safety interval. While Verdi has trouble, polling slows down; it never makes more than 30 calls a
-minute.
+Verdi's app route for your own data. Each lookup is fetched only when it's due: personnel and
+vehicles every tick (60 seconds by default, 30 seconds during an intervention), the rest when the
+station data shows a change, at a time Verdi announced (a team rotation, a shift change, the end of
+your availability), or after a safety interval. While Verdi has trouble, polling slows down; it never
+makes more than 30 calls a minute.
 
 ## Privacy
 
@@ -41,9 +41,10 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
 - vehicle names and statuses, readiness, team names and rotation times;
 - head counts per availability;
 - roster shift times per crew function;
-- with "Your own data" on: your availability (overall, per station and per planning group) with its
-  end time, pre-alert details (description, station, function, start), your garrison station and
-  city, your shifts and availability events about a month ahead, and your availability % per year
+- with the matching switch under "Your own data from the Verdi app" on: your availability (overall,
+  per station and per planning group) with its end time; pre-alert details (description, station,
+  function, start and, when Verdi sends one, end) and your garrison station and city, both off by
+  default; your shifts and availability events about a month ahead; and your availability % per year
   and times called with the last call. The calendar feed link Verdi returns is never stored.
 
 **Colleagues' names.** With the option "Show colleagues' names" **off** (the default for new setups),

@@ -169,7 +169,6 @@ def calendar_events(
         function_id = (e.get("functionCalendarCrewFunction") or {}).get("guid")
         function = function_names.get(function_id)
         person = (full_name(e.get("person")) or "?") if names else None
-        person = (full_name(e.get("person")) or "?") if names else None
         events.append(
             {
                 "id": e.get("guid"),
