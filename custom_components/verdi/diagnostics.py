@@ -9,6 +9,7 @@ from typing import Any
 
 from homeassistant.components.diagnostics import async_redact_data
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from . import VerdiConfigEntry
 from .api import token_expiry
@@ -45,6 +46,7 @@ TO_REDACT = {
 async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiConfigEntry) -> dict[str, Any]:
     coordinator = getattr(entry, "runtime_data", None)
     data = (coordinator.data or {}) if coordinator else {}
+    now = dt_util.now()
     token = get_store(hass).tokens.get(entry.entry_id)
     return {
         "entry": {
@@ -59,5 +61,15 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
         },
         "counts": lookup_counts(data),
         "personal": personal_counts(coordinator.personal) if coordinator else None,
+        "schedules": {
+            "station": coordinator.schedule_diagnostics(now) if coordinator else None,
+            "personal": (
+                coordinator.personal.schedule_diagnostics(now)
+                if coordinator and coordinator.personal
+                else None
+            ),
+        },
+        "pace": coordinator.pace_name if coordinator else None,
+        "guard": coordinator.guard.diagnostics() if coordinator else None,
         "last_update_success": coordinator.last_update_success if coordinator else None,
     }

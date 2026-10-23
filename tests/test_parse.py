@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Parsing, against synthetic responses and the scrubbed captured fixtures."""
 
+import copy
 import json
 from pathlib import Path
 
@@ -25,13 +26,18 @@ def test_personnel_summary_never_has_names():
     assert s["total"] == 2
     assert s["by_availability"] == {"Available": 1, "Urgent": 1}  # trailing space cleaned
     assert all(
-        set(p) == {"id", "availability", "on_intervention", "on_pre_alert", "present"} for p in s["persons"]
+        set(p) == {"id", "availability", "on_intervention", "on_pre_alert", "present", "garrison_crew"}
+        for p in s["persons"]
     )
 
 
 def test_roster_without_names():
     rows = parse.roster(r.ROSTER)
-    assert rows[0]["current"] == {"start": "2026-06-15T07:00:00Z", "end": "2026-06-15T19:00:00Z"}
+    assert rows[0]["current"] == {
+        "start": "2026-06-15T07:00:00Z",
+        "end": "2026-06-15T19:00:00Z",
+        "mine": False,
+    }
     assert rows[1]["current"] is None
     assert "Sam" not in json.dumps(rows)
 
@@ -85,3 +91,27 @@ def test_fixture_roster_handles_unfilled_function():
     assert rows[0]["function"] == "Function 1"
     assert rows[0]["current"]["start"] == "2026-06-15T19:00:00+02:00"
     assert rows[2]["current"] is None and rows[2]["next"] is None
+
+
+def test_personnel_keeps_garrison_crew_flag():
+    data = copy.deepcopy(r.PERSONNEL)
+    data["personGroups"][0]["persons"][0]["isGarrisonCrew"] = True
+    persons = parse.personnel_summary(data)["persons"]
+    assert [p["garrison_crew"] for p in persons] == [True, False]
+
+
+def test_roster_marks_your_own_shifts_only():
+    items = parse.roster(r.ROSTER, me="q")
+    assert items[0]["current"]["mine"] is False
+    assert items[0]["next"]["mine"] is True
+    assert "personId" not in str(items)
+    assert all(not (i["current"] or {}).get("mine") for i in parse.roster(r.ROSTER))
+
+
+def test_calendar_events_keep_person_only_with_names():
+    names = {"cf-1": "Officer"}
+    assert parse.calendar_events(r.CALENDAR, names)[0]["person"] is None
+    with_names = parse.calendar_events(r.CALENDAR, names, names=True)[0]
+    assert (with_names["person"], with_names["summary"]) == ("Sam Sample", "Officer: Sam Sample")
+    assert parse.calendar_summary(None, None) == "Shift"
+    assert parse.calendar_summary("Officer", None) == "Officer"

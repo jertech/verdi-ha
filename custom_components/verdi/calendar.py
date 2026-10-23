@@ -5,21 +5,20 @@
 
 from __future__ import annotations
 
-from contextlib import suppress
-from datetime import datetime, timedelta
+import time
+from datetime import datetime
 from typing import Any
 
 from homeassistant.components.calendar import CalendarEntity, CalendarEvent
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from . import VerdiConfigEntry, parse
-from .api import VerdiError
-from .const import CONF_FUNCTION_CALENDAR_ID
+from .api import VerdiError, VerdiUnavailable
+from .const import CALENDAR_CACHE, CONF_FUNCTION_CALENDAR_ID
 from .coordinator import LookupCoordinator, VerdiCoordinator
-from .entity import device_info
+from .entity import VerdiEntity, device_info
 
 PARALLEL_UPDATES = 0
 
@@ -31,10 +30,10 @@ async def async_setup_entry(
     entities: list[CalendarEntity] = []
     if entry.data.get(CONF_FUNCTION_CALENDAR_ID):
         entities.append(VerdiRosterCalendar(c))
-    if c.personal is not None:
+    if (p := c.personal) is not None and "events" in p.lookups:
         entities += [
-            PersonalCalendar(c.personal.events, "my_shifts", "shifts"),
-            PersonalCalendar(c.personal.events, "my_availability", "availability"),
+            PersonalCalendar(p, "my_shifts", "shifts"),
+            PersonalCalendar(p, "my_availability", "availability"),
         ]
     async_add_entities(entities)
 
@@ -47,8 +46,12 @@ def _to_event(item: dict[str, Any]) -> CalendarEvent | None:
     return CalendarEvent(start=start, end=end, summary=item["summary"], uid=item["id"])
 
 
-class VerdiRosterCalendar(CoordinatorEntity[VerdiCoordinator], CalendarEntity):
-    _attr_has_entity_name = True
+class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
+    """Shifts of the function calendar. Current and next come from the station's polls; a
+    calendar view asks Verdi for its range, served from memory for a few minutes."""
+
+    coordinator: VerdiCoordinator
+    lookup = "roster_calendar"
     _attr_translation_key = "roster"
 
     def __init__(self, coordinator: VerdiCoordinator) -> None:
@@ -57,46 +60,53 @@ class VerdiRosterCalendar(CoordinatorEntity[VerdiCoordinator], CalendarEntity):
         self._calendar_id = entry.data[CONF_FUNCTION_CALENDAR_ID]
         self._attr_unique_id = f"{entry.entry_id}_roster_calendar"
         self._attr_device_info = device_info(entry)
-        self._upcoming: list[CalendarEvent] = []
+        self._cache: dict[tuple[datetime, datetime], tuple[float, list[CalendarEvent]]] = {}
 
-    def _function_names(self) -> dict[str, str]:
+    def _events(self, items: list[dict[str, Any]]) -> list[CalendarEvent]:
         roster = (self.coordinator.data or {}).get("roster") or []
-        return {r["id"]: r["function"] for r in roster if r.get("id")}
-
-    async def _fetch(self, start: datetime, end: datetime) -> list[CalendarEvent]:
-        data = await self.coordinator.api.calendar_events(self._calendar_id, start, end)
-        items = parse.calendar_events(data, self._function_names(), names=self.coordinator.show_names)
-        events = [_to_event(e) for e in items]
+        functions = {r["id"]: r["function"] for r in roster if r.get("id")}
+        events = [
+            _to_event({**i, "summary": parse.calendar_summary(functions.get(i["function_id"]), i["person"])})
+            for i in items
+        ]
         return sorted((e for e in events if e), key=lambda e: e.start)
 
     async def async_get_events(
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
+        key = (start_date, end_date)
+        cached = self._cache.get(key)
+        if cached and time.monotonic() - cached[0] < CALENDAR_CACHE:
+            return cached[1]
+        guard = self.coordinator.guard
+        if not guard.can_call():
+            return cached[1] if cached else []
+        guard.record_call()
         try:
-            return await self._fetch(start_date, end_date)
-        except VerdiError:
-            return []
-
-    async def async_update(self) -> None:
-        await super().async_update()
-        now = dt_util.utcnow()
-        with suppress(VerdiError):
-            self._upcoming = await self._fetch(now - timedelta(hours=24), now + timedelta(days=7))
-
-    async def async_added_to_hass(self) -> None:
-        await super().async_added_to_hass()
-        await self.async_update()
+            data = await self.coordinator.api.calendar_events(self._calendar_id, start_date, end_date)
+        except VerdiUnavailable as err:
+            guard.unavailable(err.retry_after)
+            return cached[1] if cached else []
+        except VerdiError:  # an auth error is for the coordinator's 401 window
+            return cached[1] if cached else []
+        guard.succeeded()
+        events = self._events(parse.calendar_events(data, names=self.coordinator.show_names))
+        if key not in self._cache and len(self._cache) >= 8:
+            self._cache.pop(next(iter(self._cache)))
+        self._cache[key] = (time.monotonic(), events)
+        return events
 
     @property
     def event(self) -> CalendarEvent | None:
         now = dt_util.utcnow()
-        return next((e for e in self._upcoming if e.end > now), None)
+        upcoming = self._events((self.coordinator.data or {}).get("roster_calendar") or [])
+        return next((e for e in upcoming if e.end > now), None)
 
 
-class PersonalCalendar(CoordinatorEntity[LookupCoordinator], CalendarEntity):
+class PersonalCalendar(VerdiEntity, CalendarEntity):
     """Your own shifts, or your availability events, about a month ahead, from the last poll."""
 
-    _attr_has_entity_name = True
+    lookup = "events"
 
     def __init__(self, coordinator: LookupCoordinator, translation_key: str, section: str) -> None:
         super().__init__(coordinator)

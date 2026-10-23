@@ -60,14 +60,43 @@
     "step": {
       "init": {
         "title": "Verdi-opties",
-        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. \"Je eigen gegevens uit de Verdi-app\" voegt je eigen beschikbaarheid, vooralarm, herbestaffing, statistieken en planning toe, gelezen met hetzelfde token via de leesopdrachten van de Verdi-app.",
+        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Elke opvraging gebeurt pas als ze nodig is: personeel en voertuigen bij elke tik, de rest als de postgegevens een wijziging tonen, op een tijdstip dat Verdi meldde, of na het veiligheidsinterval.",
         "data": {
-          "scan_interval": "Pollinterval post (seconden, minstens 60)",
-          "show_names": "Namen van collega's tonen",
-          "personal_data": "Je eigen gegevens uit de Verdi-app",
-          "personal_interval": "Je beschikbaarheid, vooralarm en herbestaffing: pollinterval (seconden, minstens 10)",
-          "events_interval": "Je kalenders met shifts en beschikbaarheid: pollinterval (minuten, minstens 1)",
-          "statistics_interval": "Je statistieken: pollinterval (uren, minstens 1; ook net na middernacht en na een interventie)"
+          "show_names": "Namen van collega's tonen"
+        },
+        "sections": {
+          "station": {
+            "name": "Post",
+            "data": {
+              "scan_interval": "Tik (seconden, minstens 30)",
+              "intervention_interval": "Tik tijdens een interventie (seconden, minstens 15)",
+              "watched_vehicles": "Voertuigen die meetellen voor interventies (geen gekozen: alle)"
+            }
+          },
+          "own_data": {
+            "name": "Je eigen gegevens uit de Verdi-app",
+            "description": "Gelezen met hetzelfde token via de leesopdrachten van de Verdi-app. Uitgeschakeld: er wordt niets opgevraagd en de entiteiten worden niet aangemaakt.",
+            "data": {
+              "my_availability": "Mijn beschikbaarheid",
+              "pre_alert": "Vooralarm",
+              "garrison": "Herbestaffing",
+              "my_events": "Kalenders met mijn shifts en beschikbaarheid",
+              "statistics": "Statistieken"
+            }
+          },
+          "safety": {
+            "name": "Veiligheidsintervallen",
+            "description": "De langste tijd tussen twee opvragingen als niets op een wijziging wijst.",
+            "data": {
+              "readiness_safety": "Paraatheid (minuten, minstens 5)",
+              "roster_safety": "Rooster en roosterkalender (minuten, minstens 10)",
+              "teams_safety": "Ploeg van wacht (uren, minstens 1)",
+              "availability_safety": "Mijn beschikbaarheid (minuten, minstens 5)",
+              "alerts_safety": "Vooralarm en herbestaffing (minuten, minstens 10)",
+              "events_interval": "Mijn kalenders (minuten, minstens 10)",
+              "statistics_interval": "Statistieken (uren, minstens 1; ook dagelijks na middernacht en na een interventie)"
+            }
+          }
         }
       }
     }

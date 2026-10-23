@@ -21,12 +21,17 @@ from homeassistant.config_entries import (
     OptionsFlowWithReload,
 )
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.data_entry_flow import section
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
     BooleanSelector,
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectOptionDict,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
@@ -37,25 +42,35 @@ from .const import (
     API_PATH,
     CONF_ACCEPT,
     CONF_ACCOUNT_SUB,
+    CONF_ALERTS_SAFETY,
     CONF_AVAILABILITY_IDS,
+    CONF_AVAILABILITY_SAFETY,
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
     CONF_EVENTS_INTERVAL,
     CONF_FUNCTION_CALENDAR_ID,
-    CONF_PERSONAL_DATA,
-    CONF_PERSONAL_INTERVAL,
+    CONF_GARRISON,
+    CONF_INTERVENTION_INTERVAL,
+    CONF_MY_AVAILABILITY,
+    CONF_MY_EVENTS,
+    CONF_PRE_ALERT,
+    CONF_READINESS_SAFETY,
+    CONF_ROSTER_SAFETY,
     CONF_SCAN_INTERVAL,
     CONF_SHOW_NAMES,
     CONF_STATION_ID,
+    CONF_STATISTICS,
     CONF_STATISTICS_INTERVAL,
     CONF_TEAM_GROUP_ID,
+    CONF_TEAMS_SAFETY,
     CONF_TOKEN,
     CONF_VEHICLE_TRAIN_IDS,
     CONF_VERDI_URL,
-    DEFAULT_PERSONAL_DATA,
+    CONF_WATCHED_VEHICLES,
     DOMAIN,
     INTERVALS,
 )
+from .coordinator import enabled
 from .token import get_store, is_usable, origin
 
 _LOGGER = logging.getLogger(__name__)
@@ -73,6 +88,18 @@ OPTIONAL_FIELDS = (CONF_FUNCTION_CALENDAR_ID,)
 PLACEHOLDERS = {"example_url": "https://<zone>.verdi.cloud"}
 TEXT = TextSelector()
 SECRET = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
+STATION, OWN_DATA, SAFETY = "station", "own_data", "safety"
+STATION_INTERVALS = (CONF_SCAN_INTERVAL, CONF_INTERVENTION_INTERVAL)
+OWN_SWITCHES = (CONF_MY_AVAILABILITY, CONF_PRE_ALERT, CONF_GARRISON, CONF_MY_EVENTS, CONF_STATISTICS)
+SAFETY_INTERVALS = (
+    CONF_READINESS_SAFETY,
+    CONF_ROSTER_SAFETY,
+    CONF_TEAMS_SAFETY,
+    CONF_AVAILABILITY_SAFETY,
+    CONF_ALERTS_SAFETY,
+    CONF_EVENTS_INTERVAL,
+    CONF_STATISTICS_INTERVAL,
+)
 
 
 def _csv(value: Any) -> list[str]:
@@ -141,7 +168,7 @@ async def _validate_token(hass: HomeAssistant, data: dict[str, Any], token: str)
 
 
 class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
-    VERSION = 3
+    VERSION = 4
 
     async def async_step_user(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -234,9 +261,14 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 class VerdiOptionsFlow(OptionsFlowWithReload):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         if user_input is not None:
-            options = dict(user_input)
-            for key, (_default, minimum, _maximum, _unit) in INTERVALS.items():
-                options[key] = max(int(options[key]), minimum)
+            # Keys the form doesn't show (such as paged) stay as they are.
+            options = dict(self.config_entry.options)
+            options[CONF_SHOW_NAMES] = bool(user_input[CONF_SHOW_NAMES])
+            for name in (STATION, OWN_DATA, SAFETY):
+                options.update(user_input.get(name) or {})
+            for key in (*STATION_INTERVALS, *SAFETY_INTERVALS):
+                options[key] = max(int(options[key]), INTERVALS[key][1])
+            options[CONF_WATCHED_VEHICLES] = [str(v) for v in options.get(CONF_WATCHED_VEHICLES) or []]
             return self.async_create_entry(data=options)
 
         options = self.config_entry.options
@@ -247,22 +279,28 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
                 NumberSelectorConfig(min=minimum, max=maximum, step=1, mode=NumberSelectorMode.BOX)
             )
 
-        fields: dict[Any, Any] = dict(
-            [
-                number(CONF_SCAN_INTERVAL),
-                (
-                    vol.Required(CONF_SHOW_NAMES, default=options.get(CONF_SHOW_NAMES, False)),
-                    BooleanSelector(),
-                ),
-                (
-                    vol.Required(
-                        CONF_PERSONAL_DATA, default=options.get(CONF_PERSONAL_DATA, DEFAULT_PERSONAL_DATA)
-                    ),
-                    BooleanSelector(),
-                ),
-                number(CONF_PERSONAL_INTERVAL),
-                number(CONF_EVENTS_INTERVAL),
-                number(CONF_STATISTICS_INTERVAL),
-            ]
+        station = dict(number(key) for key in STATION_INTERVALS)
+        station[
+            vol.Optional(CONF_WATCHED_VEHICLES, default=list(options.get(CONF_WATCHED_VEHICLES) or []))
+        ] = SelectSelector(
+            SelectSelectorConfig(options=self._vehicles(), multiple=True, mode=SelectSelectorMode.DROPDOWN)
         )
+        own = {vol.Required(key, default=enabled(options, key)): BooleanSelector() for key in OWN_SWITCHES}
+        fields: dict[Any, Any] = {
+            vol.Required(CONF_SHOW_NAMES, default=options.get(CONF_SHOW_NAMES, False)): BooleanSelector(),
+            vol.Required(STATION): section(vol.Schema(station), {"collapsed": False}),
+            vol.Required(OWN_DATA): section(vol.Schema(own), {"collapsed": False}),
+            vol.Required(SAFETY): section(
+                vol.Schema(dict(number(key) for key in SAFETY_INTERVALS)), {"collapsed": True}
+            ),
+        }
         return self.async_show_form(step_id="init", data_schema=vol.Schema(fields))
+
+    def _vehicles(self) -> list[SelectOptionDict]:
+        """The station's vehicles from the last poll, plus watched ones no longer listed."""
+        coordinator = getattr(self.config_entry, "runtime_data", None)
+        vehicles = ((coordinator.data or {}).get("vehicles") or []) if coordinator else []
+        seen = {v["id"]: v["name"] or v["id"] for v in vehicles if v.get("id")}
+        for vehicle_id in self.config_entry.options.get(CONF_WATCHED_VEHICLES) or []:
+            seen.setdefault(vehicle_id, vehicle_id)
+        return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]

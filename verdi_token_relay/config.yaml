@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 name: Verdi Token Relay
-version: "0.7.0"
+version: "0.8.0"
 slug: verdi_token_relay
 description: >-
   Unofficial, not affiliated with Cevi or Verdi, not for operational use, uses your

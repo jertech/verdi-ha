@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import base64
 import json
+import random
 import time
 from unittest.mock import patch
 
@@ -28,6 +29,15 @@ from custom_components.verdi.token import get_store
 from tests import responses as r
 
 VERDI = "https://zone.verdi.example"
+
+
+class MidRandom(random.Random):
+    """Always the middle of the range, so jitter and delays are predictable in tests."""
+
+    def uniform(self, a: float, b: float) -> float:
+        return (a + b) / 2
+
+
 BASE_URL = f"{VERDI}/verdi-core/api/v1"
 SUB = "11111111-2222-4333-8444-555555555555"
 
@@ -76,11 +86,23 @@ def auto_enable_custom_integrations(enable_custom_integrations):
     yield
 
 
+@pytest.fixture(autouse=True)
+def predictable(monkeypatch):
+    """Jitter and delays take the middle of their range; no pause between calls."""
+    monkeypatch.setattr("custom_components.verdi.schedule.make_rng", MidRandom)
+    monkeypatch.setattr("custom_components.verdi.coordinator.CALL_GAP", (0.0, 0.0))
+
+
+ALL_OFF = dict.fromkeys(
+    ("my_availability", "paged", "pre_alert", "garrison", "my_events", "statistics"), False
+)
+
+
 @pytest.fixture
 def config_entry() -> MockConfigEntry:
     return MockConfigEntry(
         domain=DOMAIN,
-        version=3,
+        version=4,
         unique_id="station-1",
         title="Verdi",
         data=dict(DATA),

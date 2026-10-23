@@ -22,7 +22,8 @@ Paths are relative to `<your Verdi address>/verdi-core/api/v1/`.
 | POST | `mobile/app/commands` | `AppGetPersonStatisticsCommand` | Availability this year, times called |
 | POST | `mobile/app/commands` | `AppGetUpcomingEventsCommand` | My shifts and My availability calendars |
 
-The `mobile/app/commands` rows are only called while "Your own data from the Verdi app" is on (the default).
+The `mobile/app/commands` rows are only called for the kinds of "Your own data from the Verdi app"
+that are switched on in the options (your availability, calendars and statistics by default).
 
 The token relay additionally opens the web login (`<your Verdi address>/auth/connect/authorize`)
 with the same parameters the web app uses, and reads the token from the redirect.

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Parsing the app route's answers about yourself, against synthetic responses and scrubbed fixtures."""
 
+import copy
 import json
 from datetime import datetime
 from pathlib import Path
@@ -68,6 +69,7 @@ def test_pre_alerts_accept_objects_and_text():
             "station": "Station North",
             "function": "Driver",
             "start": datetime(2026, 6, 15, 18, 0, tzinfo=TZ),
+            "end": None,
         }
     ]
     text = {"preAlarms": [{"description": "Storm watch", "station": "Station North", "function": "Driver"}]}
@@ -229,3 +231,21 @@ def test_upcoming_events_drop_items_ending_before_they_start():
         ]
     }
     assert [e["summary"] for e in p.upcoming_events(data)["availability"]] == ["Fine"]
+
+
+def test_my_availability_lists_every_end():
+    data = copy.deepcopy(r.CAROUSEL)
+    data["stationAvailabilities"][0]["end"] = "2026-06-15T20:00:00+02:00"
+    data["planningGroupAvailabilities"][0]["end"] = None
+    ends = p.my_availability(data)["ends"]
+    assert [e.isoformat() for e in ends] == ["2026-06-15T20:00:00+02:00", "2026-06-15T23:59:10.598243+02:00"]
+
+
+def test_pre_alert_end_from_current_or_top_level():
+    data = copy.deepcopy(r.PRE_ALERTS)
+    assert p.pre_alerts(data)[0]["end"] is None
+    data["preAlarms"][0]["current"] = {"end": "2026-06-15T19:00:00+02:00"}
+    assert p.pre_alerts(data)[0]["end"].hour == 19
+    data["preAlarms"][0]["current"] = True
+    data["preAlarms"][0]["end"] = "2026-06-15T21:00:00+02:00"
+    assert p.pre_alerts(data)[0]["end"].hour == 21

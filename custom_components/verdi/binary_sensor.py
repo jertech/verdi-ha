@@ -11,15 +11,22 @@ from typing import Any
 from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import VerdiConfigEntry
 from .coordinator import LookupCoordinator, VerdiCoordinator
-from .entity import device_info, find
+from .entity import VerdiEntity, device_info, find
 
 PARALLEL_UPDATES = 0
 
 READINESS_ATTRS = ("group", "fastest_response_time", "slowest_response_time", "positions")
+
+
+def _first_pre_alert(alerts: list[dict[str, Any]] | None) -> dict[str, Any] | None:
+    """The first pre-alert; its end is left out until Verdi sends one."""
+    if not alerts:
+        return None
+    first = alerts[0]
+    return {k: v for k, v in first.items() if k != "end"} if first.get("end") is None else first
 
 
 async def async_setup_entry(
@@ -52,24 +59,24 @@ async def async_setup_entry(
                 {"vehicle": v["name"] or "?"},
             )
         )
-    if c.personal is not None:
-        entities += [
-            PersonalBinarySensor(
-                c.personal.fast, "pre_alert", "pre_alerts", bool, lambda v: v[0] if v else None
-            ),
-            PersonalBinarySensor(
-                c.personal.fast,
-                "garrison",
-                "garrison",
-                lambda v: v["active"],
-                lambda v: {"station": v["station"], "city": v["city"]} if v["active"] else None,
-            ),
-        ]
+    if (p := c.personal) is not None:
+        if "pre_alerts" in p.lookups:
+            entities.append(PersonalBinarySensor(p, "pre_alert", "pre_alerts", bool, _first_pre_alert))
+        if "garrison" in p.lookups:
+            entities.append(
+                PersonalBinarySensor(
+                    p,
+                    "garrison",
+                    "garrison",
+                    lambda v: v["active"],
+                    lambda v: {"station": v["station"], "city": v["city"]} if v["active"] else None,
+                )
+            )
     async_add_entities(entities)
 
 
-class VerdiListBinarySensor(CoordinatorEntity[VerdiCoordinator], BinarySensorEntity):
-    _attr_has_entity_name = True
+class VerdiListBinarySensor(VerdiEntity, BinarySensorEntity):
+    coordinator: VerdiCoordinator
 
     def __init__(
         self,
@@ -83,6 +90,7 @@ class VerdiListBinarySensor(CoordinatorEntity[VerdiCoordinator], BinarySensorEnt
     ) -> None:
         super().__init__(coordinator)
         self._section, self._item_id, self._value, self._attrs = section, item_id, value, attrs
+        self.lookup = section
         self._attr_translation_key = translation_key
         self._attr_translation_placeholders = placeholders
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{section}_{item_id}_bin"
@@ -105,10 +113,8 @@ class VerdiListBinarySensor(CoordinatorEntity[VerdiCoordinator], BinarySensorEnt
         return self._attrs(self._item) if self._item else None
 
 
-class PersonalBinarySensor(CoordinatorEntity[LookupCoordinator], BinarySensorEntity):
+class PersonalBinarySensor(VerdiEntity, BinarySensorEntity):
     """On while you have a pre-alert, or while you're on garrison."""
-
-    _attr_has_entity_name = True
 
     def __init__(
         self,
@@ -120,6 +126,7 @@ class PersonalBinarySensor(CoordinatorEntity[LookupCoordinator], BinarySensorEnt
     ) -> None:
         super().__init__(coordinator)
         self._key, self._value, self._attrs = key, value, attrs
+        self.lookup = key
         self._attr_translation_key = translation_key
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{translation_key}"
         self._attr_device_info = device_info(coordinator.config_entry)

@@ -10,7 +10,7 @@ from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
-from custom_components.verdi.token import get_store
+from custom_components.verdi.token import accept_token, get_store
 from tests.conftest import DATA, SUB, make_token, setup_with_token
 
 URL = "/api/verdi/token"
@@ -154,3 +154,11 @@ async def test_push_during_reauth_reloads(client, hass, config_entry, mock_api):
     assert status == 200
     assert not list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
     assert config_entry.state is ConfigEntryState.LOADED
+
+
+async def test_push_updates_token_expiry_without_a_poll(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    before = hass.states.get("sensor.verdi_token_expires").state
+    accept_token(hass, config_entry, make_token(lifetime=7200), None)
+    await hass.async_block_till_done()
+    assert hass.states.get("sensor.verdi_token_expires").state != before

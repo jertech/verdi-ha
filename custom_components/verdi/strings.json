@@ -60,14 +60,43 @@
     "step": {
       "init": {
         "title": "Verdi options",
-        "description": "With \"Show colleagues' names\" off, on-duty sensors show filled or open and calendar events show only the function. When on, colleagues' names and shift times are stored in Home Assistant's history. \"Your own data from the Verdi app\" adds your own availability, pre-alert, garrison, statistics and planning, read with the same token through the read commands of Verdi's app route.",
+        "description": "With \"Show colleagues' names\" off, on-duty sensors show filled or open and calendar events show only the function. When on, colleagues' names and shift times are stored in Home Assistant's history. Each lookup is fetched only when it is due: personnel and vehicles every tick, the rest when the station data shows a change, at a time Verdi announced, or after its safety interval.",
         "data": {
-          "scan_interval": "Station poll interval (seconds, at least 60)",
-          "show_names": "Show colleagues' names",
-          "personal_data": "Your own data from the Verdi app",
-          "personal_interval": "Your availability, pre-alert and garrison: poll interval (seconds, at least 10)",
-          "events_interval": "Your shifts and availability calendars: poll interval (minutes, at least 1)",
-          "statistics_interval": "Your statistics: poll interval (hours, at least 1; also just after midnight and after an intervention)"
+          "show_names": "Show colleagues' names"
+        },
+        "sections": {
+          "station": {
+            "name": "Station",
+            "data": {
+              "scan_interval": "Tick (seconds, at least 30)",
+              "intervention_interval": "Tick during an intervention (seconds, at least 15)",
+              "watched_vehicles": "Vehicles that count for interventions (none picked: all)"
+            }
+          },
+          "own_data": {
+            "name": "Your own data from the Verdi app",
+            "description": "Read with the same token through the read commands of Verdi's app route. Switched off: nothing is fetched and the entities are not created.",
+            "data": {
+              "my_availability": "My availability",
+              "pre_alert": "Pre-alert",
+              "garrison": "Garrison",
+              "my_events": "My shifts and availability calendars",
+              "statistics": "Statistics"
+            }
+          },
+          "safety": {
+            "name": "Safety intervals",
+            "description": "The longest time between two fetches when nothing signals a change.",
+            "data": {
+              "readiness_safety": "Readiness (minutes, at least 5)",
+              "roster_safety": "Roster and roster calendar (minutes, at least 10)",
+              "teams_safety": "Team on duty (hours, at least 1)",
+              "availability_safety": "My availability (minutes, at least 5)",
+              "alerts_safety": "Pre-alert and garrison (minutes, at least 10)",
+              "events_interval": "My calendars (minutes, at least 10)",
+              "statistics_interval": "Statistics (hours, at least 1; also daily after midnight and after an intervention)"
+            }
+          }
         }
       }
     }

@@ -13,12 +13,11 @@ from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, Sen
 from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
 from . import VerdiConfigEntry
 from .api import token_expiry
 from .coordinator import LookupCoordinator, VerdiCoordinator
-from .entity import device_info, find
+from .entity import VerdiEntity, device_info, find
 
 PARALLEL_UPDATES = 0
 
@@ -101,9 +100,11 @@ async def async_setup_entry(
             )
         )
     async_add_entities(entities)
-    if c.personal is not None:
-        async_add_entities([MyAvailabilitySensor(c.personal.fast)])
-        _add_statistics_sensors(entry, c.personal.statistics, async_add_entities)
+    if (p := c.personal) is not None:
+        if "availability" in p.lookups:
+            async_add_entities([MyAvailabilitySensor(p)])
+        if "statistics" in p.lookups:
+            _add_statistics_sensors(entry, p, async_add_entities)
 
 
 def _add_statistics_sensors(
@@ -130,10 +131,10 @@ def _add_statistics_sensors(
     entry.async_on_unload(coordinator.async_add_listener(add_new))
 
 
-class VerdiListSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
+class VerdiListSensor(VerdiEntity, SensorEntity):
     """One sensor per item of a list lookup (vehicle, team, crew function)."""
 
-    _attr_has_entity_name = True
+    coordinator: VerdiCoordinator
 
     def __init__(
         self,
@@ -150,6 +151,7 @@ class VerdiListSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
     ) -> None:
         super().__init__(coordinator)
         self._section, self._item_id, self._value, self._attrs = section, item_id, value, attrs
+        self.lookup = section
         if translation_key:
             self._attr_translation_key = translation_key
             self._attr_translation_placeholders = placeholders or {}
@@ -179,8 +181,9 @@ class VerdiListSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
         return self._attrs(self._item) if self._item else None
 
 
-class PersonnelSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
-    _attr_has_entity_name = True
+class PersonnelSensor(VerdiEntity, SensorEntity):
+    coordinator: VerdiCoordinator
+    lookup = "personnel"
     _attr_translation_key = "personnel"
     _attr_native_unit_of_measurement = "persons"
 
@@ -206,10 +209,10 @@ class PersonnelSensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
         return {**s["by_availability"], **counts}
 
 
-class TokenExpirySensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
+class TokenExpirySensor(VerdiEntity, SensorEntity):
     """When the current token stops working. Shows the time only, never the token."""
 
-    _attr_has_entity_name = True
+    coordinator: VerdiCoordinator
     _attr_translation_key = "token_expiry"
     _attr_device_class = SensorDeviceClass.TIMESTAMP
 
@@ -223,10 +226,10 @@ class TokenExpirySensor(CoordinatorEntity[VerdiCoordinator], SensorEntity):
         return token_expiry(self.coordinator.api.token)
 
 
-class MyAvailabilitySensor(CoordinatorEntity[LookupCoordinator], SensorEntity):
+class MyAvailabilitySensor(VerdiEntity, SensorEntity):
     """Your own availability now, from the Verdi app route."""
 
-    _attr_has_entity_name = True
+    lookup = "availability"
     _attr_translation_key = "my_availability"
 
     def __init__(self, coordinator: LookupCoordinator) -> None:
@@ -251,10 +254,10 @@ class MyAvailabilitySensor(CoordinatorEntity[LookupCoordinator], SensorEntity):
         return {k: self._mine[k] for k in MY_AVAILABILITY_ATTRS} if self._mine else None
 
 
-class StatisticSensor(CoordinatorEntity[LookupCoordinator], SensorEntity):
+class StatisticSensor(VerdiEntity, SensorEntity):
     """Your availability this year at a station, or how often you were called for a service."""
 
-    _attr_has_entity_name = True
+    lookup = "statistics"
 
     def __init__(self, coordinator: LookupCoordinator, kind: str, item: dict[str, Any]) -> None:
         super().__init__(coordinator)

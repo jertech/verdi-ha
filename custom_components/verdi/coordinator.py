@@ -1,51 +1,137 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""Polls Verdi lookups on schedules: the station's here, your own in personal.py."""
+"""Polls Verdi lookups, each only when it is due (schedule.py). The station's are here, your own
+in personal.py."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import random
 import time
 from collections.abc import Awaitable, Callable, Mapping
-from datetime import timedelta
-from typing import TYPE_CHECKING, Any
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
+from homeassistant.util import dt as dt_util
 
-from . import parse
-from .api import VerdiApi, VerdiAuthError, VerdiError
+from . import parse, schedule
+from .api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable
 from .const import (
+    CALL_GAP,
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
+    CONF_FUNCTION_CALENDAR_ID,
+    CONF_INTERVENTION_INTERVAL,
+    CONF_READINESS_SAFETY,
+    CONF_ROSTER_SAFETY,
     CONF_SCAN_INTERVAL,
     CONF_SHOW_NAMES,
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
+    CONF_TEAMS_SAFETY,
     CONF_VEHICLE_TRAIN_IDS,
     DOMAIN,
+    FEATURES,
+    IDLE_WAKE,
     INTERVALS,
+    MIN_WAKE,
+    REJECTED_WINDOW,
 )
+from .guard import Guard, get_guard
+from .schedule import MANUAL, TICK, LookupSchedule, earliest_after, jittered
 from .token import get_store
-
-if TYPE_CHECKING:
-    from .personal import Personal
 
 _LOGGER = logging.getLogger(__name__)
 
 type Fetch = Callable[[], Awaitable[dict[str, Any]]]
 type Parser = Callable[[dict[str, Any]], Any]
+type Pace = Callable[[], tuple[float, float] | None]
+type FetchHook = Callable[[str, Any, Any], None]
+type RunHook = Callable[[dict[str, Any], dict[str, Any]], None]
 
 
 def interval(options: Mapping[str, Any], key: str) -> timedelta:
     """An interval option as a timedelta, never below its minimum."""
     default, minimum, _maximum, unit = INTERVALS[key]
     return timedelta(seconds=max(int(options.get(key, default)), minimum) * unit)
+
+
+def minimum(key: str) -> float:
+    """An interval option's minimum, in seconds."""
+    _default, low, _maximum, unit = INTERVALS[key]
+    return float(low * unit)
+
+
+def pace(options: Mapping[str, Any], key: str) -> tuple[float, float]:
+    """A tick interval option: (seconds, minimum seconds)."""
+    return interval(options, key).total_seconds(), minimum(key)
+
+
+def enabled(options: Mapping[str, Any], key: str) -> bool:
+    """Whether a kind of your own data is switched on."""
+    return bool(options.get(key, FEATURES[key]))
+
+
+def safety_schedule(options: Mapping[str, Any], key: str, **kwargs: Any) -> LookupSchedule:
+    """A schedule with a safety interval option."""
+    return LookupSchedule(safety=interval(options, key), safety_minimum=minimum(key), **kwargs)
+
+
+def readiness_inputs(key: str, value: Any) -> list[tuple[str, ...]] | None:
+    """The fields of personnel and vehicles that readiness depends on."""
+    if key == "personnel":
+        persons = (value or {}).get("persons") or []
+        return sorted(
+            (str(p["id"]), str(p["availability"]), str(p["present"]), str(p["on_intervention"]))
+            for p in persons
+        )
+    if key == "vehicles":
+        return sorted((str(v["id"]), str(v["availability"]), str(v["on_intervention"])) for v in value or [])
+    return None
+
+
+def teams_change(teams: list[dict[str, Any]], now: datetime) -> datetime | None:
+    return earliest_after((t.get("next_rotation") for t in teams), now)
+
+
+def roster_change(roster: list[dict[str, Any]], now: datetime) -> datetime | None:
+    return earliest_after(
+        (
+            moment
+            for item in roster
+            for moment in ((item["current"] or {}).get("end"), (item["next"] or {}).get("start"))
+        ),
+        now,
+    )
+
+
+def calendar_change(events: list[dict[str, Any]], now: datetime) -> datetime | None:
+    return earliest_after((moment for e in events for moment in (e.get("start"), e.get("end"))), now)
+
+
+class PersonId:
+    """Your person GUID from security/users/authorize, asked once and kept in memory."""
+
+    def __init__(self, api: VerdiApi) -> None:
+        self._api = api
+        self.value: str | None = None
+
+    async def get(self) -> str:
+        if self.value is None:
+            guid = (await self._api.current_user()).get("personGuid")
+            if not isinstance(guid, str) or not guid:
+                raise VerdiError("security/users/authorize: no personGuid")
+            self.value = guid
+        return self.value
 
 
 def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:
@@ -58,11 +144,20 @@ def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:
     } | {"personnel": personnel.get("total")}
 
 
-class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
-    """Runs a few lookups on one schedule. A failing lookup keeps its previous value.
+@dataclass
+class Lookup:
+    fetch: Fetch
+    parse: Parser
+    schedule: LookupSchedule = field(default_factory=lambda: LookupSchedule(always=True))
 
-    keep_on_failure: when every lookup fails, keep showing earlier values instead of marking the
-    entities unavailable. retry: after a failed lookup, poll again this soon.
+
+class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
+    """Runs the due lookups of a group. A failing lookup keeps its previous value.
+
+    pace: the tick as (seconds, minimum), or None to wake only when a lookup is due. retry: a
+    failed lookup is due again this soon. keep_on_failure: when nothing could be fetched, keep
+    earlier values instead of marking the entities unavailable. on_fetched and on_run let
+    signals.py mark other lookups due.
     """
 
     config_entry: ConfigEntry
@@ -73,19 +168,53 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         entry: ConfigEntry,
         api: VerdiApi,
         name: str,
-        update_interval: timedelta,
-        lookups: dict[str, tuple[Fetch, Parser]],
+        lookups: dict[str, Lookup],
         *,
+        pace: Pace,
+        retry: timedelta,
+        guard: Guard,
+        rng: random.Random,
         keep_on_failure: bool = False,
-        retry: timedelta | None = None,
     ) -> None:
-        super().__init__(hass, _LOGGER, config_entry=entry, name=name, update_interval=update_interval)
-        self.api = api
-        self._lookups = lookups
-        self._interval = update_interval
-        self._keep_on_failure = keep_on_failure
-        self._retry = retry
+        # The first run sets the real interval; pace() may need config_entry, which isn't set yet.
+        super().__init__(
+            hass,
+            _LOGGER,
+            config_entry=entry,
+            name=name,
+            update_interval=retry,
+            always_update=False,
+        )
+        self.api, self.lookups, self.guard, self.rng = api, lookups, guard, rng
+        self._pace, self._retry, self._keep_on_failure = pace, retry, keep_on_failure
         self._failing: set[str] = set()
+        self._tick_at: datetime | None = None
+        self._only: str | None = None
+        self._run_lock = asyncio.Lock()
+        self._rejected_logged = False
+        self.on_fetched: FetchHook | None = None
+        self.on_run: RunHook | None = None
+
+    def mark_due(self, key: str, reason: str, at: datetime | None = None, *, replace: bool = False) -> bool:
+        """Mark a lookup due now or at `at`. False if this coordinator doesn't have it."""
+        if (lookup := self.lookups.get(key)) is None:
+            return False
+        lookup.schedule.mark_due(reason, at, replace=replace)
+        return True
+
+    async def async_refresh_lookup(self, key: str) -> None:
+        """Fetch one lookup now, for update_entity."""
+        if key not in self.lookups:
+            return
+        self.lookups[key].schedule.mark_due(MANUAL)
+        self._only = key
+        try:
+            await self.async_refresh()
+        finally:
+            self._only = None
+
+    def schedule_diagnostics(self, now: datetime) -> dict[str, Any]:
+        return {key: lookup.schedule.diagnostics(now) for key, lookup in self.lookups.items()}
 
     def _refresh_token(self) -> None:
         """Pick up the newest pushed token before each poll."""
@@ -98,65 +227,188 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
         self.api.set_token(token)
 
+    async def _gap(self) -> None:
+        low, high = CALL_GAP
+        if high > 0:
+            await asyncio.sleep(self.rng.uniform(low, high))
+
+    def _fetched(self, key: str, new: Any, old: Any) -> None:
+        if self.on_fetched:
+            self.on_fetched(key, new, old)
+
     async def _async_update_data(self) -> dict[str, Any]:
+        # Home Assistant doesn't serialise refreshes; a run reads self.data, so runs go one by one.
+        only = self._only
+        async with self._run_lock:
+            return await self._run(only)
+
+    async def _run(self, only: str | None) -> dict[str, Any]:
         self._refresh_token()
-        started = time.monotonic()
+        started, now = time.monotonic(), dt_util.now()
         previous = self.data or {}
-        data: dict[str, Any] = {}
-        errors = []
-        for key, (fetch, parser) in self._lookups.items():
+        data = {key: previous.get(key) for key in self.lookups}
+        tick = only is None and (self._tick_at is None or now >= self._tick_at - timedelta(seconds=1))
+        fetched: list[str] = []
+        failed: list[str] = []
+        rejected = False
+        for index, (key, lookup) in enumerate(self.lookups.items()):
+            if only not in (None, key):
+                continue
+            reason = lookup.schedule.reason(now, tick)
+            if reason is None:
+                continue
+            if not self.guard.can_call():
+                if tick:  # the rest of this tick's lookups stay due for the next wake
+                    for rest in list(self.lookups.values())[index:]:
+                        if rest.schedule.always:
+                            rest.schedule.mark_due(TICK)
+                break
+            if fetched or failed:
+                await self._gap()
+            self.guard.record_call()
             try:
-                data[key] = parser(await fetch())
+                value = lookup.parse(await lookup.fetch())
             except VerdiAuthError as err:
-                raise ConfigEntryAuthFailed(
-                    translation_domain=DOMAIN, translation_key="token_rejected"
-                ) from err
+                lookup.schedule.failed(now, reason, self._retry)
+                if self.guard.rejected():
+                    raise ConfigEntryAuthFailed(
+                        translation_domain=DOMAIN, translation_key="token_rejected"
+                    ) from err
+                if not self._rejected_logged:
+                    _LOGGER.warning(
+                        "Verdi rejected the token; trying again for up to %d minutes before "
+                        "asking to sign in",
+                        REJECTED_WINDOW // 60,
+                    )
+                    self._rejected_logged = True
+                failed.append(key)
+                rejected = True
+                break  # the token applies to every lookup
             except (VerdiError, KeyError, TypeError, AttributeError) as err:
+                if isinstance(err, VerdiUnavailable):
+                    self.guard.unavailable(err.retry_after)
                 # One failing lookup should not take the other sensors down. The message
                 # holds only the path and status or error type, never response content.
-                _LOGGER.warning(
-                    "Verdi lookup %s failed: %s",
-                    key,
-                    err if isinstance(err, VerdiError) else type(err).__name__,
-                )
-                errors.append(key)
-                data[key] = previous.get(key)
+                if key not in self._failing:
+                    _LOGGER.warning(
+                        "Verdi lookup %s failed: %s",
+                        key,
+                        err if isinstance(err, VerdiError) else type(err).__name__,
+                    )
+                lookup.schedule.failed(now, reason, self._retry)
+                failed.append(key)
             else:
+                self.guard.succeeded()
+                self._rejected_logged = False
+                lookup.schedule.fetched(now, value, reason, self.rng)
                 if key in self._failing:
                     _LOGGER.info("Verdi lookup %s works again", key)
-        self._failing = set(errors)
-        if self._retry is not None:
-            self.update_interval = min(self._interval, self._retry) if errors else self._interval
-        nothing_to_show = not (self._keep_on_failure and any(v is not None for v in data.values()))
-        if len(errors) == len(self._lookups) and nothing_to_show:
-            raise UpdateFailed(f"All Verdi lookups failed: {', '.join(errors)}")
-        _LOGGER.debug("Verdi poll took %.1f s: %s", time.monotonic() - started, lookup_counts(data))
+                old, data[key] = data[key], value
+                fetched.append(key)
+                self._fetched(key, value, old)
+        self._failing = (self._failing - set(fetched)) | set(failed)
+        if self.on_run:
+            self.on_run(data, previous)
+        if tick and (current := self._pace()):
+            self._tick_at = now + timedelta(seconds=jittered(current[0], self.rng, current[1]))
+        self.update_interval = self._next_interval(now)
+        if failed and not fetched:
+            # Off-tick and single-lookup runs never take earlier values away; a tick only
+            # fails when nothing could be fetched and the coordinator doesn't keep values.
+            nothing_to_show = not (
+                (self._keep_on_failure or not tick) and any(v is not None for v in data.values())
+            )
+            if not previous or (nothing_to_show and not rejected):
+                raise UpdateFailed(f"Verdi lookups failed: {', '.join(failed)}")
+        _LOGGER.debug(
+            "Verdi poll took %.1f s: %s",
+            time.monotonic() - started,
+            lookup_counts({key: data[key] for key in fetched}),
+        )
         return data
+
+    def _next_interval(self, now: datetime) -> timedelta:
+        moments = [m for lookup in self.lookups.values() if (m := lookup.schedule.next_due(now))]
+        if self._tick_at:
+            moments.append(self._tick_at)
+        wait = max((min(moments) - now).total_seconds(), MIN_WAKE) if moments else float(IDLE_WAKE)
+        if self.guard.backing_off:
+            current = self._pace()
+            wait = max(wait, self.guard.delay(min(wait, current[0]) if current else wait) or 0.0)
+        return timedelta(seconds=wait)
 
 
 class VerdiCoordinator(LookupCoordinator):
-    """The station's lookups. Your own lookups, when enabled, are in .personal."""
+    """The station's lookups. Personnel and vehicles every tick; readiness when they change;
+    teams and roster at the times Verdi announced; each also after its safety interval.
+    Your own lookups, when enabled, are in .personal."""
 
     def __init__(self, hass: HomeAssistant, entry: ConfigEntry, token: str) -> None:
-        d = entry.data
-        names = bool(entry.options.get(CONF_SHOW_NAMES, False))
+        d, o = entry.data, entry.options
+        names = bool(o.get(CONF_SHOW_NAMES, False))
+        rng = schedule.make_rng()
         api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
-        lookups: dict[str, tuple[Fetch, Parser]] = {
-            "readiness": (
+        self.person = PersonId(api)
+        self.intervention = False
+        lookups = {
+            "personnel": Lookup(
+                lambda: api.personnel(d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS]), parse.personnel_summary
+            ),
+            "vehicles": Lookup(lambda: api.vehicles(d[CONF_STATION_ID]), parse.vehicles),
+            "readiness": Lookup(
                 lambda: api.readiness(d[CONF_STATION_ID], d[CONF_VEHICLE_TRAIN_IDS]),
                 parse.readiness_trains,
+                safety_schedule(o, CONF_READINESS_SAFETY),
             ),
-            "personnel": (
-                lambda: api.personnel(d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS]),
-                parse.personnel_summary,
+            "teams": Lookup(
+                lambda: api.team_on_duty(d[CONF_TEAM_GROUP_ID]),
+                parse.teams_on_duty,
+                safety_schedule(o, CONF_TEAMS_SAFETY, next_change=teams_change),
             ),
-            "vehicles": (lambda: api.vehicles(d[CONF_STATION_ID]), parse.vehicles),
-            "teams": (lambda: api.team_on_duty(d[CONF_TEAM_GROUP_ID]), parse.teams_on_duty),
-            "roster": (
+            "roster": Lookup(
                 lambda: api.roster(d[CONF_CREW_FUNCTION_IDS]),
-                lambda data: parse.roster(data, names=names),
+                lambda data: parse.roster(data, names=names, me=self.person.value),
+                safety_schedule(o, CONF_ROSTER_SAFETY, next_change=roster_change),
             ),
         }
-        super().__init__(hass, entry, api, DOMAIN, interval(entry.options, CONF_SCAN_INTERVAL), lookups)
+        if calendar_id := d.get(CONF_FUNCTION_CALENDAR_ID):
+
+            async def roster_calendar() -> dict[str, Any]:
+                now = dt_util.utcnow()
+                return await api.calendar_events(
+                    calendar_id, now - timedelta(hours=24), now + timedelta(days=7)
+                )
+
+            lookups["roster_calendar"] = Lookup(
+                roster_calendar,
+                lambda data: parse.calendar_events(data, names=names),
+                safety_schedule(o, CONF_ROSTER_SAFETY, next_change=calendar_change),
+            )
+        super().__init__(
+            hass,
+            entry,
+            api,
+            DOMAIN,
+            lookups,
+            pace=self._tick,
+            retry=interval(o, CONF_SCAN_INTERVAL),
+            guard=get_guard(hass, entry.entry_id, rng),
+            rng=rng,
+        )
         self.show_names: bool = names
-        self.personal: Personal | None = None
+        self.personal: LookupCoordinator | None = None
+
+    def _tick(self) -> tuple[float, float]:
+        key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL
+        return pace(self.config_entry.options, key)
+
+    @property
+    def pace_name(self) -> str:
+        if self.guard.backing_off:
+            return "backoff"
+        return "intervention" if self.intervention else "normal"
+
+    def _fetched(self, key: str, new: Any, old: Any) -> None:
+        if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
+            self.mark_due("readiness", f"trigger:{key}")
+        super()._fetched(key, new, old)

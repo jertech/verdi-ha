@@ -41,11 +41,15 @@ async def test_expired_token_warns_once(hass: HomeAssistant, config_entry, mock_
     assert expired not in caplog.text
 
 
-async def test_rejected_token_warns(hass: HomeAssistant, config_entry, mock_api, caplog):
+async def test_rejected_token_warns_once_and_waits(hass: HomeAssistant, config_entry, mock_api, caplog):
     await setup_with_token(hass, config_entry)
-    with patch("custom_components.verdi.api.VerdiApi.vehicles", side_effect=VerdiAuthError("HTTP 401")):
-        await config_entry.runtime_data.async_refresh()
+    coordinator = config_entry.runtime_data
+    with patch("custom_components.verdi.api.VerdiApi.command", side_effect=VerdiAuthError("HTTP 401")):
+        await coordinator.async_refresh_lookup("vehicles")
+        await coordinator.async_refresh_lookup("vehicles")
     assert warnings_with(caplog, "Verdi rejected the token") == 1
+    assert coordinator.last_update_success
+    assert not list(config_entry.async_get_active_flows(hass, {"reauth"}))
 
 
 async def test_lookup_recovery_is_logged(hass: HomeAssistant, config_entry, mock_api, caplog):
@@ -53,18 +57,18 @@ async def test_lookup_recovery_is_logged(hass: HomeAssistant, config_entry, mock
     await setup_with_token(hass, config_entry)
     coordinator = config_entry.runtime_data
     with patch("custom_components.verdi.api.VerdiApi.vehicles", side_effect=VerdiError("HTTP 500")):
-        await coordinator.async_refresh()
+        await coordinator.async_refresh_lookup("vehicles")
     assert "Verdi lookup vehicles failed" in caplog.text
-    await coordinator.async_refresh()
+    await coordinator.async_refresh_lookup("vehicles")
     assert caplog.text.count("Verdi lookup vehicles works again") == 1
-    await coordinator.async_refresh()
+    await coordinator.async_refresh_lookup("vehicles")
     assert caplog.text.count("Verdi lookup vehicles works again") == 1
 
 
 async def test_poll_details_at_debug_without_names(hass: HomeAssistant, config_entry, mock_api, caplog):
     caplog.set_level(logging.DEBUG, logger="custom_components.verdi")
     await setup_with_token(hass, config_entry, names=True)
-    await config_entry.runtime_data.async_refresh()
+    await config_entry.runtime_data.async_refresh_lookup("vehicles")
     assert "Verdi poll took" in caplog.text
     assert "'vehicles': " in caplog.text
     for name in r.PERSON_NAMES:

@@ -10,9 +10,16 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
 from tests import responses as r
-from tests.conftest import fake_command, setup_with_token
+from tests.conftest import ALL_OFF, fake_command, setup_with_token
 
 STATS = "AppGetPersonStatisticsCommand"
+
+
+async def after_setup_delay(hass: HomeAssistant, freezer) -> None:
+    """Your events and statistics are first fetched 60-600 s after setup; 330 s is the middle."""
+    freezer.tick(timedelta(seconds=330))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
 
 
 async def test_my_availability_from_the_app_route(hass: HomeAssistant, config_entry, mock_api):
@@ -29,13 +36,14 @@ async def test_my_availability_from_the_app_route(hass: HomeAssistant, config_en
 
 
 async def test_no_personal_sensors_when_off(hass: HomeAssistant, config_entry, mock_api):
-    await setup_with_token(hass, config_entry, options={"personal_data": False})
+    await setup_with_token(hass, config_entry, options=ALL_OFF)
     assert hass.states.get("sensor.verdi_my_availability") is None
     assert hass.states.get("sensor.verdi_times_called_station_north_fire") is None
 
 
-async def test_statistics_sensors(hass: HomeAssistant, config_entry, mock_api):
+async def test_statistics_sensors(hass: HomeAssistant, config_entry, mock_api, freezer):
     await setup_with_token(hass, config_entry)
+    await after_setup_delay(hass, freezer)
     year = hass.states.get("sensor.verdi_availability_this_year_station_north")
     assert year.state == "34.7"
     assert year.attributes["unit_of_measurement"] == "%"
@@ -61,6 +69,7 @@ async def test_statistics_sensors_appear_after_a_failed_start(hass: HomeAssistan
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
     ):
         await setup_with_token(hass, config_entry)
+        await after_setup_delay(hass, freezer)
         assert hass.states.get("sensor.verdi_times_called_station_north_fire") is None
         responses[APP_ROUTE][STATS] = r.STATISTICS
         freezer.tick(timedelta(minutes=5, seconds=1))
@@ -82,6 +91,7 @@ async def test_statistics_sensor_listed_twice_is_added_once(
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
     ):
         await setup_with_token(hass, config_entry)
+        await after_setup_delay(hass, freezer)
     assert hass.states.get("sensor.verdi_times_called_station_north_fire").state == "17"
     assert "already exists" not in caplog.text
 
@@ -90,7 +100,7 @@ PRE, GARRISON = "GetPersonCurrentPreAlertInformationCommand", "GetPersonCurrentG
 
 
 async def test_pre_alert_and_garrison_off(hass: HomeAssistant, config_entry, mock_api):
-    await setup_with_token(hass, config_entry)
+    await setup_with_token(hass, config_entry, options={"pre_alert": True, "garrison": True})
     assert hass.states.get("binary_sensor.verdi_pre_alert").state == "off"
     assert hass.states.get("binary_sensor.verdi_garrison").state == "off"
 
@@ -102,7 +112,7 @@ async def test_pre_alert_and_garrison_on(hass: HomeAssistant, config_entry):
         patch("custom_components.verdi.api.VerdiApi.command", fake_command(responses)),
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
     ):
-        await setup_with_token(hass, config_entry)
+        await setup_with_token(hass, config_entry, options={"pre_alert": True, "garrison": True})
     pre = hass.states.get("binary_sensor.verdi_pre_alert")
     assert pre.state == "on"
     assert (pre.attributes["description"], pre.attributes["station"], pre.attributes["function"]) == (
@@ -110,6 +120,7 @@ async def test_pre_alert_and_garrison_on(hass: HomeAssistant, config_entry):
         "Station North",
         "Driver",
     )
+    assert "end" not in pre.attributes
     garrison = hass.states.get("binary_sensor.verdi_garrison")
     assert garrison.state == "on"
     assert (garrison.attributes["station"], garrison.attributes["city"]) == ("Station North", "Northville")
@@ -125,6 +136,7 @@ async def test_personal_calendars(hass: HomeAssistant, config_entry, hass_client
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
     ):
         await setup_with_token(hass, config_entry)
+        await after_setup_delay(hass, freezer)
         assert hass.states.get("calendar.verdi_my_shifts").state == "off"
         assert hass.states.get("calendar.verdi_my_availability").state == "on"
         before = len(calls)
