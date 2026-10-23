@@ -15,7 +15,7 @@ from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
 
 from . import VerdiConfigEntry, parse
-from .api import VerdiError
+from .api import VerdiError, VerdiUnavailable
 from .const import CALENDAR_CACHE, CONF_FUNCTION_CALENDAR_ID
 from .coordinator import LookupCoordinator, VerdiCoordinator
 from .entity import VerdiEntity, device_info
@@ -84,8 +84,12 @@ class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
         guard.record_call()
         try:
             data = await self.coordinator.api.calendar_events(self._calendar_id, start_date, end_date)
-        except VerdiError:
+        except VerdiUnavailable as err:
+            guard.unavailable(err.retry_after)
             return cached[1] if cached else []
+        except VerdiError:  # an auth error is for the coordinator's 401 window
+            return cached[1] if cached else []
+        guard.succeeded()
         events = self._events(parse.calendar_events(data, names=self.coordinator.show_names))
         if key not in self._cache and len(self._cache) >= 8:
             self._cache.pop(next(iter(self._cache)))

@@ -7,6 +7,7 @@ from unittest.mock import patch
 from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.verdi.api import VerdiUnavailable
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
 
@@ -74,3 +75,20 @@ async def test_views_are_cached_per_range(hass: HomeAssistant, config_entry, has
         assert await resp.json() == []
         assert views() == base + 3
     assert [e["summary"] for e in first] == ["Officer"]
+
+
+async def test_a_view_that_meets_trouble_tells_the_guard(hass: HomeAssistant, config_entry, hass_client):
+    command, user = patched(r.all_ok(), [])
+    with command, user:
+        await setup_with_token(hass, config_entry)
+        client = await hass_client()
+        guard = config_entry.runtime_data.guard
+        assert guard.can_call()
+        with patch(
+            "custom_components.verdi.api.VerdiApi.calendar_events",
+            side_effect=VerdiUnavailable("planning/functioncalendar/events/commands: HTTP 503", 120),
+        ):
+            resp = await client.get(URL)
+        assert await resp.json() == []
+        assert not guard.can_call()
+        assert guard.backing_off
