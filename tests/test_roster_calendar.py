@@ -90,5 +90,18 @@ async def test_a_view_that_meets_trouble_tells_the_guard(hass: HomeAssistant, co
         ):
             resp = await client.get(URL)
         assert await resp.json() == []
-        assert not guard.can_call()
-        assert guard.backing_off
+        assert not guard.can_call()  # Retry-After is honoured
+        assert guard.level == 0  # only a failed station tick backs off
+
+
+async def test_no_view_calls_during_a_backoff(hass: HomeAssistant, config_entry, hass_client):
+    calls: list = []
+    command, user = patched(r.all_ok(), calls)
+    with command, user:
+        await setup_with_token(hass, config_entry)
+        client = await hass_client()
+        config_entry.runtime_data.guard.unavailable()  # a run met a 503, no Retry-After
+        calls.clear()
+        resp = await client.get(URL)
+        assert await resp.json() == []
+    assert calls == []

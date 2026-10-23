@@ -113,9 +113,11 @@ DAILY_JITTER = 900  # plus up to this many seconds per day: between 00:05 and 01
 MIN_WAKE = 5  # seconds; a coordinator never wakes sooner
 IDLE_WAKE = 3600  # seconds; wake this often when nothing is due at all
 
-# Per entry (guard.py): calls per minute over all coordinators, backoff cap, and how long
-# 401/403 answers are tolerated without a success before asking to sign in again.
+# Per entry (guard.py): calls per minute over all coordinators, the first backoff for callers
+# without a tick, backoff cap, and how long 401/403 answers are tolerated without a success
+# before asking to sign in again.
 CALL_CAP = 30
+BACKOFF_START = 60
 BACKOFF_MAX = 300
 REJECTED_WINDOW = 120
 CALENDAR_CACHE = 300  # seconds a roster calendar range is served from memory

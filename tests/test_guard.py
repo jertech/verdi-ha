@@ -33,34 +33,50 @@ def test_cap_per_minute():
     assert guard.calls_last_minute() == 0
 
 
-def test_backoff_doubles_up_to_the_cap_and_resets():
-    guard, _ = make()
+def blocked_for(guard: Guard, clock: Clock) -> float:
+    """Seconds until calls are allowed again, to the second."""
+    waited = 0
+    while not guard.can_call():
+        clock.now += 1
+        waited += 1
+    clock.now -= waited
+    return waited
+
+
+def test_backoff_blocks_calls_doubling_up_to_the_cap_and_resets():
+    guard, clock = make()
     assert guard.delay(60) == 60
-    for errors, cap in ((1, 120), (2, 240), (3, 300), (6, 300)):
-        while guard.level < errors:
-            guard.unavailable()
-        samples = [guard.delay(60) for _ in range(200)]
+    for errors, cap in ((1, 120), (2, 240), (3, BACKOFF_MAX), (6, BACKOFF_MAX)):
+        samples = []
+        for _ in range(50):
+            guard.level = errors - 1
+            guard.unavailable(pace=60)
+            samples.append(blocked_for(guard, clock))
+            clock.now += samples[-1]
         assert min(samples) >= 60 and max(samples) <= cap
+        assert guard.level == errors
         assert guard.backing_off
     guard.succeeded()
-    assert guard.delay(60) == 60
+    assert guard.level == 0
     assert not guard.backing_off
+    assert guard.delay(60) == 60
 
 
 def test_backoff_without_a_pace_starts_at_a_minute():
-    guard, _ = make()
-    assert guard.delay(None) is None
+    guard, clock = make()
     guard.unavailable()
-    assert 60 <= guard.delay(None) <= 120
+    assert 60 <= blocked_for(guard, clock) <= 120
 
 
 def test_retry_after_blocks_calls():
     guard, clock = make()
-    guard.unavailable(retry_after=90)
-    assert not guard.can_call()
-    assert guard.delay(30) >= 90
-    clock.now += 90
+    guard.unavailable(retry_after=600)
+    assert blocked_for(guard, clock) == 600
+    assert guard.delay(30) == 600
+    clock.now += 600
     assert guard.can_call()
+    guard.wait(90)
+    assert blocked_for(guard, clock) == 90
 
 
 def test_rejected_window():
@@ -89,9 +105,8 @@ async def test_one_guard_per_entry(hass: HomeAssistant):
 
 
 def test_backoff_never_polls_faster_than_the_normal_pace():
-    guard, _ = make()
-    guard.unavailable()
-    for base in (600, 3600):
-        samples = [guard.delay(base) for _ in range(50)]
-        assert min(samples) >= base
-        assert max(samples) <= max(base, BACKOFF_MAX)
+    guard, clock = make()
+    for pace in (600, 3600):
+        guard.unavailable(pace=pace)
+        assert blocked_for(guard, clock) == pace  # above the cap: exactly the pace
+        clock.now += pace

@@ -5,6 +5,21 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.8.1] - unreleased
+
+### Integration
+- While Verdi has trouble (busy, errors, timeouts), every call waits: a run stops at the first
+  such error, and the backoff (and any Retry-After) now also holds calendar views, "Update entity",
+  your own data and the person lookup. A setup during an outage no longer waits for each call's
+  timeout. One lookup that keeps failing no longer slows the whole station down; it has its own retry.
+- A setup while Verdi asked to wait, or at the 30 calls a minute, is tried again later instead of
+  loading without the station's entities.
+- A change signal that arrives while the same lookup is being fetched is no longer lost.
+- Personnel and vehicles are no longer fetched twice in a row after a failure.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.8.0] - unreleased
 
 ### Integration

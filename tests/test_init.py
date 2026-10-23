@@ -14,8 +14,10 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 
 from custom_components.verdi.api import VerdiAuthError
 from custom_components.verdi.const import CONF_STATION_ID, DOMAIN, TOKEN_GRACE_SECONDS
+from custom_components.verdi.guard import get_guard
 from custom_components.verdi.token import get_store
-from tests.conftest import DATA, fake_command, make_token, setup_with_token
+from tests import responses as r
+from tests.conftest import DATA, MidRandom, fake_command, make_token, setup_with_token
 
 
 async def test_setup_creates_entities(hass: HomeAssistant, config_entry, mock_api):
@@ -74,6 +76,29 @@ async def test_rejected_token_at_setup_retries_first(hass: HomeAssistant, config
         await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
     assert not list(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
+
+
+@pytest.mark.parametrize("block", ["retry_after", "cap"])
+async def test_setup_waiting_for_the_guard_retries(hass: HomeAssistant, config_entry, block):
+    """The guard outlives reloads: a setup inside its wait must not end up without entities."""
+    calls: list = []
+    config_entry.add_to_hass(hass)
+    guard = get_guard(hass, config_entry.entry_id, MidRandom())
+    if block == "retry_after":
+        guard.wait(600)
+    else:
+        for _ in range(30):
+            guard.record_call()
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(r.all_ok(), calls)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER) as user,
+    ):
+        get_store(hass).tokens[config_entry.entry_id] = make_token()
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert calls == []
+    assert user.call_count == 0
 
 
 async def test_expired_token_is_not_used(hass: HomeAssistant, config_entry, mock_api):

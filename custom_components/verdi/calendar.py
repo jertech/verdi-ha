@@ -85,7 +85,7 @@ class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
         try:
             data = await self.coordinator.api.calendar_events(self._calendar_id, start_date, end_date)
         except VerdiUnavailable as err:
-            guard.unavailable(err.retry_after)
+            guard.wait(err.retry_after)  # only a failed station tick backs off
             return cached[1] if cached else []
         except VerdiError:  # an auth error is for the coordinator's 401 window
             return cached[1] if cached else []

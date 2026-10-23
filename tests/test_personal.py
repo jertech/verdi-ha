@@ -129,3 +129,17 @@ async def test_statistics_after_intervention_and_midnight(hass: HomeAssistant, c
     freezer.move_to("2026-06-16T00:05:00+02:00")
     await tick(hass, freezer, offset + 1)
     assert len(app_calls(calls, STATS)) == 3
+
+
+async def test_no_personal_calls_during_a_backoff(hass: HomeAssistant, config_entry, api, freezer):
+    _, calls, _ = api
+    await setup_with_token(hass, config_entry, options={"my_events": False, "statistics": False})
+    personal = config_entry.runtime_data.personal
+    personal.guard.unavailable()  # the station's run met a 503: 60-120 s without calls
+    calls.clear()
+    personal.mark_due("availability", "trigger:own_availability")
+    await personal.async_refresh()
+    assert calls == []
+    assert personal.last_update_success
+    await tick(hass, freezer, 90)  # the backoff is over; the mark is still there
+    assert len(app_calls(calls, AVAILABILITY)) == 1
