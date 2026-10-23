@@ -408,6 +408,25 @@ async def test_a_retry_before_the_tick_does_not_back_off(hass: HomeAssistant, co
     assert (a.call_count, b.call_count) == (2, 2)
 
 
+async def test_a_tick_where_only_vehicles_fail_does_not_back_off(hass: HomeAssistant, config_entry, freezer):
+    personnel = value({"total": 2})  # lookup_counts reads the total
+    vehicles = AsyncMock(side_effect=UNAVAILABLE)
+    c = make(
+        hass,
+        config_entry,
+        {"personnel": Lookup(personnel, parse), "vehicles": Lookup(vehicles, parse)},
+        retry=timedelta(seconds=60),
+    )
+    for _ in range(4):
+        await c.async_refresh()
+        assert c.guard.level == 0
+        assert c.guard.can_call()
+        assert c.update_interval == timedelta(seconds=60)
+        freezer.tick(timedelta(seconds=60))
+    assert (personnel.call_count, vehicles.call_count) == (4, 4)
+    assert c.data == {"personnel": {"total": 2}, "vehicles": None}
+
+
 async def test_a_mark_during_the_fetch_fetches_again(hass: HomeAssistant, config_entry, freezer):
     calls = []
 

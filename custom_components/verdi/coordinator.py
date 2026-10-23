@@ -313,7 +313,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 lookup.schedule.failed(now, reason, self._retry)
                 failed.append(key)
                 if isinstance(err, VerdiUnavailable):
-                    trouble, back_off = err, tick and lookup.schedule.always
+                    trouble, back_off = err, tick and lookup.schedule.always and not fetched
                     if tick:
                         self._keep_tick_due(index + 1)
                     break  # Verdi has trouble: no more calls in this run
@@ -328,7 +328,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._fetched(key, value, old)
         self._failing = (self._failing - set(fetched)) | set(failed)
         if back_off and trouble is not None:
-            # The tick's own lookups failed: the whole entry waits. Any other failing lookup
+            # A tick that got nothing back: the whole entry waits. Any other failing lookup
             # has its own retry and must not slow the station down.
             current = self._pace()
             self.guard.unavailable(trouble.retry_after, current[0] if current else BACKOFF_START)
