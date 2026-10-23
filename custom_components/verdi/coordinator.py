@@ -313,7 +313,11 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._tick_at = now + timedelta(seconds=jittered(current[0], self.rng, current[1]))
         self.update_interval = self._next_interval(now)
         if failed and not fetched:
-            nothing_to_show = not (self._keep_on_failure and any(v is not None for v in data.values()))
+            # Off-tick and single-lookup runs never take earlier values away; a tick only
+            # fails when nothing could be fetched and the coordinator doesn't keep values.
+            nothing_to_show = not (
+                (self._keep_on_failure or not tick) and any(v is not None for v in data.values())
+            )
             if not previous or (nothing_to_show and not rejected):
                 raise UpdateFailed(f"Verdi lookups failed: {', '.join(failed)}")
         _LOGGER.debug(

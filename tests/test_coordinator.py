@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import UpdateFailed
+from homeassistant.util import dt as dt_util
 
 from custom_components.verdi.api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable
 from custom_components.verdi.const import (
@@ -110,6 +111,39 @@ async def test_without_keep_every_lookup_failing_is_a_failure(hass: HomeAssistan
     freezer.tick(timedelta(seconds=60))
     await c.async_refresh()
     assert not c.last_update_success
+
+
+async def test_failing_off_tick_lookup_keeps_the_station_available(
+    hass: HomeAssistant, config_entry, freezer
+):
+    safety = AsyncMock(side_effect=[{"v": 2}, FAILED])
+    c = make(
+        hass,
+        config_entry,
+        {
+            "tick": Lookup(value(1), parse, LookupSchedule(always=True)),
+            "safe": Lookup(safety, parse, LookupSchedule(safety=timedelta(minutes=15))),
+        },
+    )
+    await c.async_refresh()
+    freezer.tick(timedelta(minutes=16))
+    c._tick_at = dt_util.now() + timedelta(hours=1)  # not a tick: only the safety lookup is due
+    await c.async_refresh()
+    assert safety.call_count == 2
+    assert c.last_update_success
+    assert c.data == {"tick": 1, "safe": 2}
+
+
+async def test_failing_single_lookup_refresh_keeps_the_station_available(
+    hass: HomeAssistant, config_entry, freezer
+):
+    x = AsyncMock(side_effect=[{"v": 1}, FAILED])
+    c = make(hass, config_entry, {"x": Lookup(x, parse, LookupSchedule(safety=timedelta(hours=1)))})
+    await c.async_refresh()
+    await c.async_refresh_lookup("x")
+    assert x.call_count == 2
+    assert c.last_update_success
+    assert c.data == {"x": 1}
 
 
 async def test_short_401_glitch_is_tolerated(hass: HomeAssistant, config_entry, freezer, caplog):
