@@ -84,13 +84,27 @@ def vehicles(data: dict[str, Any]) -> list[dict[str, Any]]:
     return result
 
 
-def personnel_summary(data: dict[str, Any]) -> dict[str, Any]:
-    """Counts per availability, plus id and status per person. Never names."""
-    persons = [p for g in data.get("personGroups") or [] for p in g.get("persons") or []]
+def availability_list(data: dict[str, Any]) -> dict[str, str]:
+    """{ID: name} from domaindata/person/availabilities/displayitems."""
+    return {
+        str(item["guid"]): name
+        for item in data.get("data") or []
+        if item.get("guid") and (name := clean(item.get("text")))
+    }
+
+
+def personnel_summary(data: dict[str, Any], exclude: frozenset[str] = frozenset()) -> dict[str, Any]:
+    """Counts per availability, plus id and status per person. Never names.
+
+    exclude: availability names that were only requested to find your own line. Those persons
+    are listed, but not counted.
+    """
+    listed = [p for g in data.get("personGroups") or [] for p in g.get("persons") or []]
 
     def availability(p: dict[str, Any]) -> str | None:
         return localized((p.get("currentAvailability") or {}).get("description"))
 
+    persons = [p for p in listed if availability(p) not in exclude]
     return {
         "persons": [
             {
@@ -101,7 +115,7 @@ def personnel_summary(data: dict[str, Any]) -> dict[str, Any]:
                 "present": bool(p.get("isPresent")),
                 "garrison_crew": bool(p.get("isGarrisonCrew")),
             }
-            for p in persons
+            for p in listed
         ],
         "total": len(persons),
         "by_availability": dict(Counter(availability(p) or "unknown" for p in persons)),

@@ -11,6 +11,7 @@ Paths are relative to `<your Verdi address>/verdi-core/api/v1/`.
 |--------|------|---------|----------|
 | POST | `configuration/readinesses/commands` | `ReadinessGetWidgetsCommand` | Readiness per vehicle train |
 | POST | `configuration/persons/commands` | `PersonGetGroupedWidgetsCommand` | Personnel counts |
+| POST | `domaindata/person/availabilities/displayitems` | - | The station's availabilities: who is listed in personnel, and their names in the options |
 | POST | `configuration/vehicles/commands` | `VehicleWidgetsSummaryCommand` | Vehicle status |
 | POST | `configuration/team/groups/commands` | `TeamOnDutyWidgetCommand` | Team on duty |
 | POST | `planning/functioncalendars/commands` | `FunctionCalendarPlanningWidgetCommand` | On-duty sensors |

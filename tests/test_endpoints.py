@@ -49,6 +49,7 @@ async def test_every_lookup_is_allowed():
     now = datetime.now(UTC)
     await api.readiness("s", ["t"])
     await api.personnel("s", ["a"])
+    await api.availabilities("s", 0, 50)
     await api.vehicles("s")
     await api.team_on_duty("g")
     await api.roster(["c"])

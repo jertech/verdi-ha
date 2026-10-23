@@ -80,6 +80,20 @@ PERSONNEL = {
     "errorFeedback": [],
 }
 
+# The station's plannable availabilities. The fixture configures av-1 and av-2; av-3 and av-4 are
+# only listed, and "Radio" (configured in some tests) isn't plannable, so the list leaves it out.
+AVAILABILITIES = {
+    "data": [
+        {"guid": "av-1", "text": "Available"},
+        {"guid": "av-2", "text": "Urgent "},
+        {"guid": "av-3", "text": "Not available"},
+        {"guid": "av-4", "text": "Sick"},
+    ],
+    "itemsCount": 4,
+    "startIndex": 0,
+    "total": 4,
+}
+
 VEHICLES = {
     "data": [
         {
@@ -382,6 +396,7 @@ def all_ok() -> dict:
     return {
         "configuration/readinesses/commands": READINESS,
         "configuration/persons/commands": PERSONNEL,
+        "domaindata/person/availabilities/displayitems": AVAILABILITIES,
         "configuration/vehicles/commands": VEHICLES,
         "configuration/team/groups/commands": TEAMS,
         "planning/functioncalendars/commands": ROSTER,

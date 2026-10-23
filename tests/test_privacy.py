@@ -59,7 +59,9 @@ async def test_names_when_enabled(hass: HomeAssistant, config_entry, mock_api, h
 async def test_diagnostics_redacts_identifiers(hass: HomeAssistant, config_entry, mock_api, hass_client):
     assert await async_setup_component(hass, "diagnostics", {})
     await setup_with_token(hass, config_entry, names=True)
-    diag = json.dumps(await get_diagnostics_for_config_entry(hass, hass_client, config_entry))
+    raw = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
+    assert raw["availabilities"] == {"loaded": True, "listed": 4, "configured": 2, "requested": 4}
+    diag = json.dumps(raw)
     for value in (
         BASE_URL,
         VERDI,

@@ -70,7 +70,8 @@
             "data": {
               "scan_interval": "Tik (seconden, minstens 30)",
               "intervention_interval": "Tik tijdens een interventie (seconden, minstens 15)",
-              "watched_vehicles": "Voertuigen die meetellen voor interventies (geen gekozen: alle)"
+              "watched_vehicles": "Voertuigen die meetellen voor interventies (geen gekozen: alle)",
+              "availability_ids": "Statussen die meetellen in Personen"
             }
           },
           "own_data": {
@@ -99,6 +100,9 @@
           }
         }
       }
+    },
+    "error": {
+      "no_availability": "Kies minstens één status."
     }
   },
   "entity": {

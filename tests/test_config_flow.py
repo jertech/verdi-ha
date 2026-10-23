@@ -129,7 +129,12 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
     schema = result["data_schema"]
     assert _defaults(schema) == {
         "show_names": False,
-        "station": {"scan_interval": 60, "intervention_interval": 30, "watched_vehicles": []},
+        "station": {
+            "scan_interval": 60,
+            "intervention_interval": 30,
+            "watched_vehicles": [],
+            "availability_ids": ["av-1", "av-2"],
+        },
         "own_data": {
             "my_availability": True,
             "pre_alert": False,
@@ -198,3 +203,70 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
     assert all(
         isinstance(v, int) for k, v in config_entry.options.items() if k.endswith(("interval", "safety"))
     )
+
+
+def _station_field(result, key: str):
+    station = next(v for k, v in result["data_schema"].schema.items() if str(k) == "station").schema.schema
+    return next(v for k, v in station.items() if str(k) == key)
+
+
+def _submit(station: dict) -> dict:
+    return {
+        "show_names": False,
+        "station": {"scan_interval": 60, "intervention_interval": 30, "watched_vehicles": [], **station},
+        "own_data": {},
+        "safety": {},
+    }
+
+
+async def test_options_pick_availabilities_by_name(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    await hass.config_entries.options.async_configure(result["flow_id"], _submit({}))  # stores defaults
+    await hass.async_block_till_done()
+    data = {**config_entry.data, "availability_ids": ["av-1", "av-radio"]}
+    hass.config_entries.async_update_entry(config_entry, data=data)
+    before = dict(config_entry.options)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    options = [(o["value"], o["label"]) for o in _station_field(result, "availability_ids").config["options"]]
+    # The list's names; a configured ID the list doesn't have stays pickable.
+    assert options == [
+        ("av-1", "Available"),
+        ("av-2", "Urgent"),
+        ("av-3", "Not available"),
+        ("av-4", "Sick"),
+        ("av-radio", "av-radio"),
+    ]
+    with patch("custom_components.verdi.async_setup_entry", return_value=True) as setup:
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], _submit({"availability_ids": ["av-1", "av-3", "av-radio"]})
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.data["availability_ids"] == ["av-1", "av-3", "av-radio"]
+    assert config_entry.options == before
+    assert setup.call_count == 1  # reloaded once, though no option changed
+
+
+async def test_options_need_an_availability(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _submit({"availability_ids": []})
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "no_availability"}
+    assert config_entry.data["availability_ids"] == ["av-1", "av-2"]
+
+
+async def test_options_and_availabilities_change_together(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    with patch("custom_components.verdi.async_setup_entry", return_value=True) as setup:
+        await hass.config_entries.options.async_configure(
+            result["flow_id"], _submit({"scan_interval": 45, "availability_ids": ["av-2"]})
+        )
+        await hass.async_block_till_done()
+    assert config_entry.data["availability_ids"] == ["av-2"]
+    assert config_entry.options["scan_interval"] == 45
+    assert setup.call_count == 1  # one reload, not two

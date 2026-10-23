@@ -70,7 +70,8 @@
             "data": {
               "scan_interval": "Cycle (secondes, au moins 30)",
               "intervention_interval": "Cycle pendant une intervention (secondes, au moins 15)",
-              "watched_vehicles": "Véhicules pris en compte pour les interventions (aucun choisi : tous)"
+              "watched_vehicles": "Véhicules pris en compte pour les interventions (aucun choisi : tous)",
+              "availability_ids": "Statuts pris en compte dans Personnes"
             }
           },
           "own_data": {
@@ -99,6 +100,9 @@
           }
         }
       }
+    },
+    "error": {
+      "no_availability": "Choisissez au moins un statut."
     }
   },
   "entity": {

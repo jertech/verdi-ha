@@ -150,6 +150,64 @@ class PersonId:
         return self.value
 
 
+class Availabilities:
+    """The station's availabilities from the list behind the web app's availability filter, asked
+    on entry load and kept in memory.
+
+    Personnel is requested with all of them, so your own line is there whatever your availability;
+    only the configured ones count. The list only has availabilities that can be planned: configured
+    ones not in it are still requested and counted. Until it is loaded, only the configured ones are
+    requested. The calls go through the guard, as PersonId's.
+    """
+
+    PAGE = 50
+    MAX_PAGES = 10
+
+    def __init__(self, api: VerdiApi, guard: Guard, station_id: str, configured: list[str]) -> None:
+        self._api, self._guard, self._station_id = api, guard, station_id
+        self.configured = list(configured)
+        self.listed: dict[str, str] | None = None
+
+    async def load(self) -> None:
+        listed: dict[str, str] = {}
+        skip = 0
+        for _ in range(self.MAX_PAGES):
+            if not self._guard.can_call():
+                raise VerdiError("availabilities: waiting before calling Verdi again")
+            self._guard.record_call()
+            try:
+                data = await self._api.availabilities(self._station_id, skip, self.PAGE)
+            except VerdiUnavailable as err:
+                self._guard.wait(err.retry_after)
+                raise
+            self._guard.succeeded()
+            listed |= parse.availability_list(data)
+            items = len(data.get("data") or [])
+            skip += items
+            total = data.get("total")
+            if not items or not isinstance(total, int) or skip >= total:
+                break
+        self.listed = listed
+
+    def requested(self) -> list[str]:
+        """The IDs to request personnel with: the configured ones, then the rest of the list."""
+        return self.configured + [i for i in self.listed or {} if i not in self.configured]
+
+    def excluded(self) -> frozenset[str]:
+        """Names of listed availabilities that aren't configured: listed in personnel, not counted."""
+        listed = self.listed or {}
+        counted = {name for i, name in listed.items() if i in self.configured}
+        return frozenset(name for i, name in listed.items() if i not in self.configured) - counted
+
+    def diagnostics(self) -> dict[str, Any]:
+        return {
+            "loaded": self.listed is not None,
+            "listed": len(self.listed) if self.listed is not None else None,
+            "configured": len(self.configured),
+            "requested": len(self.requested()),
+        }
+
+
 def lookup_counts(data: dict[str, Any]) -> dict[str, int | None]:
     """How many items each lookup returned; numbers only, never content."""
     personnel = data.get("personnel") or {}
@@ -383,10 +441,12 @@ class VerdiCoordinator(LookupCoordinator):
         api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
         guard = get_guard(hass, entry.entry_id, rng)
         self.person = PersonId(api, guard)
+        self.availabilities = Availabilities(api, guard, d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS])
         self.intervention = False
         lookups = {
             "personnel": Lookup(
-                lambda: api.personnel(d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS]), parse.personnel_summary
+                lambda: api.personnel(d[CONF_STATION_ID], self.availabilities.requested()),
+                lambda data: parse.personnel_summary(data, exclude=self.availabilities.excluded()),
             ),
             "vehicles": Lookup(lambda: api.vehicles(d[CONF_STATION_ID]), parse.vehicles),
             "readiness": Lookup(

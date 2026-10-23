@@ -263,3 +263,64 @@ async def test_failed_statistics_do_not_skip_the_delay(hass: HomeAssistant, conf
     assert count(calls, STATS) == before
     await tick(hass, freezer, 11)
     assert count(calls, STATS) == before + 1
+
+
+NAMES = {item["guid"]: item["text"] for item in r.AVAILABILITIES["data"]}
+LIST = "domaindata/person/availabilities/displayitems"
+
+
+@pytest.fixture
+def filtered():
+    """Personnel lists only persons whose availability was requested, as Verdi does. You are on
+    a listed availability that isn't configured."""
+    calls: list = []
+    responses = quiet()
+    me(responses)["currentAvailability"]["description"] = {"default": "Not available"}
+    inner = fake_command(responses, calls)
+
+    async def command(self, path, body):
+        value = await inner(self, path, body)
+        if path == PERSONNEL:
+            wanted = {NAMES.get(i) for i in body["availabilityFilter"]}
+            value = copy.deepcopy(value)
+            for group in value["personGroups"]:
+                group["persons"] = [
+                    p
+                    for p in group["persons"]
+                    if p["currentAvailability"]["description"]["default"] in wanted
+                ]
+        return value
+
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", command),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        yield responses, calls
+
+
+async def test_own_line_on_an_unconfigured_availability(hass: HomeAssistant, config_entry, filtered, freezer):
+    _, calls = filtered
+    await start(hass, config_entry, freezer)
+    calls.clear()
+    for _ in range(3):
+        await tick(hass, freezer, 60)
+    assert count(calls, AVAILABILITY) == 0  # no fallback: your line is listed
+    assert sum(1 for c in calls if c[0] == PERSONNEL) == 3
+
+
+async def test_list_failure_falls_back_and_retries(hass: HomeAssistant, config_entry, filtered, freezer):
+    responses, calls = filtered
+    responses[LIST] = VerdiError(f"{LIST}: HTTP 500")
+    await start(hass, config_entry, freezer, options={"my_events": False, "statistics": False})
+    calls.clear()
+    for _ in range(3):
+        await tick(hass, freezer, 60)
+    assert count(calls, AVAILABILITY) == 3  # as in 0.8.1: your line is filtered out
+    assert sum(1 for c in calls if c[0] == LIST) == 0  # asked again only after five minutes
+    responses[LIST] = r.AVAILABILITIES
+    for _ in range(3):
+        await tick(hass, freezer, 60)
+    assert sum(1 for c in calls if c[0] == LIST) == 1
+    calls.clear()
+    await tick(hass, freezer, 60)
+    assert count(calls, AVAILABILITY) == 0  # your line is found now

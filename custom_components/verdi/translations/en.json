@@ -70,7 +70,8 @@
             "data": {
               "scan_interval": "Tick (seconds, at least 30)",
               "intervention_interval": "Tick during an intervention (seconds, at least 15)",
-              "watched_vehicles": "Vehicles that count for interventions (none picked: all)"
+              "watched_vehicles": "Vehicles that count for interventions (none picked: all)",
+              "availability_ids": "Availabilities counted in Personnel"
             }
           },
           "own_data": {
@@ -99,6 +100,9 @@
           }
         }
       }
+    },
+    "error": {
+      "no_availability": "Pick at least one availability."
     }
   },
   "entity": {
