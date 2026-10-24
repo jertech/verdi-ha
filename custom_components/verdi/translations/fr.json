@@ -71,6 +71,7 @@
               "scan_interval": "Cycle (secondes, au moins 30)",
               "intervention_interval": "Cycle pendant une intervention (secondes, au moins 15)",
               "watched_vehicles": "Véhicules pris en compte pour les interventions (aucun choisi : tous)",
+              "non_pageable": "Disponibilités non appelables (aucune choisie : déduit du nom)",
               "availability_ids": "Statuts pris en compte dans Personnes"
             }
           },

@@ -7,7 +7,7 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
 
-from custom_components.verdi.api import VerdiAuthError
+from custom_components.verdi.api import VerdiAuthError, VerdiError
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
 from custom_components.verdi.token import get_store
 from tests.conftest import BASE_URL, SUB, make_token, setup_with_token
@@ -134,6 +134,7 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
             "intervention_interval": 30,
             "watched_vehicles": [],
             "availability_ids": ["av-1", "av-2"],
+            "non_pageable": [],
         },
         "own_data": {
             "my_availability": True,
@@ -187,6 +188,7 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         "scan_interval": 45,
         "intervention_interval": 15,
         "watched_vehicles": ["v1"],
+        "non_pageable": [],
         "my_availability": True,
         "pre_alert": True,
         "garrison": False,
@@ -270,3 +272,28 @@ async def test_options_and_availabilities_change_together(hass: HomeAssistant, c
     assert config_entry.data["availability_ids"] == ["av-2"]
     assert config_entry.options["scan_interval"] == 45
     assert setup.call_count == 1  # one reload, not two
+
+
+ITEMS = "custom_components.verdi.api.VerdiApi.availability_display_items"
+
+
+async def test_options_offer_real_availability_names(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry, options={"non_pageable": ["Custom"]})
+    items = [{"id": "g1", "text": "Standby"}, {"id": "g2", "text": "Absent"}]
+    with patch(ITEMS, return_value=items) as fetch:
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    fetch.assert_awaited_once_with(config_entry.data["station_id"])
+    field = _station_field(result, "non_pageable")
+    assert field.config["multiple"] is True
+    assert field.config["custom_value"] is True
+    assert [o["value"] for o in field.config["options"]] == ["Standby", "Absent", "Custom"]
+
+
+async def test_options_survive_a_failing_name_fetch(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry, options={"non_pageable": ["Custom"]})
+    with patch(ITEMS, side_effect=VerdiError("boom")):
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] == "form"
+    field = _station_field(result, "non_pageable")
+    assert [o["value"] for o in field.config["options"]] == ["Custom"]
+    assert _defaults(result["data_schema"])["station"]["non_pageable"] == ["Custom"]

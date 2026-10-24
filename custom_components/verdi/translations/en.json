@@ -71,6 +71,7 @@
               "scan_interval": "Tick (seconds, at least 30)",
               "intervention_interval": "Tick during an intervention (seconds, at least 15)",
               "watched_vehicles": "Vehicles that count for interventions (none picked: all)",
+              "non_pageable": "Availabilities that cannot be paged (none picked: guessed from the name)",
               "availability_ids": "Availabilities counted in Personnel"
             }
           },

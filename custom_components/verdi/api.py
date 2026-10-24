@@ -231,6 +231,11 @@ class VerdiApi:
             },
         )
 
+    async def availability_display_items(self, station_id: str) -> list[dict[str, Any]]:
+        """The station's plannable availabilities as id and name, for the options."""
+        data = await self.availabilities(station_id, 0, 50)
+        return [{"id": i["guid"], "text": i["text"]} for i in data.get("data") or []]
+
     async def vehicles(self, station_id: str) -> dict[str, Any]:
         return await self.command(
             "configuration/vehicles/commands",

@@ -53,6 +53,7 @@ from .const import (
     CONF_INTERVENTION_INTERVAL,
     CONF_MY_AVAILABILITY,
     CONF_MY_EVENTS,
+    CONF_NON_PAGEABLE,
     CONF_PRE_ALERT,
     CONF_READINESS_SAFETY,
     CONF_ROSTER_SAFETY,
@@ -273,6 +274,7 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             for key in (*STATION_INTERVALS, *SAFETY_INTERVALS):
                 options[key] = max(int(options[key]), INTERVALS[key][1])
             options[CONF_WATCHED_VEHICLES] = [str(v) for v in options.get(CONF_WATCHED_VEHICLES) or []]
+            options[CONF_NON_PAGEABLE] = [str(v) for v in options.get(CONF_NON_PAGEABLE) or []]
             if not availability_ids:
                 errors["base"] = "no_availability"
             else:
@@ -308,6 +310,15 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
                 options=self._availabilities(), multiple=True, mode=SelectSelectorMode.DROPDOWN
             )
         )
+        saved = [str(v) for v in options.get(CONF_NON_PAGEABLE) or []]
+        station[vol.Optional(CONF_NON_PAGEABLE, default=saved)] = SelectSelector(
+            SelectSelectorConfig(
+                options=[SelectOptionDict(value=n, label=n) for n in await self._availability_names(saved)],
+                multiple=True,
+                custom_value=True,
+                mode=SelectSelectorMode.DROPDOWN,
+            )
+        )
         own = {vol.Required(key, default=enabled(options, key)): BooleanSelector() for key in OWN_SWITCHES}
         fields: dict[Any, Any] = {
             vol.Required(CONF_SHOW_NAMES, default=options.get(CONF_SHOW_NAMES, False)): BooleanSelector(),
@@ -336,3 +347,22 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
         for availability_id in self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []:
             seen.setdefault(availability_id, availability_id)
         return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]
+
+    async def _availability_names(self, saved: list[str]) -> list[str]:
+        """The station's availability names, plus saved ones the list doesn't have.
+
+        A failed fetch (no token, expired, Verdi down) is not an error here: the form
+        still opens with the saved names, and manual entry works.
+        """
+        entry = self.config_entry
+        token = get_store(self.hass).get(entry.entry_id)
+        names: list[str] = []
+        try:
+            if token is None:
+                raise VerdiAuthError("no usable token")
+            api = VerdiApi(async_get_clientsession(self.hass), entry.data[CONF_BASE_URL], token)
+            items = await api.availability_display_items(entry.data[CONF_STATION_ID])
+            names = [str(i["text"]) for i in items if i.get("text")]
+        except (VerdiError, KeyError, TypeError) as err:
+            _LOGGER.debug("Could not list availability names: %s", err)
+        return list(dict.fromkeys([*names, *saved]))

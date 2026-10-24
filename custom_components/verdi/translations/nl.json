@@ -71,6 +71,7 @@
               "scan_interval": "Tik (seconden, minstens 30)",
               "intervention_interval": "Tik tijdens een interventie (seconden, minstens 15)",
               "watched_vehicles": "Voertuigen die meetellen voor interventies (geen gekozen: alle)",
+              "non_pageable": "Beschikbaarheden die niet opgeroepen kunnen worden (geen gekozen: afgeleid van de naam)",
               "availability_ids": "Statussen die meetellen in Personen"
             }
           },
