@@ -291,7 +291,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._pace, self._retry, self._keep_on_failure = pace, retry, keep_on_failure
         self._failing: set[str] = set()
         self._tick_at: datetime | None = None
-        self._only: str | None = None
+        self._only_keys: list[str] = []
         self._run_lock = asyncio.Lock()
         self._rejected_logged = False
         self.on_fetched: FetchHook | None = None
@@ -309,11 +309,8 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if key not in self.lookups:
             return
         self.lookups[key].schedule.mark_due(MANUAL)
-        self._only = key
-        try:
-            await self.async_refresh()
-        finally:
-            self._only = None
+        self._only_keys.append(key)
+        await self.async_refresh()
 
     def schedule_diagnostics(self, now: datetime) -> dict[str, Any]:
         return {key: lookup.schedule.diagnostics(now) for key, lookup in self.lookups.items()}
@@ -340,8 +337,10 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         # Home Assistant doesn't serialise refreshes; a run reads self.data, so runs go one by one.
-        only = self._only
+        # Consume any queued single-lookup request under the lock: a concurrent or coalesced full
+        # refresh that acquires the lock with nothing queued runs a FULL run, not a narrowed one.
         async with self._run_lock:
+            only = self._only_keys.pop(0) if self._only_keys else None
             return await self._run(only)
 
     async def _run(self, only: str | None) -> dict[str, Any]:
