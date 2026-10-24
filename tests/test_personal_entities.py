@@ -4,9 +4,12 @@
 from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
+from pytest_homeassistant_custom_component.common import (
+    async_fire_time_changed,
+    mock_restore_cache_with_extra_data,
+)
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
 from tests import responses as r
@@ -154,3 +157,53 @@ async def test_personal_calendars(hass: HomeAssistant, config_entry, hass_client
     assert [e["summary"] for e in shifts] == ["🚑 Ambulance 1 · Escort", "🚑 Ambulance 1 · Driver"]
     assert shifts[0]["description"] == "Crew"
     assert [e["summary"] for e in availability] == ["Not available", "All 5 min", "Urgent"]
+
+
+async def test_restart_keeps_statistics_and_calendars_during_the_startup_delay(
+    hass: HomeAssistant, config_entry, mock_api, freezer
+):
+    await setup_with_token(hass, config_entry)
+    await after_setup_delay(hass, freezer)
+    assert hass.states.get("sensor.verdi_times_called_station_north_fire").state == "17"
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    mock_restore_cache_with_extra_data(
+        hass,
+        [
+            (
+                State("sensor.verdi_times_called_station_north_fire", "17"),
+                {"native_value": 17, "native_unit_of_measurement": None},
+            ),
+            (
+                State("sensor.verdi_availability_this_year_station_north", "34.7"),
+                {"native_value": 34.7, "native_unit_of_measurement": "%"},
+            ),
+        ],
+    )
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    # The first statistics fetch is still minutes away.
+    fire = hass.states.get("sensor.verdi_times_called_station_north_fire")
+    assert (fire.state, fire.attributes["state_class"]) == ("17", "total_increasing")
+    assert hass.states.get("sensor.verdi_availability_this_year_station_north").state == "34.7"
+    assert hass.states.get("sensor.verdi_times_called_station_north_2deg_ambulance").state == "unavailable"  # no value was ever stored
+    assert hass.states.get("calendar.verdi_my_shifts").state != "unavailable"
+    assert hass.states.get("calendar.verdi_my_availability").state != "unavailable"
+    await after_setup_delay(hass, freezer)  # live data takes over; nothing is added twice
+    assert hass.states.get("sensor.verdi_times_called_station_north_fire").state == "17"
+    assert hass.states.get("sensor.verdi_times_called_station_south_fire") is None
+
+
+async def test_calendar_is_unavailable_when_the_first_events_fetch_fails(
+    hass: HomeAssistant, config_entry, freezer
+):
+    responses = r.all_ok()
+    responses[APP_ROUTE]["AppGetUpcomingEventsCommand"] = VerdiError("mobile/app/commands: HTTP 500")
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(responses)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+        assert hass.states.get("calendar.verdi_my_shifts").state != "unavailable"
+        await after_setup_delay(hass, freezer)
+        assert hass.states.get("calendar.verdi_my_shifts").state == "unavailable"

@@ -37,7 +37,7 @@ from .const import (
 )
 from .coordinator import VerdiCoordinator, create_fast
 from .guard import drop_guard
-from .personal import create_personal
+from .personal import create_personal, statistics_store
 from .signals import Signals
 from .token import VerdiTokenView, get_store
 
@@ -130,6 +130,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bo
 async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> None:
     drop_guard(hass, entry.entry_id)
     get_store(hass).tokens.pop(entry.entry_id, None)
+    await statistics_store(hass, entry.entry_id).async_remove()
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_MISSING_CONFIG}_{entry.entry_id}")
 
 
