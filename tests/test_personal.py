@@ -55,7 +55,8 @@ async def test_request_language(hass: HomeAssistant, language, expected):
 async def test_setup_burst_is_small(hass: HomeAssistant, config_entry, api, freezer):
     _, calls, user = api
     hass.config.language = "fr"
-    await setup_with_token(hass, config_entry)
+    # Paged off: it polls the app route on the fast lane, which is not the personal burst here.
+    await setup_with_token(hass, config_entry, options={"paged": False})
     assert [c[1] for c in app_calls(calls)] == [AVAILABILITY]
     assert len([c for c in calls if c[0] != APP_ROUTE]) == 7  # the availability list and 6 lookups
     assert user.call_count == 1
@@ -66,7 +67,9 @@ async def test_setup_burst_is_small(hass: HomeAssistant, config_entry, api, free
 
 async def test_pre_alert_and_garrison_only_when_switched_on(hass: HomeAssistant, config_entry, api):
     _, calls, _ = api
-    await setup_with_token(hass, config_entry, options={"pre_alert": True, "garrison": True})
+    await setup_with_token(
+        hass, config_entry, options={"pre_alert": True, "garrison": True, "paged": False}
+    )
     assert {c[1] for c in app_calls(calls)} == {AVAILABILITY, PRE, GARRISON}
     assert hass.states.get("binary_sensor.verdi_pre_alert").state == "off"
     assert hass.states.get("binary_sensor.verdi_garrison").state == "off"

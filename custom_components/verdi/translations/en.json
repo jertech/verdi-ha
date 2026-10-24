@@ -118,6 +118,9 @@
       },
       "garrison": {
         "name": "Garrison"
+      },
+      "paged": {
+        "name": "Paged"
       }
     },
     "sensor": {

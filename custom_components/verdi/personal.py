@@ -33,14 +33,17 @@ from .const import (
     PERSONAL_RETRY_SECONDS,
     STARTUP_DELAY,
 )
-from .coordinator import Lookup, LookupCoordinator, VerdiCoordinator, enabled, safety_schedule
+from .coordinator import (
+    Lookup,
+    LookupCoordinator,
+    VerdiCoordinator,
+    enabled,
+    request_language,
+    safety_schedule,
+)
 from .schedule import earliest_after
 
-
-def request_language(hass: HomeAssistant) -> str:
-    """Verdi answers in nl, fr or en; any other Home Assistant language gets en."""
-    language = (hass.config.language or "").lower()
-    return next((code for code in ("nl", "fr") if language.startswith(code)), "en")
+__all__ = ["create_personal", "personal_counts", "request_language"]
 
 
 def _ends(items: Any, now: datetime) -> datetime | None:

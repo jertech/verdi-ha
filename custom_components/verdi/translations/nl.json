@@ -118,6 +118,9 @@
       },
       "garrison": {
         "name": "Herbestaffing"
+      },
+      "paged": {
+        "name": "Opgeroepen"
       }
     },
     "sensor": {

@@ -22,7 +22,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from . import parse, schedule
+from . import parse, parse_personal, schedule
 from .api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable
 from .const import (
     BACKOFF_START,
@@ -34,6 +34,7 @@ from .const import (
     CONF_FAST_LANE,
     CONF_FUNCTION_CALENDAR_ID,
     CONF_INTERVENTION_INTERVAL,
+    CONF_PAGED,
     CONF_READINESS_SAFETY,
     CONF_ROSTER_SAFETY,
     CONF_SCAN_INTERVAL,
@@ -83,6 +84,12 @@ def pace(options: Mapping[str, Any], key: str) -> tuple[float, float]:
 def enabled(options: Mapping[str, Any], key: str) -> bool:
     """Whether a kind of your own data is switched on."""
     return bool(options.get(key, FEATURES[key]))
+
+
+def request_language(hass: HomeAssistant) -> str:
+    """Verdi answers in nl, fr or en; any other Home Assistant language gets en."""
+    language = (hass.config.language or "").lower()
+    return next((code for code in ("nl", "fr") if language.startswith(code)), "en")
 
 
 def safety_schedule(options: Mapping[str, Any], key: str, **kwargs: Any) -> LookupSchedule:
@@ -226,6 +233,24 @@ class Lookup:
     fetch: Fetch
     parse: Parser
     schedule: LookupSchedule = field(default_factory=lambda: LookupSchedule(always=True))
+
+
+@dataclass
+class PagedSchedule(LookupSchedule):
+    """The paged lookup's schedule: never due while paging is paused (per-lookup pause), whatever
+    the tick. `paused` is set once the fast coordinator exists."""
+
+    paused: Callable[[], bool] | None = None
+
+    def reason(self, now: datetime, tick: bool = False) -> str | None:
+        if self.paused is not None and self.paused():
+            return None
+        return super().reason(now, tick)
+
+    def next_due(self, now: datetime) -> datetime | None:
+        if self.paused is not None and self.paused():
+            return None
+        return super().next_due(now)
 
 
 class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
@@ -512,8 +537,8 @@ class VerdiCoordinator(LookupCoordinator):
         super()._fetched(key, new, old)
 
 
-# Station lookups that may poll on the fast lane instead. "paged" names the paging lookup, which
-# does not exist yet (it arrives with the paging feature); until then it is a no-op.
+# Station lookups that may poll on the fast lane instead. "paged" is the paging lookup, added by
+# create_fast rather than moved off the station (it has no station equivalent).
 FAST_MOVABLE = ("vehicles", "personnel")
 
 
@@ -572,13 +597,29 @@ def create_fast(
     """Move the chosen station lookups onto a fast-lane coordinator, or None when it holds nothing.
 
     The keys named in CONF_FAST_LANE that exist as station lookups today (vehicles/personnel) are
-    removed from the station and placed on the fast lane. "paged" is accepted but has no lookup yet.
+    removed from the station and placed on the fast lane. "paged" adds the paging lookup when the
+    paged switch is on; it polls your current intervention while pageable (signals.py pauses it).
     """
-    chosen = entry.options.get(CONF_FAST_LANE, FAST_LANE_DEFAULT)
+    o = entry.options
+    chosen = o.get(CONF_FAST_LANE, FAST_LANE_DEFAULT)
     lookups: dict[str, Lookup] = {}
     for key in FAST_MOVABLE:
         if key in chosen and key in station.lookups:
             lookups[key] = station.lookups.pop(key)
+    paged_schedule: PagedSchedule | None = None
+    if "paged" in chosen and enabled(o, CONF_PAGED):
+        language = request_language(hass)
+
+        async def paged() -> dict[str, Any]:
+            return await station.api.current_intervention(
+                await station.person.get(report=False), language
+            )
+
+        paged_schedule = PagedSchedule(always=True)
+        lookups["paged"] = Lookup(paged, parse_personal.current_intervention, paged_schedule)
     if not lookups:
         return None
-    return FastCoordinator(hass, entry, station, lookups)
+    fast = FastCoordinator(hass, entry, station, lookups)
+    if paged_schedule is not None:
+        paged_schedule.paused = lambda: fast.paused
+    return fast

@@ -118,6 +118,9 @@
       },
       "garrison": {
         "name": "Effectif en caserne"
+      },
+      "paged": {
+        "name": "Alarmé"
       }
     },
     "sensor": {

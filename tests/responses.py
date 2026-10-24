@@ -295,6 +295,7 @@ CURRENT_INTERVENTION = {
     },
     **_OK,
 }
+CURRENT_INTERVENTION_NONE = dict(_OK)
 
 STATISTICS = {
     "interventionCounters": [
@@ -431,5 +432,6 @@ def all_ok() -> dict:
             "GetPersonCurrentGarrisonInformationCommand": GARRISON_NONE,
             "AppGetPersonStatisticsCommand": STATISTICS,
             "AppGetUpcomingEventsCommand": UPCOMING,
+            "GetPersonCurrentInterventionInformationCommand": CURRENT_INTERVENTION_NONE,
         },
     }

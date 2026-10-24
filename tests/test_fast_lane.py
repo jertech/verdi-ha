@@ -64,11 +64,12 @@ async def test_vehicle_change_on_fast_lane_marks_station_readiness(
     assert station.lookups["readiness"].schedule.reason(dt_util.now()) == "trigger:vehicles"
 
 
-async def test_fast_lane_empty_by_default(hass: HomeAssistant, config_entry, api):
+async def test_fast_lane_has_paged_by_default(hass: HomeAssistant, config_entry, api):
     await setup_with_token(hass, config_entry)
     station = config_entry.runtime_data
-    # Default fast lane holds only "paged" (a no-op until Task 4), so nothing moves.
-    assert station.fast is None
+    # The default fast lane holds the paged lookup; vehicles and personnel stay on the station.
+    assert station.fast is not None
+    assert "paged" in station.fast.lookups
     assert "vehicles" in station.lookups
     assert "personnel" in station.lookups
 
