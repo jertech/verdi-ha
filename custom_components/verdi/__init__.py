@@ -35,7 +35,7 @@ from .const import (
     REQUIRED_DATA,
     TOKEN_GRACE_SECONDS,
 )
-from .coordinator import VerdiCoordinator
+from .coordinator import VerdiCoordinator, create_fast
 from .guard import drop_guard
 from .personal import create_personal
 from .signals import Signals
@@ -100,7 +100,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
 
     coordinator = VerdiCoordinator(hass, entry, token)
     personal = create_personal(hass, entry, coordinator)
-    signals = Signals(hass, entry, coordinator, personal)
+    # Moves the chosen lookups off the station, so it must run before the station's first refresh.
+    fast = create_fast(hass, entry, coordinator)
+    signals = Signals(hass, entry, coordinator, personal, fast)
     # Without the list, personnel only lists the configured availabilities; a failure is retried later.
     with suppress(VerdiError):
         await coordinator.availabilities.load()
@@ -109,9 +111,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
         with suppress(VerdiError):
             await coordinator.person.get()
     await coordinator.async_config_entry_first_refresh()
+    if fast is not None:
+        await fast.async_refresh()
     if personal is not None:
         await personal.async_refresh()
     coordinator.personal = personal
+    coordinator.fast = fast
     signals.start()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)

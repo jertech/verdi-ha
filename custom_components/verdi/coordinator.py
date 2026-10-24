@@ -30,6 +30,8 @@ from .const import (
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
+    CONF_FAST_INTERVAL,
+    CONF_FAST_LANE,
     CONF_FUNCTION_CALENDAR_ID,
     CONF_INTERVENTION_INTERVAL,
     CONF_READINESS_SAFETY,
@@ -41,6 +43,7 @@ from .const import (
     CONF_TEAMS_SAFETY,
     CONF_VEHICLE_TRAIN_IDS,
     DOMAIN,
+    FAST_LANE_DEFAULT,
     FEATURES,
     IDLE_WAKE,
     INTERVALS,
@@ -491,6 +494,7 @@ class VerdiCoordinator(LookupCoordinator):
         )
         self.show_names: bool = names
         self.personal: LookupCoordinator | None = None
+        self.fast: LookupCoordinator | None = None
 
     def _tick(self) -> tuple[float, float]:
         key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL
@@ -506,3 +510,75 @@ class VerdiCoordinator(LookupCoordinator):
         if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
             self.mark_due("readiness", f"trigger:{key}")
         super()._fetched(key, new, old)
+
+
+# Station lookups that may poll on the fast lane instead. "paged" names the paging lookup, which
+# does not exist yet (it arrives with the paging feature); until then it is a no-op.
+FAST_MOVABLE = ("vehicles", "personnel")
+
+
+class FastCoordinator(LookupCoordinator):
+    """The fast lane: the paged lookup and any of vehicles/personnel moved here by the fast_lane
+    option, polled at fast_interval. It shares the station's api, guard and rng.
+
+    A personnel/vehicle change here marks the station's readiness lookup due, exactly as it would
+    on the station coordinator, so readiness keeps following those lookups wherever they live.
+
+    paused suppresses only the paged lookup. The coordinator still ticks while vehicles or personnel
+    are on it; it goes idle (pace None) only when paging is off or paused and neither is on it.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        station: VerdiCoordinator,
+        lookups: dict[str, Lookup],
+    ) -> None:
+        self.station = station
+        self.paused = False
+        super().__init__(
+            hass,
+            entry,
+            station.api,
+            f"{DOMAIN} fast",
+            lookups,
+            pace=self._fast_tick,
+            retry=interval(entry.options, CONF_FAST_INTERVAL),
+            guard=station.guard,
+            rng=station.rng,
+        )
+
+    def _active(self) -> bool:
+        """The fast lane ticks while paging is on and not paused, or vehicles/personnel are on it."""
+        paging = "paged" in self.lookups and not self.paused
+        has_units = any(key in self.lookups for key in FAST_MOVABLE)
+        return paging or has_units
+
+    def _fast_tick(self) -> tuple[float, float] | None:
+        if not self._active():
+            return None
+        return pace(self.config_entry.options, CONF_FAST_INTERVAL)
+
+    def _fetched(self, key: str, new: Any, old: Any) -> None:
+        if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
+            self.station.mark_due("readiness", f"trigger:{key}")
+        super()._fetched(key, new, old)
+
+
+def create_fast(
+    hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator
+) -> FastCoordinator | None:
+    """Move the chosen station lookups onto a fast-lane coordinator, or None when it holds nothing.
+
+    The keys named in CONF_FAST_LANE that exist as station lookups today (vehicles/personnel) are
+    removed from the station and placed on the fast lane. "paged" is accepted but has no lookup yet.
+    """
+    chosen = entry.options.get(CONF_FAST_LANE, FAST_LANE_DEFAULT)
+    lookups: dict[str, Lookup] = {}
+    for key in FAST_MOVABLE:
+        if key in chosen and key in station.lookups:
+            lookups[key] = station.lookups.pop(key)
+    if not lookups:
+        return None
+    return FastCoordinator(hass, entry, station, lookups)

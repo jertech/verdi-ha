@@ -31,7 +31,7 @@ from .const import (
     STATISTICS_MAX_DELAY,
     TRIGGER_DELAY,
 )
-from .coordinator import LookupCoordinator, VerdiCoordinator
+from .coordinator import FastCoordinator, LookupCoordinator, VerdiCoordinator
 
 OWN = ("availability", "pre_alerts", "garrison")
 
@@ -53,8 +53,10 @@ class Signals:
         entry: ConfigEntry,
         station: VerdiCoordinator,
         personal: LookupCoordinator | None,
+        fast: FastCoordinator | None = None,
     ) -> None:
         self._hass, self._entry, self._station, self._personal = hass, entry, station, personal
+        self._fast = fast
         self._picked = set(entry.options.get(CONF_WATCHED_VEHICLES) or [])
         self._ready = self._marked = False
         self._stats_first: datetime | None = None
@@ -72,6 +74,19 @@ class Signals:
         self._ready = True
         if self._personal is not None and "statistics" in self._personal.lookups:
             self._schedule_daily()
+
+    @callback
+    def pause_paging(self) -> None:
+        """Suppress the fast lane's paged lookup; vehicles/personnel on it keep polling."""
+        if self._fast is not None:
+            self._fast.paused = True
+
+    @callback
+    def resume_paging(self) -> None:
+        """Let the paged lookup run again and fetch it soon (a no-op until the lookup exists)."""
+        if self._fast is not None:
+            self._fast.paused = False
+            self._fast.mark_due("paged", "resume")
 
     def _later(self, base: float = 0.0) -> datetime:
         return dt_util.now() + timedelta(seconds=base + self._station.rng.uniform(*TRIGGER_DELAY))

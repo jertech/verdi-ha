@@ -20,6 +20,8 @@ CONF_SCAN_INTERVAL = "scan_interval"  # seconds: the station's normal tick
 CONF_INTERVENTION_INTERVAL = "intervention_interval"  # seconds: the tick during an intervention
 CONF_WATCHED_VEHICLES = "watched_vehicles"  # vehicle ids that count for triggers; empty = all
 CONF_SHOW_NAMES = "show_names"
+CONF_FAST_INTERVAL = "fast_interval"  # seconds: the fast lane's tick
+CONF_FAST_LANE = "fast_lane"  # which of {"paged","vehicles","personnel"} poll on the fast lane
 # Your own data, one switch each.
 CONF_MY_AVAILABILITY = "my_availability"
 CONF_PAGED = "paged"  # stored for the paging feature; not used yet
@@ -74,6 +76,10 @@ REQUIRED_DATA = (
 MIN_SCAN_INTERVAL = 30
 DEFAULT_SCAN_INTERVAL = 60
 
+# The fast lane holds the paged lookup by default; vehicles/personnel stay on the station unless
+# named here. "paged" is a no-op until the paged lookup exists.
+FAST_LANE_DEFAULT = ["paged"]
+
 # Your own data: which kinds are on by default.
 FEATURES = {
     CONF_MY_AVAILABILITY: True,
@@ -88,6 +94,7 @@ FEATURES = {
 INTERVALS = {
     CONF_SCAN_INTERVAL: (DEFAULT_SCAN_INTERVAL, MIN_SCAN_INTERVAL, 3600, 1),
     CONF_INTERVENTION_INTERVAL: (30, 15, 3600, 1),
+    CONF_FAST_INTERVAL: (15, 10, 3600, 1),
     CONF_READINESS_SAFETY: (15, 5, 1440, 60),
     CONF_ROSTER_SAFETY: (30, 10, 1440, 60),
     CONF_TEAMS_SAFETY: (6, 1, 168, 3600),
