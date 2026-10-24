@@ -72,7 +72,15 @@
               "intervention_interval": "Tik tijdens een interventie (seconden, minstens 15)",
               "watched_vehicles": "Voertuigen die meetellen voor interventies (geen gekozen: alle)",
               "non_pageable": "Beschikbaarheden die niet opgeroepen kunnen worden (geen gekozen: afgeleid van de naam)",
-              "availability_ids": "Statussen die meetellen in Personen"
+              "availability_ids": "Statussen die meetellen in Personen",
+              "fast_interval": "Snelle tik (seconden, minstens 10)"
+            }
+          },
+          "fast_lane": {
+            "name": "Snelle baan",
+            "description": "Wordt op de snelle tik opgevraagd in plaats van de tik van de post.",
+            "data": {
+              "fast_lane": "Opzoekingen op de snelle baan"
             }
           },
           "own_data": {
@@ -103,7 +111,8 @@
       }
     },
     "error": {
-      "no_availability": "Kies minstens één status."
+      "no_availability": "Kies minstens één status.",
+      "too_many_calls": "Te veel oproepen: deze opties zouden tijdens een interventie ongeveer {rate} oproepen per minuut volhouden; de limiet is {limit}."
     }
   },
   "entity": {
@@ -190,6 +199,15 @@
     },
     "token_rejected": {
       "message": "Verdi heeft het token geweigerd."
+    }
+  },
+  "selector": {
+    "fast_lane": {
+      "options": {
+        "paged": "Opgeroepen",
+        "vehicles": "Voertuigen",
+        "personnel": "Personen"
+      }
     }
   }
 }

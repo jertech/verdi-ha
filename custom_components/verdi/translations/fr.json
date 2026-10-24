@@ -72,7 +72,15 @@
               "intervention_interval": "Cycle pendant une intervention (secondes, au moins 15)",
               "watched_vehicles": "Véhicules pris en compte pour les interventions (aucun choisi : tous)",
               "non_pageable": "Disponibilités non appelables (aucune choisie : déduit du nom)",
-              "availability_ids": "Statuts pris en compte dans Personnes"
+              "availability_ids": "Statuts pris en compte dans Personnes",
+              "fast_interval": "Tick rapide (secondes, au moins 10)"
+            }
+          },
+          "fast_lane": {
+            "name": "Voie rapide",
+            "description": "Interrogé au tick rapide plutôt qu'au tick de la caserne.",
+            "data": {
+              "fast_lane": "Requêtes sur la voie rapide"
             }
           },
           "own_data": {
@@ -103,7 +111,8 @@
       }
     },
     "error": {
-      "no_availability": "Choisissez au moins un statut."
+      "no_availability": "Choisissez au moins un statut.",
+      "too_many_calls": "Trop d'appels : ces options soutiendraient environ {rate} appels par minute pendant une intervention ; la limite est de {limit}."
     }
   },
   "entity": {
@@ -190,6 +199,15 @@
     },
     "token_rejected": {
       "message": "Verdi a refusé le jeton."
+    }
+  },
+  "selector": {
+    "fast_lane": {
+      "options": {
+        "paged": "Appelé",
+        "vehicles": "Véhicules",
+        "personnel": "Personnel"
+      }
     }
   }
 }

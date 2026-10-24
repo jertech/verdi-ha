@@ -48,6 +48,8 @@ from .const import (
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
     CONF_EVENTS_INTERVAL,
+    CONF_FAST_INTERVAL,
+    CONF_FAST_LANE,
     CONF_FUNCTION_CALENDAR_ID,
     CONF_GARRISON,
     CONF_INTERVENTION_INTERVAL,
@@ -69,9 +71,11 @@ from .const import (
     CONF_VERDI_URL,
     CONF_WATCHED_VEHICLES,
     DOMAIN,
+    FAST_LANE_DEFAULT,
     INTERVALS,
 )
 from .coordinator import enabled
+from .estimate import CALL_LIMIT, steady_per_min
 from .token import get_store, is_usable, origin
 
 _LOGGER = logging.getLogger(__name__)
@@ -89,8 +93,9 @@ OPTIONAL_FIELDS = (CONF_FUNCTION_CALENDAR_ID,)
 PLACEHOLDERS = {"example_url": "https://<zone>.verdi.cloud"}
 TEXT = TextSelector()
 SECRET = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
-STATION, OWN_DATA, SAFETY = "station", "own_data", "safety"
-STATION_INTERVALS = (CONF_SCAN_INTERVAL, CONF_INTERVENTION_INTERVAL)
+STATION, FAST_LANE, OWN_DATA, SAFETY = "station", "fast_lane", "own_data", "safety"
+STATION_INTERVALS = (CONF_SCAN_INTERVAL, CONF_INTERVENTION_INTERVAL, CONF_FAST_INTERVAL)
+FAST_LANE_CHOICES = ("paged", "vehicles", "personnel")
 OWN_SWITCHES = (CONF_MY_AVAILABILITY, CONF_PRE_ALERT, CONF_GARRISON, CONF_MY_EVENTS, CONF_STATISTICS)
 SAFETY_INTERVALS = (
     CONF_READINESS_SAFETY,
@@ -262,12 +267,13 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 class VerdiOptionsFlow(OptionsFlowWithReload):
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
+        placeholders: dict[str, str] = {}
         if user_input is not None:
             entry = self.config_entry
             # Keys the form doesn't show (such as paged) stay as they are.
             options = dict(entry.options)
             options[CONF_SHOW_NAMES] = bool(user_input[CONF_SHOW_NAMES])
-            for name in (STATION, OWN_DATA, SAFETY):
+            for name in (STATION, FAST_LANE, OWN_DATA, SAFETY):
                 options.update(user_input.get(name) or {})
             # The availabilities are settings in entry.data, picked here by name.
             availability_ids = [str(v) for v in options.pop(CONF_AVAILABILITY_IDS, None) or []]
@@ -275,8 +281,15 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
                 options[key] = max(int(options[key]), INTERVALS[key][1])
             options[CONF_WATCHED_VEHICLES] = [str(v) for v in options.get(CONF_WATCHED_VEHICLES) or []]
             options[CONF_NON_PAGEABLE] = [str(v) for v in options.get(CONF_NON_PAGEABLE) or []]
+            chosen = options.get(CONF_FAST_LANE) or []
+            options[CONF_FAST_LANE] = [str(v) for v in chosen if v in FAST_LANE_CHOICES]
+            rate = steady_per_min(options, calendar=bool(entry.data.get(CONF_FUNCTION_CALENDAR_ID)))
             if not availability_ids:
                 errors["base"] = "no_availability"
+            elif rate > CALL_LIMIT:
+                errors["base"] = "too_many_calls"
+                placeholders["rate"] = f"{rate:.1f}"
+                placeholders["limit"] = str(CALL_LIMIT)
             else:
                 if availability_ids != list(entry.data.get(CONF_AVAILABILITY_IDS) or []):
                     self.hass.config_entries.async_update_entry(
@@ -319,16 +332,33 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
                 mode=SelectSelectorMode.DROPDOWN,
             )
         )
+        saved_lane = list(options.get(CONF_FAST_LANE, FAST_LANE_DEFAULT))
+        lane = {
+            vol.Optional(CONF_FAST_LANE, default=saved_lane): SelectSelector(
+                SelectSelectorConfig(
+                    options=[SelectOptionDict(value=k, label=k) for k in FAST_LANE_CHOICES],
+                    multiple=True,
+                    mode=SelectSelectorMode.LIST,
+                    translation_key=CONF_FAST_LANE,
+                )
+            )
+        }
         own = {vol.Required(key, default=enabled(options, key)): BooleanSelector() for key in OWN_SWITCHES}
         fields: dict[Any, Any] = {
             vol.Required(CONF_SHOW_NAMES, default=options.get(CONF_SHOW_NAMES, False)): BooleanSelector(),
             vol.Required(STATION): section(vol.Schema(station), {"collapsed": False}),
+            vol.Required(FAST_LANE): section(vol.Schema(lane), {"collapsed": False}),
             vol.Required(OWN_DATA): section(vol.Schema(own), {"collapsed": False}),
             vol.Required(SAFETY): section(
                 vol.Schema(dict(number(key) for key in SAFETY_INTERVALS)), {"collapsed": True}
             ),
         }
-        return self.async_show_form(step_id="init", data_schema=vol.Schema(fields), errors=errors)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(fields),
+            errors=errors,
+            description_placeholders=placeholders,
+        )
 
     def _vehicles(self) -> list[SelectOptionDict]:
         """The station's vehicles from the last poll, plus watched ones no longer listed."""

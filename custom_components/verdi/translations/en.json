@@ -72,7 +72,15 @@
               "intervention_interval": "Tick during an intervention (seconds, at least 15)",
               "watched_vehicles": "Vehicles that count for interventions (none picked: all)",
               "non_pageable": "Availabilities that cannot be paged (none picked: guessed from the name)",
-              "availability_ids": "Availabilities counted in Personnel"
+              "availability_ids": "Availabilities counted in Personnel",
+              "fast_interval": "Fast tick (seconds, at least 10)"
+            }
+          },
+          "fast_lane": {
+            "name": "Fast lane",
+            "description": "Polled at the fast tick instead of the station tick.",
+            "data": {
+              "fast_lane": "Fast-lane lookups"
             }
           },
           "own_data": {
@@ -103,7 +111,8 @@
       }
     },
     "error": {
-      "no_availability": "Pick at least one availability."
+      "no_availability": "Pick at least one availability.",
+      "too_many_calls": "Too many calls: these options would sustain about {rate} calls a minute during an intervention; the limit is {limit}."
     }
   },
   "entity": {
@@ -190,6 +199,15 @@
     },
     "token_rejected": {
       "message": "Verdi rejected the token."
+    }
+  },
+  "selector": {
+    "fast_lane": {
+      "options": {
+        "paged": "Paged (are you called out)",
+        "vehicles": "Vehicles",
+        "personnel": "Personnel"
+      }
     }
   }
 }

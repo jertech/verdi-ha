@@ -132,10 +132,12 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         "station": {
             "scan_interval": 60,
             "intervention_interval": 30,
+            "fast_interval": 15,
             "watched_vehicles": [],
             "availability_ids": ["av-1", "av-2"],
             "non_pageable": [],
         },
+        "fast_lane": {"fast_lane": ["paged"]},
         "own_data": {
             "my_availability": True,
             "pre_alert": False,
@@ -163,6 +165,7 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         {
             "show_names": True,
             "station": {"scan_interval": 45.0, "intervention_interval": 15.0, "watched_vehicles": ["v1"]},
+            "fast_lane": {"fast_lane": ["paged", "vehicles"]},
             "own_data": {
                 "my_availability": True,
                 "pre_alert": True,
@@ -187,6 +190,8 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         "paged": True,
         "scan_interval": 45,
         "intervention_interval": 15,
+        "fast_interval": 15,
+        "fast_lane": ["paged", "vehicles"],
         "watched_vehicles": ["v1"],
         "non_pageable": [],
         "my_availability": True,
@@ -216,6 +221,7 @@ def _submit(station: dict) -> dict:
     return {
         "show_names": False,
         "station": {"scan_interval": 60, "intervention_interval": 30, "watched_vehicles": [], **station},
+        "fast_lane": {},
         "own_data": {},
         "safety": {},
     }
@@ -297,3 +303,29 @@ async def test_options_survive_a_failing_name_fetch(hass: HomeAssistant, config_
     field = _station_field(result, "non_pageable")
     assert [o["value"] for o in field.config["options"]] == ["Custom"]
     assert _defaults(result["data_schema"])["station"]["non_pageable"] == ["Custom"]
+
+
+async def test_options_over_24_calls_are_refused(hass: HomeAssistant, config_entry, mock_api):
+    # The estimate tops out near 23 with these options, so lower the limit to exercise the refusal.
+    await setup_with_token(hass, config_entry)
+    before = dict(config_entry.options)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    submit = _submit({"intervention_interval": 15, "fast_interval": 10})
+    submit["fast_lane"] = {"fast_lane": ["paged", "vehicles", "personnel"]}
+    with patch("custom_components.verdi.config_flow.CALL_LIMIT", 20):
+        result = await hass.config_entries.options.async_configure(result["flow_id"], submit)
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "too_many_calls"}
+    assert float(result["description_placeholders"]["rate"]) > 20
+    assert config_entry.options == before
+
+
+async def test_options_at_or_under_24_calls_save(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    submit = _submit({"fast_interval": 12})
+    submit["fast_lane"] = {"fast_lane": ["paged", "vehicles"]}
+    result = await hass.config_entries.options.async_configure(result["flow_id"], submit)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.options["fast_lane"] == ["paged", "vehicles"]
+    assert config_entry.options["fast_interval"] == 12
