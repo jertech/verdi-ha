@@ -22,6 +22,7 @@ from .const import (
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
+    CONF_WATCHED_VEHICLES,
     LEGACY_PERSON_ID,
 )
 from .coordinator import lookup_counts
@@ -38,6 +39,7 @@ TO_REDACT = {
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
+    CONF_WATCHED_VEHICLES,
     "token",
     "token_file",
 }

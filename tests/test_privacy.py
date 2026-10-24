@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
 
+from custom_components.verdi.const import CONF_WATCHED_VEHICLES
 from tests import responses as r
 from tests.conftest import ALL_OFF, BASE_URL, DATA, VERDI, setup_with_token
 
@@ -74,6 +75,14 @@ async def test_diagnostics_redacts_identifiers(hass: HomeAssistant, config_entry
     assert "eyJ" not in diag  # no JWT
     for part in (*NAME_PARTS, r.CURRENT_USER["userName"]):
         assert part not in diag
+
+
+async def test_diagnostics_redacts_watched_vehicles(hass: HomeAssistant, config_entry, mock_api, hass_client):
+    """The watched_vehicles option holds vehicle ids; they must be redacted like every other id."""
+    assert await async_setup_component(hass, "diagnostics", {})
+    await setup_with_token(hass, config_entry, options={CONF_WATCHED_VEHICLES: ["watched-vehicle-id-1"]})
+    diag = json.dumps(await get_diagnostics_for_config_entry(hass, hass_client, config_entry))
+    assert "watched-vehicle-id-1" not in diag
 
 
 async def test_calendar_feed_link_never_leaves_the_response(

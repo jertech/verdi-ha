@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.8.3] - unreleased
+
+### Integration
+- Diagnostics now redact the watched-vehicles option. The vehicle IDs chosen under "watched vehicles"
+  were printed in clear in a downloaded diagnostics report; they are now redacted like every other
+  identifier.
+
 ## [0.8.2] - unreleased
 
 ### Integration
