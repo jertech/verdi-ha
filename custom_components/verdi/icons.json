@@ -20,7 +20,8 @@
       "my_availability": { "default": "mdi:account-check" },
       "availability_year": { "default": "mdi:percent-circle" },
       "times_called": { "default": "mdi:bell-ring" },
-      "token_expiry": { "default": "mdi:key-chain-variant" }
+      "token_expiry": { "default": "mdi:key-chain-variant" },
+      "pace": { "default": "mdi:speedometer" }
     }
   }
 }

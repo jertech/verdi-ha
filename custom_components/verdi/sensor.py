@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import PERCENTAGE
+from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -60,7 +60,7 @@ async def async_setup_entry(
 ) -> None:
     c = entry.runtime_data
     data = c.data or {}
-    entities: list[SensorEntity] = [TokenExpirySensor(c)]
+    entities: list[SensorEntity] = [TokenExpirySensor(c), PaceSensor(c)]
     if data.get("personnel") is not None:
         entities.append(PersonnelSensor(c))
     for v in data.get("vehicles") or []:
@@ -224,6 +224,32 @@ class TokenExpirySensor(VerdiEntity, SensorEntity):
     @property
     def native_value(self) -> datetime | None:
         return token_expiry(self.coordinator.api.token)
+
+
+class PaceSensor(VerdiEntity, SensorEntity):
+    """How fast the integration is polling now: normal, intervention or backoff."""
+
+    coordinator: VerdiCoordinator
+    _attr_translation_key = "pace"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: VerdiCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_pace"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def native_value(self) -> str:
+        return self.coordinator.pace_name
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        fast = self.coordinator.fast
+        return {
+            "fast_lane": sorted(fast.lookups) if fast else [],
+            "paging_paused": bool(fast.paused) if fast else False,
+        }
 
 
 class MyAvailabilitySensor(VerdiEntity, SensorEntity):

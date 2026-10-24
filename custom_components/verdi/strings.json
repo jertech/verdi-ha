@@ -161,6 +161,14 @@
       },
       "token_expiry": {
         "name": "Token expires"
+      },
+      "pace": {
+        "name": "Pace",
+        "state": {
+          "normal": "Normal",
+          "intervention": "Intervention",
+          "backoff": "Backoff"
+        }
       }
     },
     "calendar": {

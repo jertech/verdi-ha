@@ -161,6 +161,14 @@
       },
       "token_expiry": {
         "name": "Token verloopt"
+      },
+      "pace": {
+        "name": "Tempo",
+        "state": {
+          "normal": "Normaal",
+          "intervention": "Interventie",
+          "backoff": "Uitstel"
+        }
       }
     },
     "calendar": {
