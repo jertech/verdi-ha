@@ -249,3 +249,18 @@ def test_pre_alert_end_from_current_or_top_level():
     data["preAlarms"][0]["current"] = True
     data["preAlarms"][0]["end"] = "2026-06-15T21:00:00+02:00"
     assert p.pre_alerts(data)[0]["end"].hour == 21
+
+
+def test_current_intervention_keeps_only_safe_fields():
+    out = p.current_intervention(r.CURRENT_INTERVENTION)
+    assert out == {
+        "station": "Station 1", "crew_function": "Driver", "vehicle": "P100",
+        "alarm_time": "2026-10-24T09:00:00+00:00", "incident": "Fire", "confirmation": "confirmed",
+    }  # fmt: skip
+    for leaked in ("Main St 1", "Townsville", "51.1", "3.7", "A Caller", "+320000", "secret", "RG1"):
+        assert leaked not in repr(out)
+
+
+def test_current_intervention_none_when_absent():
+    assert p.current_intervention({"currentIntervention": None}) is None
+    assert p.current_intervention({}) is None

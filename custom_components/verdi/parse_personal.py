@@ -126,6 +126,25 @@ def garrison(data: dict[str, Any]) -> dict[str, Any]:
     return {"active": True, "station": _label(current.get("station")), "city": clean(current.get("city"))}
 
 
+def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Your current page, non-sensitive fields only. None when you're not paged.
+
+    Everything locating the incident or a third party (address, city, coordinates, caller,
+    free-text info, radio group) is dropped here and never stored.
+    """
+    page = data.get("currentIntervention")
+    if not isinstance(page, dict) or not page:
+        return None
+    return {
+        "station": page.get("stationName"),
+        "crew_function": page.get("crewFunction"),
+        "vehicle": page.get("vehicleName"),
+        "alarm_time": page.get("alarmDate"),
+        "incident": page.get("incidentType"),
+        "confirmation": page.get("confirmationStatus"),
+    }
+
+
 def statistics(data: dict[str, Any], now: datetime) -> dict[str, list[dict[str, Any]]]:
     """Availability % per station and year (this year is the largest year, else the first listed),
     and how often you were called per station and service."""

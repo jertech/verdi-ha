@@ -27,6 +27,7 @@ APP_COMMANDS = (
     "GetPersonCurrentGarrisonInformationCommand",
     "AppGetPersonStatisticsCommand",
     "AppGetUpcomingEventsCommand",
+    "GetPersonCurrentInterventionInformationCommand",
 )
 
 # (method, path, command). Keep in sync with docs/endpoints.md; a test enforces it.
@@ -299,4 +300,10 @@ class VerdiApi:
     async def upcoming_events(self, person_id: str, language: str) -> dict[str, Any]:
         return await self.command(
             APP_ROUTE, {"command": APP_COMMANDS[4], "personId": person_id, "language": language}
+        )
+
+    async def current_intervention(self, person_id: str, language: str) -> dict[str, Any]:
+        return await self.command(
+            APP_ROUTE,
+            {"command": APP_COMMANDS[5], "personId": person_id, "language": language},
         )
