@@ -337,10 +337,14 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         # Home Assistant doesn't serialise refreshes; a run reads self.data, so runs go one by one.
-        # Consume any queued single-lookup request under the lock: a concurrent or coalesced full
-        # refresh that acquires the lock with nothing queued runs a FULL run, not a narrowed one.
+        # Drain the whole single-lookup queue under the lock so no key can linger into a later run:
+        # exactly one queued key narrows this run to it; nothing queued, or two-or-more coalesced
+        # into one run, is a FULL run (each queued key was already marked due, so a full run fetches
+        # them along with everything else).
         async with self._run_lock:
-            only = self._only_keys.pop(0) if self._only_keys else None
+            keys = self._only_keys
+            self._only_keys = []
+            only = keys[0] if len(keys) == 1 else None
             return await self._run(only)
 
     async def _run(self, only: str | None) -> dict[str, Any]:

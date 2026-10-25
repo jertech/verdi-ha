@@ -147,3 +147,25 @@ async def test_overlapping_full_refresh_still_fetches_every_due_lookup(hass: Hom
     await asyncio.gather(single, full)
 
     assert b.call_count == 1  # the overlapping full refresh fetched the other due lookup
+
+
+async def test_coalesced_single_lookups_run_full_and_leave_no_stale_key(
+    hass: HomeAssistant, config_entry
+):
+    """Two single-lookup requests coalesced by the debouncer into one run must not narrow it, and
+    must leave nothing queued to narrow a later refresh."""
+    a, b, extra = _value(1), _value(2), _value(3)
+    c = _make(
+        hass,
+        config_entry,
+        {
+            "availability": Lookup(a, _parse, LookupSchedule()),
+            "roster": Lookup(b, _parse, LookupSchedule()),
+            "extra": Lookup(extra, _parse, LookupSchedule()),
+        },
+    )
+    # Two async_refresh_lookup calls the debouncer coalesced into a single _async_update_data run.
+    c._only_keys = ["availability", "roster"]
+    await c._async_update_data()
+    assert c._only_keys == []  # the queue was drained, no stale key left behind
+    assert (a.call_count, b.call_count, extra.call_count) == (1, 1, 1)  # a full run, not narrowed
