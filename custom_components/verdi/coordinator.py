@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -139,6 +139,7 @@ class PersonId:
     def __init__(self, api: VerdiApi, guard: Guard) -> None:
         self._api, self._guard = api, guard
         self.value: str | None = None
+        self.on_resolved: Callable[[], None] | None = None
 
     async def get(self, *, report: bool = True) -> str:
         if self.value is None:
@@ -157,6 +158,8 @@ class PersonId:
             if not isinstance(guid, str) or not guid:
                 raise VerdiError("security/users/authorize: no personGuid")
             self.value = guid
+            if self.on_resolved:
+                self.on_resolved()
         return self.value
 
 
@@ -472,6 +475,8 @@ class VerdiCoordinator(LookupCoordinator):
         api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
         guard = get_guard(hass, entry.entry_id, rng)
         self.person = PersonId(api, guard)
+        self.person.on_resolved = self._remark_roster
+        self._roster_raw: Any = None
         self.availabilities = Availabilities(api, guard, d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS])
         self.intervention = False
         lookups = {
@@ -492,7 +497,7 @@ class VerdiCoordinator(LookupCoordinator):
             ),
             "roster": Lookup(
                 lambda: api.roster(d[CONF_CREW_FUNCTION_IDS]),
-                lambda data: parse.roster(data, names=names, me=self.person.value),
+                self._parse_roster,
                 safety_schedule(o, CONF_ROSTER_SAFETY, next_change=roster_change),
             ),
         }
@@ -523,6 +528,20 @@ class VerdiCoordinator(LookupCoordinator):
         self.show_names: bool = names
         self.personal: LookupCoordinator | None = None
         self.fast: LookupCoordinator | None = None
+
+    def _parse_roster(self, data: Any) -> list[dict[str, Any]]:
+        self._roster_raw = data
+        return parse.roster(data, names=self.show_names, me=self.person.value)
+
+    @callback
+    def _remark_roster(self) -> None:
+        """The person ID arrived after the roster was parsed: redo the `mine` flags from the cached
+        response. Data only: no _fetched, so it doesn't mark events due."""
+        if self._roster_raw is None or not (self.data or {}).get("roster"):
+            return
+        roster = parse.roster(self._roster_raw, names=self.show_names, me=self.person.value)
+        if roster != self.data["roster"]:
+            self.async_set_updated_data({**self.data, "roster": roster})
 
     def _tick(self) -> tuple[float, float]:
         key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL

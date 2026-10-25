@@ -364,3 +364,24 @@ async def test_vehicle_on_fast_lane_still_fires_statistics(
     await fast.async_refresh_lookup("vehicles")
     await tick(hass, freezer, 151)  # the moved lookup still triggers the statistics refresh
     assert count(calls, STATS) == base + 1
+
+
+async def test_late_person_id_fixes_roster_mine_without_events(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, user = api
+    responses[ROSTER]["items"][0]["next"]["personId"] = "me-1"
+    user.side_effect = VerdiError("down")
+    await start(hass, config_entry, freezer)
+    coordinator = config_entry.runtime_data
+    assert coordinator.person.value is None
+    await tick(hass, freezer, 330)
+    assert coordinator.data["roster"]
+    assert not any((i["next"] or {}).get("mine") for i in coordinator.data["roster"])
+    calls.clear()
+    user.side_effect = None
+    user.return_value = r.CURRENT_USER
+    await coordinator.person.get()
+    assert coordinator.data["roster"][0]["next"]["mine"] is True
+    assert coordinator.lookups["roster"].schedule.last_reason is not None
+    await tick(hass, freezer, 60)
+    await tick(hass, freezer, 31)
+    assert count(calls, EVENTS) == 0
