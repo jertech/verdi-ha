@@ -33,16 +33,23 @@ def jittered(seconds: float, rng: random.Random, minimum: float = 0.0) -> float:
     return max(seconds * rng.uniform(1 - JITTER, 1 + JITTER), minimum)
 
 
+def parse_iso(value: Any) -> datetime | None:
+    """An ISO date-time text as a datetime (offset or not); anything else is None."""
+    if not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value)
+    except ValueError:
+        return None
+
+
 def earliest_after(values: Iterable[Any], now: datetime) -> datetime | None:
     """The first moment after now among ISO texts or datetimes with an offset; others are ignored."""
     moments = []
     for value in values:
         moment = value
         if isinstance(moment, str):
-            try:
-                moment = datetime.fromisoformat(moment)
-            except ValueError:
-                continue
+            moment = parse_iso(moment)
         if isinstance(moment, datetime) and moment.tzinfo and moment > now:
             moments.append(moment)
     return min(moments, default=None)

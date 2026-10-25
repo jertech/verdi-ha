@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from .parse import clean, slug
+from .schedule import parse_iso
 
 SHIFT, SINGLE, EXCEPTION = "Shift", "Single", "Exception"
 
@@ -29,13 +30,8 @@ TIME_TEXT = re.compile(r"(\d{1,2})\s+([^\W\d_]+)\.?,?\s+(\d{1,2}):(\d{2})")
 
 def _moment(value: Any) -> datetime | None:
     """An ISO date-time with a UTC offset; anything else is None."""
-    if not isinstance(value, str):
-        return None
-    try:
-        moment = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    return moment if moment.tzinfo else None
+    moment = parse_iso(value)
+    return moment if moment and moment.tzinfo else None
 
 
 def _label(value: Any) -> str | None:

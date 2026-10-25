@@ -102,8 +102,6 @@ INTERVALS = {
     CONF_ALERTS_SAFETY: (60, 10, 1440, 60),
     CONF_EVENTS_INTERVAL: (60, 10, 1440, 60),
     CONF_STATISTICS_INTERVAL: (24, 1, 168, 3600),
-    # The fast personal lookups' poll interval; no longer an option.
-    LEGACY_PERSONAL_INTERVAL: (60, 10, 3600, 1),
 }
 # Defaults before version 4, moved to the new defaults on migration when unchanged.
 OLD_DEFAULTS = {CONF_SCAN_INTERVAL: 120, CONF_EVENTS_INTERVAL: 10, CONF_STATISTICS_INTERVAL: 6}
