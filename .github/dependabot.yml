@@ -1,18 +1,31 @@
+# New releases wait out a 7-day cooldown before Dependabot proposes them, so a bad or hijacked release has
+# time to be caught upstream; security updates skip the cooldown. Action bumps come as one weekly PR.
 version: 2
 updates:
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
+    groups:
+      actions:
+        patterns: ["*"]
   - package-ecosystem: pip
     directory: /verdi_token_relay
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
   - package-ecosystem: pip
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
   - package-ecosystem: docker
     directory: /verdi_token_relay
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
