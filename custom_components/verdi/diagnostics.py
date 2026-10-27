@@ -22,6 +22,7 @@ from .const import (
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
+    CONF_WATCHED_VEHICLES,
     LEGACY_PERSON_ID,
 )
 from .coordinator import lookup_counts
@@ -39,6 +40,7 @@ TO_REDACT = {
     CONF_STATION_ID,
     CONF_TEAM_GROUP_ID,
     CONF_VEHICLE_TRAIN_IDS,
+    CONF_WATCHED_VEHICLES,
     "token",
     "token_file",
 }
@@ -70,6 +72,7 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
                 if coordinator and coordinator.personal
                 else None
             ),
+            "fast": coordinator.fast.schedule_diagnostics(now) if coordinator and coordinator.fast else None,
         },
         "pace": coordinator.pace_name if coordinator else None,
         "steady_per_min": steady_per_min(dict(entry.options)),
