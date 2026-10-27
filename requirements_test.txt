@@ -1,2 +1,2 @@
 # Pinned per Home Assistant version in .github/workflows/ci.yml
-ruff==0.17.1
+ruff==0.17.2
