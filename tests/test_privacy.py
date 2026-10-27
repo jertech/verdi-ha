@@ -12,6 +12,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
 
+from custom_components.verdi.const import CONF_FAST_LANE, CONF_PAGED, CONF_WATCHED_VEHICLES
 from tests import responses as r
 from tests.conftest import ALL_OFF, BASE_URL, DATA, VERDI, setup_with_token
 
@@ -76,6 +77,14 @@ async def test_diagnostics_redacts_identifiers(hass: HomeAssistant, config_entry
         assert part not in diag
 
 
+async def test_diagnostics_redacts_watched_vehicles(hass: HomeAssistant, config_entry, mock_api, hass_client):
+    """The watched_vehicles option holds vehicle ids; they must be redacted like every other id."""
+    assert await async_setup_component(hass, "diagnostics", {})
+    await setup_with_token(hass, config_entry, options={CONF_WATCHED_VEHICLES: ["watched-vehicle-id-1"]})
+    diag = json.dumps(await get_diagnostics_for_config_entry(hass, hass_client, config_entry))
+    assert "watched-vehicle-id-1" not in diag
+
+
 async def test_calendar_feed_link_never_leaves_the_response(
     hass: HomeAssistant, config_entry, mock_api, hass_client, caplog, freezer
 ):
@@ -130,3 +139,24 @@ async def test_diagnostics_show_schedules_and_pace(hass: HomeAssistant, config_e
         "cap_per_minute",
         "rejected_for_seconds",
     }
+
+
+async def test_diagnostics_show_the_fast_lane_schedule(
+    hass: HomeAssistant, config_entry, mock_api, hass_client
+):
+    """Lookups moved to the fast lane leave the station schedule, so the fast lane lists its own."""
+    assert await async_setup_component(hass, "diagnostics", {})
+    await setup_with_token(
+        hass, config_entry, options={CONF_FAST_LANE: ["paged", "vehicles"], CONF_PAGED: True}
+    )
+    diag = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
+    assert set(diag["schedules"]["fast"]) == {"paged", "vehicles"}
+    assert "vehicles" not in diag["schedules"]["station"]
+    assert set(diag["schedules"]["fast"]["paged"]) == {"calls_today", "last_fetch", "last_reason", "next_due"}
+
+
+async def test_diagnostics_without_a_fast_lane(hass: HomeAssistant, config_entry, mock_api, hass_client):
+    assert await async_setup_component(hass, "diagnostics", {})
+    await setup_with_token(hass, config_entry, options=ALL_OFF)
+    diag = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
+    assert diag["schedules"]["fast"] is None

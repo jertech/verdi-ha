@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.1] - unreleased
+
+### Integration
+- Diagnostics now redact the watched-vehicles option. The vehicle IDs chosen under "watched vehicles"
+  were printed in clear in a downloaded diagnostics report; they are now redacted like every other
+  identifier.
+- Diagnostics list the fast lane's schedule (calls today, last fetch, next due) next to the station's
+  and your own, so lookups moved to the fast lane stay visible.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.9.0] - unreleased
 
 ### Integration
