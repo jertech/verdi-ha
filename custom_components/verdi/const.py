@@ -45,8 +45,12 @@ CONF_ACCEPT = "accept_disclaimer"
 
 CONF_NON_PAGEABLE = "non_pageable"  # availability names that mean "not pageable"; unset = word list
 NON_PAGEABLE_WORDS = (
-    "niet beschikbaar", "onbeschikbaar", "non disponible", "indisponible",
-    "not available", "unavailable",
+    "niet beschikbaar",
+    "onbeschikbaar",
+    "non disponible",
+    "indisponible",
+    "not available",
+    "unavailable",
 )
 
 # Removed in config entry version 2.

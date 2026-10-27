@@ -148,9 +148,7 @@ class Signals:
         latest personnel (own line) and My availability fetches, so this never reads stale data."""
         if self._fast is None or "paged" not in self._fast.lookups:
             return
-        pageable = is_pageable(
-            self._own_name, self._my_name, self._entry.options.get(CONF_NON_PAGEABLE)
-        )
+        pageable = is_pageable(self._own_name, self._my_name, self._entry.options.get(CONF_NON_PAGEABLE))
         if pageable == self._pageable:
             return
         self._pageable = pageable

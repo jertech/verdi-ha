@@ -67,9 +67,7 @@ async def test_setup_burst_is_small(hass: HomeAssistant, config_entry, api, free
 
 async def test_pre_alert_and_garrison_only_when_switched_on(hass: HomeAssistant, config_entry, api):
     _, calls, _ = api
-    await setup_with_token(
-        hass, config_entry, options={"pre_alert": True, "garrison": True, "paged": False}
-    )
+    await setup_with_token(hass, config_entry, options={"pre_alert": True, "garrison": True, "paged": False})
     assert {c[1] for c in app_calls(calls)} == {AVAILABILITY, PRE, GARRISON}
     assert hass.states.get("binary_sensor.verdi_pre_alert").state == "off"
     assert hass.states.get("binary_sensor.verdi_garrison").state == "off"

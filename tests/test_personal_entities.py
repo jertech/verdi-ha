@@ -186,7 +186,9 @@ async def test_restart_keeps_statistics_and_calendars_during_the_startup_delay(
     fire = hass.states.get("sensor.verdi_times_called_station_north_fire")
     assert (fire.state, fire.attributes["state_class"]) == ("17", "total_increasing")
     assert hass.states.get("sensor.verdi_availability_this_year_station_north").state == "34.7"
-    assert hass.states.get("sensor.verdi_times_called_station_north_2deg_ambulance").state == "unavailable"  # no value was ever stored
+    assert (
+        hass.states.get("sensor.verdi_times_called_station_north_2deg_ambulance").state == "unavailable"
+    )  # no value was ever stored
     assert hass.states.get("calendar.verdi_my_shifts").state != "unavailable"
     assert hass.states.get("calendar.verdi_my_availability").state != "unavailable"
     await after_setup_delay(hass, freezer)  # live data takes over; nothing is added twice

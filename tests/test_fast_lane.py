@@ -41,9 +41,7 @@ async def test_vehicle_change_on_fast_lane_marks_station_readiness(
 ):
     responses, calls = api
     freezer.move_to(NOW)
-    await setup_with_token(
-        hass, config_entry, options={CONF_FAST_LANE: ["vehicles"], CONF_PAGED: True}
-    )
+    await setup_with_token(hass, config_entry, options={CONF_FAST_LANE: ["vehicles"], CONF_PAGED: True})
     station = config_entry.runtime_data
     fast = station.fast
     assert fast is not None
@@ -74,9 +72,7 @@ async def test_fast_lane_has_paged_by_default(hass: HomeAssistant, config_entry,
     assert "personnel" in station.lookups
 
 
-async def test_fast_lane_runs_vehicles_at_fast_interval(
-    hass: HomeAssistant, config_entry, api, freezer
-):
+async def test_fast_lane_runs_vehicles_at_fast_interval(hass: HomeAssistant, config_entry, api, freezer):
     _, calls = api
     freezer.move_to(NOW)
     await setup_with_token(hass, config_entry, options={CONF_FAST_LANE: ["vehicles"]})
@@ -89,9 +85,7 @@ async def test_fast_lane_runs_vehicles_at_fast_interval(
     assert paths(calls) == [VEHICLES]
 
 
-async def test_pausing_keeps_vehicles_on_the_fast_lane(
-    hass: HomeAssistant, config_entry, api, freezer
-):
+async def test_pausing_keeps_vehicles_on_the_fast_lane(hass: HomeAssistant, config_entry, api, freezer):
     _, calls = api
     freezer.move_to(NOW)
     await setup_with_token(hass, config_entry, options={CONF_FAST_LANE: ["vehicles"]})

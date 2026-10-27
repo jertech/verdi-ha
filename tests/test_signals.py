@@ -333,9 +333,7 @@ async def test_list_failure_falls_back_and_retries(hass: HomeAssistant, config_e
     assert count(calls, AVAILABILITY) == 0  # your line is found now
 
 
-async def test_vehicle_on_fast_lane_still_switches_the_pace(
-    hass: HomeAssistant, config_entry, api, freezer
-):
+async def test_vehicle_on_fast_lane_still_switches_the_pace(hass: HomeAssistant, config_entry, api, freezer):
     responses, _, _ = api
     await start(hass, config_entry, freezer, options={CONF_FAST_LANE: ["vehicles"]})
     station = config_entry.runtime_data
@@ -352,9 +350,7 @@ async def test_vehicle_on_fast_lane_still_switches_the_pace(
     assert station.update_interval == timedelta(seconds=30)
 
 
-async def test_vehicle_on_fast_lane_still_fires_statistics(
-    hass: HomeAssistant, config_entry, api, freezer
-):
+async def test_vehicle_on_fast_lane_still_fires_statistics(hass: HomeAssistant, config_entry, api, freezer):
     responses, calls, _ = api
     await start(hass, config_entry, freezer, options={CONF_FAST_LANE: ["vehicles"]})
     await tick(hass, freezer, 330)  # first events and statistics
@@ -366,7 +362,9 @@ async def test_vehicle_on_fast_lane_still_fires_statistics(
     assert count(calls, STATS) == base + 1
 
 
-async def test_late_person_id_fixes_roster_mine_without_events(hass: HomeAssistant, config_entry, api, freezer):
+async def test_late_person_id_fixes_roster_mine_without_events(
+    hass: HomeAssistant, config_entry, api, freezer
+):
     responses, calls, user = api
     responses[ROSTER]["items"][0]["next"]["personId"] = "me-1"
     user.side_effect = VerdiError("down")

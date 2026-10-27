@@ -2,6 +2,7 @@
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
 """Decide whether you can be paged, from your availability name."""
+
 from __future__ import annotations
 
 from collections.abc import Sequence

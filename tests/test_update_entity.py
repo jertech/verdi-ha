@@ -149,9 +149,7 @@ async def test_overlapping_full_refresh_still_fetches_every_due_lookup(hass: Hom
     assert b.call_count == 1  # the overlapping full refresh fetched the other due lookup
 
 
-async def test_coalesced_single_lookups_run_full_and_leave_no_stale_key(
-    hass: HomeAssistant, config_entry
-):
+async def test_coalesced_single_lookups_run_full_and_leave_no_stale_key(hass: HomeAssistant, config_entry):
     """Two single-lookup requests coalesced by the debouncer into one run must not narrow it, and
     must leave nothing queued to narrow a later refresh."""
     a, b, extra = _value(1), _value(2), _value(3)

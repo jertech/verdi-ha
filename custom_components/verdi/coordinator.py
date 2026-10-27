@@ -613,9 +613,7 @@ class FastCoordinator(LookupCoordinator):
         super()._fetched(key, new, old)
 
 
-def create_fast(
-    hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator
-) -> FastCoordinator | None:
+def create_fast(hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator) -> FastCoordinator | None:
     """Move the chosen station lookups onto a fast-lane coordinator, or None when it holds nothing.
 
     The keys named in CONF_FAST_LANE that exist as station lookups today (vehicles/personnel) are
@@ -633,9 +631,7 @@ def create_fast(
         language = request_language(hass)
 
         async def paged() -> dict[str, Any]:
-            return await station.api.current_intervention(
-                await station.person.get(report=False), language
-            )
+            return await station.api.current_intervention(await station.person.get(report=False), language)
 
         paged_schedule = PagedSchedule(always=True)
         lookups["paged"] = Lookup(paged, parse_personal.current_intervention, paged_schedule)
