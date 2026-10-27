@@ -72,6 +72,8 @@ async def async_setup_entry(
                     lambda v: {"station": v["station"], "city": v["city"]} if v["active"] else None,
                 )
             )
+    if (f := getattr(c, "fast", None)) is not None and "paged" in f.lookups:
+        entities.append(PagedBinarySensor(f))
     async_add_entities(entities)
 
 
@@ -146,3 +148,27 @@ class PersonalBinarySensor(VerdiEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         return self._attrs(self._data) if self._data is not None else None
+
+
+class PagedBinarySensor(VerdiEntity, BinarySensorEntity):
+    """On while you have a current intervention. Unlike PersonalBinarySensor, no page is a normal
+    state (off, available), not missing data: availability follows the coordinator alone."""
+
+    def __init__(self, coordinator: LookupCoordinator) -> None:
+        super().__init__(coordinator)
+        self.lookup = "paged"
+        self._attr_translation_key = "paged"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_paged"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def _data(self) -> dict[str, Any] | None:
+        return (self.coordinator.data or {}).get("paged")
+
+    @property
+    def is_on(self) -> bool:
+        return self._data is not None
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        return self._data or None

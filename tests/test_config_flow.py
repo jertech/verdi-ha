@@ -7,7 +7,7 @@ from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
 
-from custom_components.verdi.api import VerdiAuthError
+from custom_components.verdi.api import VerdiAuthError, VerdiError
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
 from custom_components.verdi.token import get_store
 from tests.conftest import BASE_URL, SUB, make_token, setup_with_token
@@ -132,9 +132,12 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         "station": {
             "scan_interval": 60,
             "intervention_interval": 30,
+            "fast_interval": 15,
             "watched_vehicles": [],
             "availability_ids": ["av-1", "av-2"],
+            "non_pageable": [],
         },
+        "fast_lane": {"fast_lane": ["paged"]},
         "own_data": {
             "my_availability": True,
             "pre_alert": False,
@@ -162,6 +165,7 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         {
             "show_names": True,
             "station": {"scan_interval": 45.0, "intervention_interval": 15.0, "watched_vehicles": ["v1"]},
+            "fast_lane": {"fast_lane": ["paged", "vehicles"]},
             "own_data": {
                 "my_availability": True,
                 "pre_alert": True,
@@ -186,7 +190,10 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         "paged": True,
         "scan_interval": 45,
         "intervention_interval": 15,
+        "fast_interval": 15,
+        "fast_lane": ["paged", "vehicles"],
         "watched_vehicles": ["v1"],
+        "non_pageable": [],
         "my_availability": True,
         "pre_alert": True,
         "garrison": False,
@@ -214,6 +221,7 @@ def _submit(station: dict) -> dict:
     return {
         "show_names": False,
         "station": {"scan_interval": 60, "intervention_interval": 30, "watched_vehicles": [], **station},
+        "fast_lane": {},
         "own_data": {},
         "safety": {},
     }
@@ -270,3 +278,54 @@ async def test_options_and_availabilities_change_together(hass: HomeAssistant, c
     assert config_entry.data["availability_ids"] == ["av-2"]
     assert config_entry.options["scan_interval"] == 45
     assert setup.call_count == 1  # one reload, not two
+
+
+ITEMS = "custom_components.verdi.api.VerdiApi.availability_display_items"
+
+
+async def test_options_offer_real_availability_names(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry, options={"non_pageable": ["Custom"]})
+    items = [{"id": "g1", "text": "Standby"}, {"id": "g2", "text": "Absent"}]
+    with patch(ITEMS, return_value=items) as fetch:
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    fetch.assert_awaited_once_with(config_entry.data["station_id"])
+    field = _station_field(result, "non_pageable")
+    assert field.config["multiple"] is True
+    assert field.config["custom_value"] is True
+    assert [o["value"] for o in field.config["options"]] == ["Standby", "Absent", "Custom"]
+
+
+async def test_options_survive_a_failing_name_fetch(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry, options={"non_pageable": ["Custom"]})
+    with patch(ITEMS, side_effect=VerdiError("boom")):
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] == "form"
+    field = _station_field(result, "non_pageable")
+    assert [o["value"] for o in field.config["options"]] == ["Custom"]
+    assert _defaults(result["data_schema"])["station"]["non_pageable"] == ["Custom"]
+
+
+async def test_options_over_24_calls_are_refused(hass: HomeAssistant, config_entry, mock_api):
+    # The estimate tops out near 23 with these options, so lower the limit to exercise the refusal.
+    await setup_with_token(hass, config_entry)
+    before = dict(config_entry.options)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    submit = _submit({"intervention_interval": 15, "fast_interval": 10})
+    submit["fast_lane"] = {"fast_lane": ["paged", "vehicles", "personnel"]}
+    with patch("custom_components.verdi.config_flow.CALL_LIMIT", 20):
+        result = await hass.config_entries.options.async_configure(result["flow_id"], submit)
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"base": "too_many_calls"}
+    assert float(result["description_placeholders"]["rate"]) > 20
+    assert config_entry.options == before
+
+
+async def test_options_at_or_under_24_calls_save(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    submit = _submit({"fast_interval": 12})
+    submit["fast_lane"] = {"fast_lane": ["paged", "vehicles"]}
+    result = await hass.config_entries.options.async_configure(result["flow_id"], submit)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.options["fast_lane"] == ["paged", "vehicles"]
+    assert config_entry.options["fast_interval"] == 12

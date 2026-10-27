@@ -34,6 +34,25 @@ station data shows a change, at a time Verdi announced (a team rotation, a shift
 your availability), or after a safety interval. While Verdi has trouble, polling slows down; it never
 makes more than 30 calls a minute.
 
+## Optional: Remote Calendar subscription
+
+Besides the integration's own two calendars, you can subscribe to your Verdi calendar feed with
+Home Assistant's built-in **Remote Calendar** integration. It is an optional, lightweight alternative:
+
+- it gives you **one combined, read-only calendar**;
+- it refreshes **about once a day** by default; for another schedule, turn off "Enable polling for
+  changes" on that calendar and add an automation that calls the **Update** entity action for it;
+- it runs entirely in Home Assistant's Remote Calendar integration, so it does **not** use the Verdi
+  integration's token or its call budget.
+
+To set it up, add the Remote Calendar integration and enter your **Verdi calendar feed URL**, the
+personal calendar link you find in the Verdi web app.
+
+**Caveat.** The feed URL works without a login: anyone who has the link can read your planning.
+Remote Calendar stores the URL in Home Assistant's configuration, so it also ends up in your backups.
+Treat it like a password, keep your backups encrypted, and don't share the link. The integration's
+two typed calendars remain the default and are not affected by this option.
+
 ## Privacy
 
 What the integration pulls from Verdi and stores in Home Assistant, including the recorder history:

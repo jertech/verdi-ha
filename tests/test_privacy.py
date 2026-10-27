@@ -122,6 +122,8 @@ async def test_diagnostics_show_schedules_and_pace(hass: HomeAssistant, config_e
     assert station["personnel"]["last_reason"] == "startup"
     assert set(diag["schedules"]["personal"]) == {"availability", "events", "statistics"}
     assert diag["pace"] in ("normal", "intervention")
+    assert isinstance(diag["steady_per_min"], (int, float))
+    assert set(diag["fast_lane"]) == {"active", "paging_paused"}
     assert set(diag["guard"]) == {
         "backoff_level",
         "calls_last_minute",

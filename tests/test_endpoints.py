@@ -60,6 +60,7 @@ async def test_every_lookup_is_allowed():
     await api.garrison()
     await api.statistics("p", "nl")
     await api.upcoming_events("p", "nl")
+    await api.current_intervention("p", "nl")
     assert set(calls) == set(ALLOWED_ENDPOINTS)
 
 

@@ -4,7 +4,8 @@
       "readiness": { "default": "mdi:shield-check" },
       "vehicle_on_intervention": { "default": "mdi:alarm-light" },
       "pre_alert": { "default": "mdi:bell-alert" },
-      "garrison": { "default": "mdi:shield-home" }
+      "garrison": { "default": "mdi:shield-home" },
+      "paged": { "default": "mdi:car-emergency" }
     },
     "calendar": {
       "my_shifts": { "default": "mdi:calendar-account" },
@@ -19,7 +20,8 @@
       "my_availability": { "default": "mdi:account-check" },
       "availability_year": { "default": "mdi:percent-circle" },
       "times_called": { "default": "mdi:bell-ring" },
-      "token_expiry": { "default": "mdi:key-chain-variant" }
+      "token_expiry": { "default": "mdi:key-chain-variant" },
+      "pace": { "default": "mdi:speedometer" }
     }
   }
 }

@@ -35,9 +35,9 @@ from .const import (
     REQUIRED_DATA,
     TOKEN_GRACE_SECONDS,
 )
-from .coordinator import VerdiCoordinator
+from .coordinator import VerdiCoordinator, create_fast
 from .guard import drop_guard
-from .personal import create_personal
+from .personal import create_personal, statistics_store
 from .signals import Signals
 from .token import VerdiTokenView, get_store
 
@@ -100,7 +100,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
 
     coordinator = VerdiCoordinator(hass, entry, token)
     personal = create_personal(hass, entry, coordinator)
-    signals = Signals(hass, entry, coordinator, personal)
+    # Moves the chosen lookups off the station, so it must run before the station's first refresh.
+    fast = create_fast(hass, entry, coordinator)
+    signals = Signals(hass, entry, coordinator, personal, fast)
     # Without the list, personnel only lists the configured availabilities; a failure is retried later.
     with suppress(VerdiError):
         await coordinator.availabilities.load()
@@ -109,9 +111,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
         with suppress(VerdiError):
             await coordinator.person.get()
     await coordinator.async_config_entry_first_refresh()
+    if fast is not None:
+        await fast.async_refresh()
     if personal is not None:
         await personal.async_refresh()
     coordinator.personal = personal
+    coordinator.fast = fast
     signals.start()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -125,6 +130,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bo
 async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> None:
     drop_guard(hass, entry.entry_id)
     get_store(hass).tokens.pop(entry.entry_id, None)
+    await statistics_store(hass, entry.entry_id).async_remove()
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_MISSING_CONFIG}_{entry.entry_id}")
 
 

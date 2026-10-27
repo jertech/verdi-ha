@@ -14,6 +14,7 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from .parse import clean, slug
+from .schedule import parse_iso
 
 SHIFT, SINGLE, EXCEPTION = "Shift", "Single", "Exception"
 
@@ -29,13 +30,8 @@ TIME_TEXT = re.compile(r"(\d{1,2})\s+([^\W\d_]+)\.?,?\s+(\d{1,2}):(\d{2})")
 
 def _moment(value: Any) -> datetime | None:
     """An ISO date-time with a UTC offset; anything else is None."""
-    if not isinstance(value, str):
-        return None
-    try:
-        moment = datetime.fromisoformat(value)
-    except ValueError:
-        return None
-    return moment if moment.tzinfo else None
+    moment = parse_iso(value)
+    return moment if moment and moment.tzinfo else None
 
 
 def _label(value: Any) -> str | None:
@@ -124,6 +120,25 @@ def garrison(data: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(current, dict) or not (current.get("guid") or current.get("station")):
         return {"active": False, "station": None, "city": None}
     return {"active": True, "station": _label(current.get("station")), "city": clean(current.get("city"))}
+
+
+def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
+    """Your current page, non-sensitive fields only. None when you're not paged.
+
+    Everything locating the incident or a third party (address, city, coordinates, caller,
+    free-text info, radio group) is dropped here and never stored.
+    """
+    page = data.get("currentIntervention")
+    if not isinstance(page, dict) or not page:
+        return None
+    return {
+        "station": page.get("stationName"),
+        "crew_function": page.get("crewFunction"),
+        "vehicle": page.get("vehicleName"),
+        "alarm_time": page.get("alarmDate"),
+        "incident": page.get("incidentType"),
+        "confirmation": page.get("confirmationStatus"),
+    }
 
 
 def statistics(data: dict[str, Any], now: datetime) -> dict[str, list[dict[str, Any]]]:

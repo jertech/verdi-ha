@@ -15,6 +15,7 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from . import parse_personal
@@ -33,14 +34,22 @@ from .const import (
     PERSONAL_RETRY_SECONDS,
     STARTUP_DELAY,
 )
-from .coordinator import Lookup, LookupCoordinator, VerdiCoordinator, enabled, safety_schedule
+from .coordinator import (
+    Lookup,
+    LookupCoordinator,
+    VerdiCoordinator,
+    enabled,
+    request_language,
+    safety_schedule,
+)
 from .schedule import earliest_after
 
+__all__ = ["create_personal", "personal_counts", "request_language"]
 
-def request_language(hass: HomeAssistant) -> str:
-    """Verdi answers in nl, fr or en; any other Home Assistant language gets en."""
-    language = (hass.config.language or "").lower()
-    return next((code for code in ("nl", "fr") if language.startswith(code)), "en")
+
+def statistics_store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
+    """Where the statistics counters are remembered between restarts: names only, no values."""
+    return Store(hass, 1, f"{DOMAIN}.statistics.{entry_id}")
 
 
 def _ends(items: Any, now: datetime) -> datetime | None:

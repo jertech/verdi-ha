@@ -5,6 +5,27 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.0] - unreleased
+
+### Integration
+- New **Paged** binary sensor and a **fast lane**: while you are pageable, your current page is
+  polled on a short interval instead of the normal one.
+- New options `fast_interval` and `fast_lane`: the page is always on the fast lane, and you can
+  optionally add vehicles and personnel. Watched vehicles on the fast lane refresh quickly.
+- Pageability is decided from your availability. The `non_pageable` option now offers the real
+  per-station availability names to pick from.
+- New diagnostic **Pace** sensor (normal / intervention / backoff), disabled by default.
+- The options screen estimates the steady request rate and refuses a combination that would
+  exceed 24 requests per minute. The available ranges already stay within that limit, so this is
+  a guard rail.
+- After a restart, your statistics sensors keep their last value and the personal calendars stay
+  available during the first-fetch delay, instead of briefly reading "no longer provided" or
+  unavailable.
+- Fixed: `update_entity` on one entity no longer narrows a concurrent full refresh.
+- Fixed: your roster "mine" flags now fill in correctly when your person id resolves late.
+- Documentation: an optional native Remote Calendar subscription.
+- Internal cleanup.
+
 ## [0.8.2] - unreleased
 
 ### Integration

@@ -131,6 +131,10 @@ class PersonalCalendar(VerdiEntity, CalendarEntity):
 
     @property
     def available(self) -> bool:
+        # Available through the deliberate wait before the first fetch of events, with no events yet.
+        # After the first attempt a failure reads unavailable, not empty.
+        if self.coordinator.lookups["events"].schedule.last_fetch is None:
+            return True
         return super().available and (self.coordinator.data or {}).get("events") is not None
 
     @property

@@ -9,8 +9,14 @@ from collections.abc import Callable
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
-from homeassistant.const import PERCENTAGE
+from homeassistant.components.sensor import (
+    RestoreSensor,
+    SensorDeviceClass,
+    SensorEntity,
+    SensorExtraStoredData,
+    SensorStateClass,
+)
+from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
@@ -18,6 +24,7 @@ from . import VerdiConfigEntry
 from .api import token_expiry
 from .coordinator import LookupCoordinator, VerdiCoordinator
 from .entity import VerdiEntity, device_info, find
+from .personal import statistics_store
 
 PARALLEL_UPDATES = 0
 
@@ -60,7 +67,7 @@ async def async_setup_entry(
 ) -> None:
     c = entry.runtime_data
     data = c.data or {}
-    entities: list[SensorEntity] = [TokenExpirySensor(c)]
+    entities: list[SensorEntity] = [TokenExpirySensor(c), PaceSensor(c)]
     if data.get("personnel") is not None:
         entities.append(PersonnelSensor(c))
     for v in data.get("vehicles") or []:
@@ -104,16 +111,39 @@ async def async_setup_entry(
         if "availability" in p.lookups:
             async_add_entities([MyAvailabilitySensor(p)])
         if "statistics" in p.lookups:
-            _add_statistics_sensors(entry, p, async_add_entities)
+            await _add_statistics_sensors(hass, entry, p, async_add_entities)
 
 
-def _add_statistics_sensors(
+def _counter(kind: str, item: dict[str, Any]) -> dict[str, Any]:
+    """What a statistic sensor needs to exist before its first fetch; no values."""
+    return {
+        "kind": kind,
+        "id": item["id"],
+        "station": item["station"],
+        **({"service": item["service"]} if kind == TIMES_CALLED else {}),
+    }
+
+
+async def _add_statistics_sensors(
+    hass: HomeAssistant,
     entry: VerdiConfigEntry,
     coordinator: LookupCoordinator,
     async_add_entities: AddConfigEntryEntitiesCallback,
 ) -> None:
-    """Add a sensor for each station and counter as soon as statistics list it."""
-    added: set[tuple[str, str]] = set()
+    """Add a sensor for each station and counter. Counters known from an earlier run exist at
+    once, with their restored value, because the first fetch is minutes away; after that a
+    sensor is added for each counter statistics list for the first time. Counters are never
+    removed: one that disappeared at Verdi keeps its last value."""
+    store = statistics_store(hass, entry.entry_id)
+    known: dict[tuple[str, str], dict[str, Any]] = {}
+    for saved in (await store.async_load() or {}).get("counters") or []:
+        try:
+            known[(saved["kind"], saved["id"])] = _counter(saved["kind"], saved)
+        except (KeyError, TypeError):
+            continue  # a damaged entry: the next fetch lists it again
+    added: set[tuple[str, str]] = set(known)
+    if known:
+        async_add_entities(StatisticSensor(coordinator, kind, item) for (kind, _), item in known.items())
 
     @callback
     def add_new() -> None:
@@ -121,11 +151,14 @@ def _add_statistics_sensors(
         new = []
         for kind in (AVAILABILITY_YEAR, TIMES_CALLED):
             for item in stats.get(kind) or []:
-                if (kind, item["id"]) not in added:
-                    added.add((kind, item["id"]))
+                key = (kind, item["id"])
+                if key not in added:
+                    added.add(key)
+                    known[key] = _counter(kind, item)
                     new.append(StatisticSensor(coordinator, kind, item))
         if new:
             async_add_entities(new)
+            entry.async_create_task(hass, store.async_save({"counters": list(known.values())}))
 
     add_new()
     entry.async_on_unload(coordinator.async_add_listener(add_new))
@@ -226,6 +259,32 @@ class TokenExpirySensor(VerdiEntity, SensorEntity):
         return token_expiry(self.coordinator.api.token)
 
 
+class PaceSensor(VerdiEntity, SensorEntity):
+    """How fast the integration is polling now: normal, intervention or backoff."""
+
+    coordinator: VerdiCoordinator
+    _attr_translation_key = "pace"
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_entity_registry_enabled_default = False
+
+    def __init__(self, coordinator: VerdiCoordinator) -> None:
+        super().__init__(coordinator)
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_pace"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def native_value(self) -> str:
+        return self.coordinator.pace_name
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        fast = self.coordinator.fast
+        return {
+            "fast_lane": sorted(fast.lookups) if fast else [],
+            "paging_paused": bool(fast.paused) if fast else False,
+        }
+
+
 class MyAvailabilitySensor(VerdiEntity, SensorEntity):
     """Your own availability now, from the Verdi app route."""
 
@@ -254,7 +313,7 @@ class MyAvailabilitySensor(VerdiEntity, SensorEntity):
         return {k: self._mine[k] for k in MY_AVAILABILITY_ATTRS} if self._mine else None
 
 
-class StatisticSensor(VerdiEntity, SensorEntity):
+class StatisticSensor(VerdiEntity, RestoreSensor):
     """Your availability this year at a station, or how often you were called for a service."""
 
     lookup = "statistics"
@@ -272,6 +331,11 @@ class StatisticSensor(VerdiEntity, SensorEntity):
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{kind}_{item['id']}"
         self._attr_device_info = device_info(coordinator.config_entry)
+        self._restored: SensorExtraStoredData | None = None
+
+    async def async_added_to_hass(self) -> None:
+        await super().async_added_to_hass()
+        self._restored = await self.async_get_last_sensor_data()
 
     @property
     def _item(self) -> dict[str, Any] | None:
@@ -280,12 +344,13 @@ class StatisticSensor(VerdiEntity, SensorEntity):
 
     @property
     def available(self) -> bool:
-        return super().available and self._item is not None
+        # Until the first fetch lists it, the restored value stands in.
+        return super().available and (self._item is not None or self._restored is not None)
 
     @property
     def native_value(self) -> float | int | None:
         if not self._item:
-            return None
+            return self._restored.native_value if self._restored else None
         return self._item["percentage"] if self.kind == AVAILABILITY_YEAR else self._item["value"]
 
     @property

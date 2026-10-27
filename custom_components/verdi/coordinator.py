@@ -16,13 +16,13 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from . import parse, schedule
+from . import parse, parse_personal, schedule
 from .api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable
 from .const import (
     BACKOFF_START,
@@ -30,8 +30,11 @@ from .const import (
     CONF_AVAILABILITY_IDS,
     CONF_BASE_URL,
     CONF_CREW_FUNCTION_IDS,
+    CONF_FAST_INTERVAL,
+    CONF_FAST_LANE,
     CONF_FUNCTION_CALENDAR_ID,
     CONF_INTERVENTION_INTERVAL,
+    CONF_PAGED,
     CONF_READINESS_SAFETY,
     CONF_ROSTER_SAFETY,
     CONF_SCAN_INTERVAL,
@@ -41,6 +44,7 @@ from .const import (
     CONF_TEAMS_SAFETY,
     CONF_VEHICLE_TRAIN_IDS,
     DOMAIN,
+    FAST_LANE_DEFAULT,
     FEATURES,
     IDLE_WAKE,
     INTERVALS,
@@ -80,6 +84,12 @@ def pace(options: Mapping[str, Any], key: str) -> tuple[float, float]:
 def enabled(options: Mapping[str, Any], key: str) -> bool:
     """Whether a kind of your own data is switched on."""
     return bool(options.get(key, FEATURES[key]))
+
+
+def request_language(hass: HomeAssistant) -> str:
+    """Verdi answers in nl, fr or en; any other Home Assistant language gets en."""
+    language = (hass.config.language or "").lower()
+    return next((code for code in ("nl", "fr") if language.startswith(code)), "en")
 
 
 def safety_schedule(options: Mapping[str, Any], key: str, **kwargs: Any) -> LookupSchedule:
@@ -129,6 +139,7 @@ class PersonId:
     def __init__(self, api: VerdiApi, guard: Guard) -> None:
         self._api, self._guard = api, guard
         self.value: str | None = None
+        self.on_resolved: Callable[[], None] | None = None
 
     async def get(self, *, report: bool = True) -> str:
         if self.value is None:
@@ -147,6 +158,8 @@ class PersonId:
             if not isinstance(guid, str) or not guid:
                 raise VerdiError("security/users/authorize: no personGuid")
             self.value = guid
+            if self.on_resolved:
+                self.on_resolved()
         return self.value
 
 
@@ -225,6 +238,24 @@ class Lookup:
     schedule: LookupSchedule = field(default_factory=lambda: LookupSchedule(always=True))
 
 
+@dataclass
+class PagedSchedule(LookupSchedule):
+    """The paged lookup's schedule: never due while paging is paused (per-lookup pause), whatever
+    the tick. `paused` is set once the fast coordinator exists."""
+
+    paused: Callable[[], bool] | None = None
+
+    def reason(self, now: datetime, tick: bool = False) -> str | None:
+        if self.paused is not None and self.paused():
+            return None
+        return super().reason(now, tick)
+
+    def next_due(self, now: datetime) -> datetime | None:
+        if self.paused is not None and self.paused():
+            return None
+        return super().next_due(now)
+
+
 class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     """Runs the due lookups of a group. A failing lookup keeps its previous value.
 
@@ -263,7 +294,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._pace, self._retry, self._keep_on_failure = pace, retry, keep_on_failure
         self._failing: set[str] = set()
         self._tick_at: datetime | None = None
-        self._only: str | None = None
+        self._only_keys: list[str] = []
         self._run_lock = asyncio.Lock()
         self._rejected_logged = False
         self.on_fetched: FetchHook | None = None
@@ -281,11 +312,8 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if key not in self.lookups:
             return
         self.lookups[key].schedule.mark_due(MANUAL)
-        self._only = key
-        try:
-            await self.async_refresh()
-        finally:
-            self._only = None
+        self._only_keys.append(key)
+        await self.async_refresh()
 
     def schedule_diagnostics(self, now: datetime) -> dict[str, Any]:
         return {key: lookup.schedule.diagnostics(now) for key, lookup in self.lookups.items()}
@@ -312,8 +340,14 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     async def _async_update_data(self) -> dict[str, Any]:
         # Home Assistant doesn't serialise refreshes; a run reads self.data, so runs go one by one.
-        only = self._only
+        # Drain the whole single-lookup queue under the lock so no key can linger into a later run:
+        # exactly one queued key narrows this run to it; nothing queued, or two-or-more coalesced
+        # into one run, is a FULL run (each queued key was already marked due, so a full run fetches
+        # them along with everything else).
         async with self._run_lock:
+            keys = self._only_keys
+            self._only_keys = []
+            only = keys[0] if len(keys) == 1 else None
             return await self._run(only)
 
     async def _run(self, only: str | None) -> dict[str, Any]:
@@ -441,6 +475,8 @@ class VerdiCoordinator(LookupCoordinator):
         api = VerdiApi(async_get_clientsession(hass), d[CONF_BASE_URL], token)
         guard = get_guard(hass, entry.entry_id, rng)
         self.person = PersonId(api, guard)
+        self.person.on_resolved = self._remark_roster
+        self._roster_raw: Any = None
         self.availabilities = Availabilities(api, guard, d[CONF_STATION_ID], d[CONF_AVAILABILITY_IDS])
         self.intervention = False
         lookups = {
@@ -461,7 +497,7 @@ class VerdiCoordinator(LookupCoordinator):
             ),
             "roster": Lookup(
                 lambda: api.roster(d[CONF_CREW_FUNCTION_IDS]),
-                lambda data: parse.roster(data, names=names, me=self.person.value),
+                self._parse_roster,
                 safety_schedule(o, CONF_ROSTER_SAFETY, next_change=roster_change),
             ),
         }
@@ -491,6 +527,21 @@ class VerdiCoordinator(LookupCoordinator):
         )
         self.show_names: bool = names
         self.personal: LookupCoordinator | None = None
+        self.fast: LookupCoordinator | None = None
+
+    def _parse_roster(self, data: Any) -> list[dict[str, Any]]:
+        self._roster_raw = data
+        return parse.roster(data, names=self.show_names, me=self.person.value)
+
+    @callback
+    def _remark_roster(self) -> None:
+        """The person ID arrived after the roster was parsed: redo the `mine` flags from the cached
+        response. Data only: no _fetched, so it doesn't mark events due."""
+        if self._roster_raw is None or not (self.data or {}).get("roster"):
+            return
+        roster = parse.roster(self._roster_raw, names=self.show_names, me=self.person.value)
+        if roster != self.data["roster"]:
+            self.async_set_updated_data({**self.data, "roster": roster})
 
     def _tick(self) -> tuple[float, float]:
         key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL
@@ -506,3 +557,87 @@ class VerdiCoordinator(LookupCoordinator):
         if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
             self.mark_due("readiness", f"trigger:{key}")
         super()._fetched(key, new, old)
+
+
+# Station lookups that may poll on the fast lane instead. "paged" is the paging lookup, added by
+# create_fast rather than moved off the station (it has no station equivalent).
+FAST_MOVABLE = ("vehicles", "personnel")
+
+
+class FastCoordinator(LookupCoordinator):
+    """The fast lane: the paged lookup and any of vehicles/personnel moved here by the fast_lane
+    option, polled at fast_interval. It shares the station's api, guard and rng.
+
+    A personnel/vehicle change here marks the station's readiness lookup due, exactly as it would
+    on the station coordinator, so readiness keeps following those lookups wherever they live.
+
+    paused suppresses only the paged lookup. The coordinator still ticks while vehicles or personnel
+    are on it; it goes idle (pace None) only when paging is off or paused and neither is on it.
+    """
+
+    def __init__(
+        self,
+        hass: HomeAssistant,
+        entry: ConfigEntry,
+        station: VerdiCoordinator,
+        lookups: dict[str, Lookup],
+    ) -> None:
+        self.station = station
+        self.paused = False
+        super().__init__(
+            hass,
+            entry,
+            station.api,
+            f"{DOMAIN} fast",
+            lookups,
+            pace=self._fast_tick,
+            retry=interval(entry.options, CONF_FAST_INTERVAL),
+            guard=station.guard,
+            rng=station.rng,
+        )
+
+    def _active(self) -> bool:
+        """The fast lane ticks while paging is on and not paused, or vehicles/personnel are on it."""
+        paging = "paged" in self.lookups and not self.paused
+        has_units = any(key in self.lookups for key in FAST_MOVABLE)
+        return paging or has_units
+
+    def _fast_tick(self) -> tuple[float, float] | None:
+        if not self._active():
+            return None
+        return pace(self.config_entry.options, CONF_FAST_INTERVAL)
+
+    def _fetched(self, key: str, new: Any, old: Any) -> None:
+        if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
+            self.station.mark_due("readiness", f"trigger:{key}")
+        super()._fetched(key, new, old)
+
+
+def create_fast(hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinator) -> FastCoordinator | None:
+    """Move the chosen station lookups onto a fast-lane coordinator, or None when it holds nothing.
+
+    The keys named in CONF_FAST_LANE that exist as station lookups today (vehicles/personnel) are
+    removed from the station and placed on the fast lane. "paged" adds the paging lookup when the
+    paged switch is on; it polls your current intervention while pageable (signals.py pauses it).
+    """
+    o = entry.options
+    chosen = o.get(CONF_FAST_LANE, FAST_LANE_DEFAULT)
+    lookups: dict[str, Lookup] = {}
+    for key in FAST_MOVABLE:
+        if key in chosen and key in station.lookups:
+            lookups[key] = station.lookups.pop(key)
+    paged_schedule: PagedSchedule | None = None
+    if "paged" in chosen and enabled(o, CONF_PAGED):
+        language = request_language(hass)
+
+        async def paged() -> dict[str, Any]:
+            return await station.api.current_intervention(await station.person.get(report=False), language)
+
+        paged_schedule = PagedSchedule(always=True)
+        lookups["paged"] = Lookup(paged, parse_personal.current_intervention, paged_schedule)
+    if not lookups:
+        return None
+    fast = FastCoordinator(hass, entry, station, lookups)
+    if paged_schedule is not None:
+        paged_schedule.paused = lambda: fast.paused
+    return fast

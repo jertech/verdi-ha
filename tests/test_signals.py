@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
-from custom_components.verdi.const import DAILY_JITTER, DAILY_OFFSET_MAX
+from custom_components.verdi.const import CONF_FAST_LANE, DAILY_JITTER, DAILY_OFFSET_MAX
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import MidRandom, fake_command, make_token, setup_with_token
@@ -103,7 +103,8 @@ async def test_own_pre_alert(hass: HomeAssistant, config_entry, api, freezer):
 async def test_missing_own_line_falls_back_to_every_tick(hass: HomeAssistant, config_entry, api, freezer):
     responses, calls, _ = api
     responses[PERSONNEL]["personGroups"][0]["persons"].pop(0)
-    await start(hass, config_entry, freezer)
+    # Paged off: its fast-lane polls would share the per-minute call budget this test measures.
+    await start(hass, config_entry, freezer, options={"paged": False})
     calls.clear()
     for _ in range(3):
         await tick(hass, freezer, 60)
@@ -113,7 +114,10 @@ async def test_missing_own_line_falls_back_to_every_tick(hass: HomeAssistant, co
 async def test_unknown_person_falls_back_and_retries(hass: HomeAssistant, config_entry, api, freezer):
     _, calls, user = api
     user.side_effect = [VerdiError("security/users/authorize: HTTP 500")] * 2 + [r.CURRENT_USER] * 5
-    await start(hass, config_entry, freezer, options={"my_events": False, "statistics": False})
+    # Paged off: it also asks for the person GUID, which would race this test's own-line retry.
+    await start(
+        hass, config_entry, freezer, options={"my_events": False, "statistics": False, "paged": False}
+    )
     calls.clear()
     for _ in range(3):
         await tick(hass, freezer, 60)
@@ -311,7 +315,10 @@ async def test_own_line_on_an_unconfigured_availability(hass: HomeAssistant, con
 async def test_list_failure_falls_back_and_retries(hass: HomeAssistant, config_entry, filtered, freezer):
     responses, calls = filtered
     responses[LIST] = VerdiError(f"{LIST}: HTTP 500")
-    await start(hass, config_entry, freezer, options={"my_events": False, "statistics": False})
+    # Paged off: its fast-lane polls would share the per-minute call budget this test measures.
+    await start(
+        hass, config_entry, freezer, options={"my_events": False, "statistics": False, "paged": False}
+    )
     calls.clear()
     for _ in range(3):
         await tick(hass, freezer, 60)
@@ -324,3 +331,55 @@ async def test_list_failure_falls_back_and_retries(hass: HomeAssistant, config_e
     calls.clear()
     await tick(hass, freezer, 60)
     assert count(calls, AVAILABILITY) == 0  # your line is found now
+
+
+async def test_vehicle_on_fast_lane_still_switches_the_pace(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _, _ = api
+    await start(hass, config_entry, freezer, options={CONF_FAST_LANE: ["vehicles"]})
+    station = config_entry.runtime_data
+    fast = station.fast
+    assert fast is not None and "vehicles" in fast.lookups and "vehicles" not in station.lookups
+    assert station.update_interval == timedelta(seconds=60)
+    responses[VEHICLES]["data"][0]["isOnIntervention"] = True
+    await fast.async_refresh_lookup("vehicles")
+    await hass.async_block_till_done()
+    # The watched vehicle's change on the fast lane still paces the station as an intervention:
+    # the fast-lane run set the flag, and the station adopts the quicker tick on its next run.
+    assert station.intervention is True
+    await tick(hass, freezer, 60)
+    assert station.update_interval == timedelta(seconds=30)
+
+
+async def test_vehicle_on_fast_lane_still_fires_statistics(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    await start(hass, config_entry, freezer, options={CONF_FAST_LANE: ["vehicles"]})
+    await tick(hass, freezer, 330)  # first events and statistics
+    fast = config_entry.runtime_data.fast
+    base = count(calls, STATS)
+    responses[VEHICLES]["data"][0]["isOnIntervention"] = True
+    await fast.async_refresh_lookup("vehicles")
+    await tick(hass, freezer, 151)  # the moved lookup still triggers the statistics refresh
+    assert count(calls, STATS) == base + 1
+
+
+async def test_late_person_id_fixes_roster_mine_without_events(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, calls, user = api
+    responses[ROSTER]["items"][0]["next"]["personId"] = "me-1"
+    user.side_effect = VerdiError("down")
+    await start(hass, config_entry, freezer)
+    coordinator = config_entry.runtime_data
+    assert coordinator.person.value is None
+    await tick(hass, freezer, 330)
+    assert coordinator.data["roster"]
+    assert not any((i["next"] or {}).get("mine") for i in coordinator.data["roster"])
+    calls.clear()
+    user.side_effect = None
+    user.return_value = r.CURRENT_USER
+    await coordinator.person.get()
+    assert coordinator.data["roster"][0]["next"]["mine"] is True
+    assert coordinator.lookups["roster"].schedule.last_reason is not None
+    await tick(hass, freezer, 60)
+    await tick(hass, freezer, 31)
+    assert count(calls, EVENTS) == 0

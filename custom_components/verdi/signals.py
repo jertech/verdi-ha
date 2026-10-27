@@ -22,6 +22,7 @@ from homeassistant.util import dt as dt_util
 
 from .api import VerdiError
 from .const import (
+    CONF_NON_PAGEABLE,
     CONF_WATCHED_VEHICLES,
     DAILY_JITTER,
     DAILY_OFFSET_MAX,
@@ -31,7 +32,8 @@ from .const import (
     STATISTICS_MAX_DELAY,
     TRIGGER_DELAY,
 )
-from .coordinator import LookupCoordinator, VerdiCoordinator
+from .coordinator import FastCoordinator, LookupCoordinator, VerdiCoordinator
+from .pageable import is_pageable
 
 OWN = ("availability", "pre_alerts", "garrison")
 
@@ -53,17 +55,26 @@ class Signals:
         entry: ConfigEntry,
         station: VerdiCoordinator,
         personal: LookupCoordinator | None,
+        fast: FastCoordinator | None = None,
     ) -> None:
         self._hass, self._entry, self._station, self._personal = hass, entry, station, personal
+        self._fast = fast
         self._picked = set(entry.options.get(CONF_WATCHED_VEHICLES) or [])
         self._ready = self._marked = False
         self._stats_first: datetime | None = None
         self._retry_at: datetime | None = None
         self._unsub_daily: CALLBACK_TYPE | None = None
         self._stopped = False
+        self._pageable = True
+        self._own_name: str | None = None
+        self._my_name: str | None = None
         station.on_fetched, station.on_run = self._station_fetched, self._station_run
         if personal is not None:
             personal.on_fetched = self._personal_fetched
+        if fast is not None:
+            # Vehicles/personnel may live on the fast lane now; its fetches and runs drive the same
+            # triggers so none silently stops for a lookup that moved there.
+            fast.on_fetched, fast.on_run = self._station_fetched, self._station_run
         entry.async_on_unload(self._stop)
 
     @callback
@@ -72,6 +83,19 @@ class Signals:
         self._ready = True
         if self._personal is not None and "statistics" in self._personal.lookups:
             self._schedule_daily()
+
+    @callback
+    def pause_paging(self) -> None:
+        """Suppress the fast lane's paged lookup; vehicles/personnel on it keep polling."""
+        if self._fast is not None:
+            self._fast.paused = True
+
+    @callback
+    def resume_paging(self) -> None:
+        """Let the paged lookup run again and fetch it soon (a no-op until the lookup exists)."""
+        if self._fast is not None:
+            self._fast.paused = False
+            self._fast.mark_due("paged", "resume")
 
     def _later(self, base: float = 0.0) -> datetime:
         return dt_util.now() + timedelta(seconds=base + self._station.rng.uniform(*TRIGGER_DELAY))
@@ -87,10 +111,14 @@ class Signals:
 
     @callback
     def _station_fetched(self, key: str, new: Any, old: Any) -> None:
-        if self._personal is None:
-            return
+        # Fires for the station and for the fast lane, so a moved lookup keeps its triggers.
         if key == "personnel":
-            self._own_line(new, old)
+            self._own_name = self._own_name_of(new)
+            self._set_pageability()
+            if self._personal is not None:
+                self._own_line(new, old)
+        elif self._personal is None:
+            return
         elif key == "vehicles" and old is not None:
             before = {v["id"]: v["on_intervention"] for v in self._watched(old)}
             if any(
@@ -100,6 +128,38 @@ class Signals:
                 self._mark("garrison", "trigger:vehicle")
         elif key == "roster" and old is not None and _mine(new) != _mine(old):
             self._mark("events", "trigger:roster", self._later())
+
+    def _lane_data(self, key: str, data: dict[str, Any]) -> Any:
+        """A lookup's freshest value: from the running coordinator's `data` when it holds the
+        lookup, otherwise from whichever coordinator committed it last."""
+        if key in data:
+            return data[key]
+        coordinator: LookupCoordinator = self._station
+        if self._fast is not None and key in self._fast.lookups:
+            coordinator = self._fast
+        return (coordinator.data or {}).get(key)
+
+    def _own_name_of(self, personnel: dict[str, Any] | None) -> str | None:
+        own = _person(personnel, self._station.person.value)
+        return own.get("availability") if own else None
+
+    def _set_pageability(self) -> None:
+        """Pause or resume the paged lookup as your pageability changes. The names come from the
+        latest personnel (own line) and My availability fetches, so this never reads stale data."""
+        if self._fast is None or "paged" not in self._fast.lookups:
+            return
+        pageable = is_pageable(self._own_name, self._my_name, self._entry.options.get(CONF_NON_PAGEABLE))
+        if pageable == self._pageable:
+            return
+        self._pageable = pageable
+        if not pageable:
+            self.pause_paging()
+            return
+        self.resume_paging()  # marks paged due at once
+        if self._ready:
+            self._entry.async_create_background_task(
+                self._hass, self._fast.async_request_refresh(), "verdi paged resume"
+            )
 
     def _own_line(self, new: dict[str, Any], old: dict[str, Any] | None) -> None:
         me = self._station.person.value
@@ -158,9 +218,12 @@ class Signals:
 
     @callback
     def _station_run(self, data: dict[str, Any], previous: dict[str, Any]) -> None:
-        personnel = data.get("personnel") or {}
+        # Fires for the station and for the fast lane; read vehicles/personnel wherever they live.
+        # When they are on the fast lane, its runs keep this flag current, so the station picks up
+        # the new pace on its own next tick without an extra poll that would consume other triggers.
+        personnel = self._lane_data("personnel", data) or {}
         self._station.intervention = (
-            any(v["on_intervention"] for v in self._watched(data.get("vehicles") or []))
+            any(v["on_intervention"] for v in self._watched(self._lane_data("vehicles", data) or []))
             or bool(personnel.get("on_intervention"))
             or bool(personnel.get("on_pre_alert"))
         )
@@ -174,8 +237,11 @@ class Signals:
     def _personal_fetched(self, key: str, new: Any, old: Any) -> None:
         if key == "statistics":
             self._stats_first = None
-        elif key == "availability" and old is not None and new != old:
-            self._mark("events", "trigger:availability", self._later())
+        elif key == "availability":
+            self._my_name = new.get("availability") if isinstance(new, dict) else None
+            self._set_pageability()  # My availability is the fallback when the own line is missing
+            if old is not None and new != old:
+                self._mark("events", "trigger:availability", self._later())
 
     def _schedule_daily(self, first_day: date | None = None) -> None:
         hour, minute = STATISTICS_DAILY_AT

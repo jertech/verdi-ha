@@ -25,6 +25,7 @@ from .const import (
     LEGACY_PERSON_ID,
 )
 from .coordinator import lookup_counts
+from .estimate import steady_per_min
 from .personal import personal_counts
 from .token import get_store
 
@@ -71,6 +72,11 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
             ),
         },
         "pace": coordinator.pace_name if coordinator else None,
+        "steady_per_min": steady_per_min(dict(entry.options)),
+        "fast_lane": {
+            "active": sorted(coordinator.fast.lookups) if coordinator and coordinator.fast else [],
+            "paging_paused": bool(coordinator.fast.paused) if coordinator and coordinator.fast else False,
+        },
         "guard": coordinator.guard.diagnostics() if coordinator else None,
         "last_update_success": coordinator.last_update_success if coordinator else None,
     }

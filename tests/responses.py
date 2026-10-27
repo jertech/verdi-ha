@@ -272,6 +272,31 @@ GARRISON = {
     **_OK,
 }
 
+# PROVISIONAL (R4): the current-intervention shape is inferred from the app code and is confirmed
+# only after deploy. The sensitive fields are present on purpose, to prove the parser drops them.
+CURRENT_INTERVENTION = {
+    "currentIntervention": {
+        "stationName": "Station 1",
+        "crewFunction": "Driver",
+        "vehicleName": "P100",
+        "alarmDate": "2026-10-24T09:00:00+00:00",
+        "incidentType": "Fire",
+        "confirmationStatus": "confirmed",
+        "address": "Main St 1",
+        "city": "Townsville",
+        "latitude": 51.1,
+        "longitude": 3.7,
+        "callerName": "A Caller",
+        "callerPhone": "+320000",
+        "info": "secret",
+        "extraInfo": "secret2",
+        "radioGroup": "RG1",
+        "interventionDate": "2026-10-24",
+    },
+    **_OK,
+}
+CURRENT_INTERVENTION_NONE = dict(_OK)
+
 STATISTICS = {
     "interventionCounters": [
         {
@@ -407,5 +432,6 @@ def all_ok() -> dict:
             "GetPersonCurrentGarrisonInformationCommand": GARRISON_NONE,
             "AppGetPersonStatisticsCommand": STATISTICS,
             "AppGetUpcomingEventsCommand": UPCOMING,
+            "GetPersonCurrentInterventionInformationCommand": CURRENT_INTERVENTION_NONE,
         },
     }
