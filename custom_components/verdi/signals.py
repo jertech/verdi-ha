@@ -10,6 +10,7 @@ during an intervention, and refreshes statistics once a day between 00:05 and 01
 
 from __future__ import annotations
 
+import logging
 import zlib
 from contextlib import suppress
 from datetime import date, datetime, timedelta
@@ -39,6 +40,8 @@ from .const import (
 from .coordinator import FastCoordinator, LookupCoordinator, VerdiCoordinator
 from .pageable import is_pageable
 from .timing import TimingLog
+
+_LOGGER = logging.getLogger(__name__)
 
 OWN = ("availability", "pre_alerts", "garrison")
 
@@ -90,6 +93,7 @@ class Signals:
         self._pageable = True
         self._own_name: str | None = None
         self._my_name: str | None = None
+        self._timing_failed = False
         self._pause_pending = False  # non-pageable during a page: pause once the page ends
         station.on_fetched, station.on_run = self._station_fetched, self._station_run
         if personal is not None:
@@ -112,8 +116,8 @@ class Signals:
         """Suppress the fast lane's paged lookup; vehicles/personnel on it keep polling."""
         if self._fast is not None:
             self._fast.paused = True
-        if self._timing is not None:
-            self._timing.paging(True)
+            if self._timing is not None:
+                self._timing.paging(True)
 
     @callback
     def resume_paging(self) -> None:
@@ -145,9 +149,22 @@ class Signals:
         return coordinator.lookups[key].schedule.last_fetch or dt_util.now()
 
     def _record(self, key: str, new: Any) -> None:
-        """Feed the timing log; times, flags and counts only."""
+        """Feed the timing log; a failure here never reaches the fetch run."""
         if self._timing is None:
             return
+        try:
+            self._feed(key, new)
+        except Exception as err:  # a side record: the fetch run keeps its data
+            if not self._timing_failed:
+                self._timing_failed = True
+                _LOGGER.warning("Timing records could not be updated (%s); they restart", type(err).__name__)
+            self._timing.page = self._timing.intervention = None
+            if self._timing.on_change is not None:
+                self._timing.on_change()
+
+    def _feed(self, key: str, new: Any) -> None:
+        """Times, flags and counts only."""
+        assert self._timing is not None
         at = self._fetch_time(key)
         if key == "paged":
             self._timing.paged(at, new, self._fast.page_keys if self._fast is not None else [])
@@ -165,6 +182,7 @@ class Signals:
         elif key == "vehicles":
             self._timing.vehicles(at, any(v["on_intervention"] for v in self._watched(new or [])))
 
+    @callback
     def _station_fetched(self, key: str, new: Any, old: Any) -> None:
         # Fires for the station and for the fast lane, so a moved lookup keeps its triggers.
         self._record(key, new)
@@ -216,7 +234,9 @@ class Signals:
             else:
                 self.pause_paging()
             return
-        self._pause_pending = False
+        if self._pause_pending:
+            self._pause_pending = False  # the lookup never stopped: nothing to resume
+            return
         self.resume_paging()  # marks paged due at once
         if self._ready:
             self._entry.async_create_background_task(
@@ -230,6 +250,10 @@ class Signals:
             self._mark("availability", "trigger:paged")
             self._mark("pre_alerts", "trigger:paged")
             self._statistics_soon("trigger:paged")
+        if new is not None and self._fast is not None and self._fast.paused and not self._pageable:
+            # A fetch that began before the pause returned a page: keep polling until it ends.
+            self._fast.paused = False
+            self._pause_pending = True
         elif new is None and self._pause_pending:
             self._pause_pending = False
             self.pause_paging()

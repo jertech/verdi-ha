@@ -397,3 +397,33 @@ def test_restart_mid_intervention_rise_is_interrupted():
     log.load(old.dump())
     log.persons(at(500), 3, False, False)
     assert log.intervention["persons_rise"] == iso(500) and log.intervention["interrupted"] is True
+
+
+def _saved(**changes):
+    rec = {"opened": iso(0), "vehicle_on": iso(0), "persons_before": 3}
+    return {**rec, **changes}
+
+
+def test_load_drops_records_of_a_bad_shape():
+    log = TimingLog()
+    log.load(
+        {
+            "pages": [{"opened": iso(0)}],
+            "page": {"opened": "not a time"},
+            "interventions": [_saved(), _saved(persons_before="3"), _saved(persons_before=True)],
+            "intervention": _saved(persons_before="3"),
+        }
+    )
+    assert log.page is None and log.intervention is None
+    assert log.pages == [{"opened": iso(0)}]
+    assert [r["persons_before"] for r in log.interventions] == [3]
+
+
+def test_load_drops_an_open_record_without_an_aware_time():
+    for opened in (None, "2026-06-15T12:00:00", 5):
+        log = TimingLog()
+        log.load({"page": {"opened": opened}, "intervention": _saved(opened=opened)})
+        assert log.page is None and log.intervention is None
+    log = TimingLog()
+    log.load({"intervention": _saved(persons_before=None)})
+    assert log.intervention is not None

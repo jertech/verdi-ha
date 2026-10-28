@@ -194,5 +194,6 @@ async def test_diagnostics_show_timing_without_ids_or_page_values(
         "A Caller",
         "+320000",
         "Confirmed",
+        "2026-10-24T08:59",
     ):
         assert leaked not in text, leaked

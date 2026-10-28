@@ -131,6 +131,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bo
     unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
     coordinator = entry.runtime_data
     if unloaded and coordinator.timing is not None and coordinator.timing_store is not None:
+        coordinator.timing.on_change = None  # a late fetch must not schedule a save on this Store
         # One instance wrote the pending delayed save, so it flushes it; a reload or removal
         # through another instance would otherwise read or be overwritten by stale data.
         await coordinator.timing_store.async_save(coordinator.timing.dump())

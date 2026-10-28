@@ -181,3 +181,42 @@ async def test_failing_paged_fetch_does_not_pause(hass: HomeAssistant, config_en
     await fast.async_refresh()
     await hass.async_block_till_done()
     assert fast.paused is False  # no answer is not "no page": keep polling
+
+
+async def test_cancelled_pause_keeps_the_timing_baseline(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _ = api
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    station = config_entry.runtime_data
+    fast = station.fast
+    me(responses)["currentAvailability"]["description"] = {"default": "Niet beschikbaar"}
+    await station.async_refresh_lookup("personnel")
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION_NONE
+    me(responses)["currentAvailability"]["description"] = {"default": "Available"}
+    await station.async_refresh_lookup("personnel")
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=15))
+    await fast.async_refresh()
+    await hass.async_block_till_done()
+    timing = station.timing
+    record = timing.page or timing.pages[0]
+    assert record["paged_off"] is not None
+    assert record["interrupted"] is False  # the lookup never stopped, so the end is not late
+
+
+async def test_a_page_arriving_while_paused_keeps_polling_until_it_ends(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, _ = api
+    me(responses)["currentAvailability"]["description"] = {"default": "Niet beschikbaar"}
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    fast = config_entry.runtime_data.fast
+    signals = fast.on_fetched.__self__
+    assert fast.paused is True and signals._pageable is False
+    # A paged fetch that began before the pause decision returns a page.
+    signals._paged_fetched({"alarm_time": None}, None)
+    assert fast.paused is False and signals._pause_pending is True
+    signals._paged_fetched(None, {"alarm_time": None})
+    assert fast.paused is True and signals._pause_pending is False

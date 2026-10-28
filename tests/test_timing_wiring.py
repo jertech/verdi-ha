@@ -2,6 +2,7 @@
 """The timing log is fed from the fetches, saved, kept across a reload and removed with the entry."""
 
 import copy
+import logging
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -10,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE
-from custom_components.verdi.timing import PAGE_FIELDS
+from custom_components.verdi.timing import PAGE_FIELDS, TimingLog
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
 
@@ -121,3 +122,65 @@ async def test_remove_right_after_a_change_leaves_no_store(
     await hass.async_block_till_done()
     await wait(hass, freezer, 10)
     assert key(config_entry) not in hass_storage
+
+
+def _warnings(caplog) -> list[str]:
+    return [
+        m.getMessage()
+        for m in caplog.records
+        if m.levelno == logging.WARNING and m.name == "custom_components.verdi.signals"
+    ]
+
+
+async def test_a_bad_saved_record_cannot_break_setup(
+    hass: HomeAssistant, config_entry, api, freezer, hass_storage, caplog
+):
+    hass_storage[key(config_entry)] = {
+        "version": 1,
+        "minor_version": 1,
+        "key": key(config_entry),
+        "data": {
+            "pages": [],
+            "page": None,
+            "interventions": [],
+            "intervention": {"opened": "not a time", "persons_before": "3", "vehicle_on": NOW},
+        },
+    }
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    assert config_entry.state.value == "loaded"
+    assert config_entry.runtime_data.timing.intervention is None
+    assert _warnings(caplog) == []
+
+
+async def test_a_failing_feed_is_contained_and_logged_once(
+    hass: HomeAssistant, config_entry, api, freezer, caplog
+):
+    def boom(*args, **kwargs):
+        raise RuntimeError("secret value 123")
+
+    with patch.object(TimingLog, "persons", boom):
+        freezer.move_to(NOW)
+        await setup_with_token(hass, config_entry)
+        assert config_entry.state.value == "loaded"
+        coordinator = config_entry.runtime_data
+        before = coordinator.data["vehicles"]
+        api[VEHICLES]["data"][0]["isOnIntervention"] = True
+        await wait(hass, freezer, 60)
+        await wait(hass, freezer, 60)
+    assert coordinator.last_update_success
+    assert coordinator.data["vehicles"] != before  # the run's data still arrived
+    warnings = _warnings(caplog)
+    assert len(warnings) == 1
+    assert "RuntimeError" in warnings[0]
+    assert "secret" not in caplog.text and "123" not in warnings[0]
+
+
+async def test_unload_detaches_the_save_callback(hass: HomeAssistant, config_entry, api, freezer):
+    api[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    timing = config_entry.runtime_data.timing
+    assert timing.on_change is not None
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
+    assert timing.on_change is None

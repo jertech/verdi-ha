@@ -53,8 +53,21 @@ def _other_page(record: Record, alarm: Any) -> bool:
     return bool(alarm and record.get("alarm_time") and alarm != record["alarm_time"])
 
 
+def _sound(record: Any, *, open_: bool) -> bool:
+    """A saved record the logic can work with: a dict, a count that is an int or None, and (open
+    records) an aware time to measure the timeout from."""
+    if not isinstance(record, dict):
+        return False
+    before = record.get("persons_before")
+    if before is not None and (isinstance(before, bool) or not isinstance(before, int)):
+        return False
+    return not open_ or _at(record.get("opened")) is not None
+
+
 def _records(value: Any) -> list[Record]:
-    return [r for r in value if isinstance(r, dict)][:KEEP] if isinstance(value, list) else []
+    if not isinstance(value, list):
+        return []
+    return [r for r in value if _sound(r, open_=False)][:KEEP]
 
 
 class TimingLog:
@@ -71,7 +84,8 @@ class TimingLog:
         self._paged_loaded = True  # the next paged fetch is the first since load
         self._own: tuple[bool, datetime] | None = None
         self._own_known: bool | None = None  # False while your line is missing
-        # Memory only: the last own-flag off-blip rejoin, so a page split in the same run can undo it.
+        # Memory only: the last own-flag off-blip rejoin, so a page split by the
+        # next paged fetch that shows a page can undo it (tentative until then).
         self._rejoin: tuple[Record, Any, Any, datetime, str | None, bool] | None = None
         # Memory only: the open records as loaded, to tell late changes from live ones.
         self._saved_page: Record | None = None
@@ -96,8 +110,8 @@ class TimingLog:
         self.pages = _records(data.get("pages"))
         self.interventions = _records(data.get("interventions"))
         page, intervention = data.get("page"), data.get("intervention")
-        self.page = page if isinstance(page, dict) else None
-        self.intervention = intervention if isinstance(intervention, dict) else None
+        self.page = page if _sound(page, open_=True) else None
+        self.intervention = intervention if _sound(intervention, open_=True) else None
         self._saved_page, self._saved_intervention = self.page, self.intervention
 
     def diagnostics(self) -> dict[str, Any]:
@@ -292,7 +306,8 @@ class TimingLog:
     def _split(
         self, rec: Record, now: datetime
     ) -> tuple[Record, Any, Any, datetime, str | None, bool] | None:
-        """Close a page record for a new page; an own-flag rejoin from this run belongs to the new page."""
+        """Close a page record for a new page; a tentative own-flag rejoin belongs to the new page when
+        this paged fetch is the one that shows it."""
         moved, self._rejoin = self._rejoin, None
         if moved is not None and moved[0] is not rec:
             moved = None
