@@ -38,7 +38,7 @@ from .const import (
 from .coordinator import VerdiCoordinator, create_fast
 from .guard import drop_guard
 from .personal import create_personal, statistics_store
-from .signals import Signals
+from .signals import Signals, load_timing, timing_store
 from .token import VerdiTokenView, get_store
 
 _LOGGER = logging.getLogger(__name__)
@@ -102,7 +102,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     personal = create_personal(hass, entry, coordinator)
     # Moves the chosen lookups off the station, so it must run before the station's first refresh.
     fast = create_fast(hass, entry, coordinator)
-    signals = Signals(hass, entry, coordinator, personal, fast)
+    # The first refresh already feeds the timing log, so it's loaded before Signals exists.
+    timing = await load_timing(hass, entry)
+    signals = Signals(hass, entry, coordinator, personal, fast, timing)
     # Without the list, personnel only lists the configured availabilities; a failure is retried later.
     with suppress(VerdiError):
         await coordinator.availabilities.load()
@@ -117,6 +119,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
         await personal.async_refresh()
     coordinator.personal = personal
     coordinator.fast = fast
+    coordinator.timing = timing
     signals.start()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -131,6 +134,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> No
     drop_guard(hass, entry.entry_id)
     get_store(hass).tokens.pop(entry.entry_id, None)
     await statistics_store(hass, entry.entry_id).async_remove()
+    await timing_store(hass, entry.entry_id).async_remove()
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_MISSING_CONFIG}_{entry.entry_id}")
 
 

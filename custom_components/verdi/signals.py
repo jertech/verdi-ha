@@ -17,7 +17,9 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_track_point_in_time
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .api import VerdiError
@@ -26,14 +28,17 @@ from .const import (
     CONF_WATCHED_VEHICLES,
     DAILY_JITTER,
     DAILY_OFFSET_MAX,
+    DOMAIN,
     PERSONAL_RETRY_SECONDS,
     STATISTICS_AFTER_INTERVENTION,
     STATISTICS_DAILY_AT,
     STATISTICS_MAX_DELAY,
+    TIMING_SAVE_DELAY,
     TRIGGER_DELAY,
 )
 from .coordinator import FastCoordinator, LookupCoordinator, VerdiCoordinator
 from .pageable import is_pageable
+from .timing import TimingLog
 
 OWN = ("availability", "pre_alerts", "garrison")
 
@@ -48,6 +53,21 @@ def _mine(roster: list[dict[str, Any]] | None) -> list[bool]:
     return [bool((i[slot] or {}).get("mine")) for i in roster or [] for slot in ("current", "next")]
 
 
+def timing_store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
+    """Where the page and station-intervention times are kept between restarts."""
+    return Store(hass, 1, f"{DOMAIN}.timing.{entry_id}", private=True)
+
+
+async def load_timing(hass: HomeAssistant, entry: ConfigEntry) -> TimingLog:
+    """The saved timing log, saved again a few seconds after each record change."""
+    store = timing_store(hass, entry.entry_id)
+    timing = TimingLog()
+    with suppress(HomeAssistantError, ValueError):
+        timing.load(await store.async_load())
+    timing.on_change = lambda: store.async_delay_save(timing.dump, TIMING_SAVE_DELAY)
+    return timing
+
+
 class Signals:
     def __init__(
         self,
@@ -56,9 +76,12 @@ class Signals:
         station: VerdiCoordinator,
         personal: LookupCoordinator | None,
         fast: FastCoordinator | None = None,
+        timing: TimingLog | None = None,
     ) -> None:
         self._hass, self._entry, self._station, self._personal = hass, entry, station, personal
         self._fast = fast
+        self._timing = timing
+        self._requested: tuple[str, ...] | None = None
         self._picked = set(entry.options.get(CONF_WATCHED_VEHICLES) or [])
         self._ready = self._marked = False
         self._stats_first: datetime | None = None
@@ -90,12 +113,16 @@ class Signals:
         """Suppress the fast lane's paged lookup; vehicles/personnel on it keep polling."""
         if self._fast is not None:
             self._fast.paused = True
+        if self._timing is not None:
+            self._timing.paging(True)
 
     @callback
     def resume_paging(self) -> None:
         """Let the paged lookup run again and fetch it soon (a no-op until the lookup exists)."""
         if self._fast is not None:
             self._fast.paused = False
+            if self._timing is not None:
+                self._timing.paging(False)
             self._fast.mark_due("paged", "resume")
 
     def _later(self, base: float = 0.0) -> datetime:
@@ -111,8 +138,37 @@ class Signals:
         return picked or vehicles
 
     @callback
+    def _fetch_time(self, key: str) -> datetime:
+        """The start of the run that fetched key, shared by every lookup in that run."""
+        coordinator: LookupCoordinator = self._station
+        if self._fast is not None and key in self._fast.lookups:
+            coordinator = self._fast
+        return coordinator.lookups[key].schedule.last_fetch or dt_util.now()
+
+    def _record(self, key: str, new: Any) -> None:
+        """Feed the timing log; times, flags and counts only."""
+        if self._timing is None:
+            return
+        at = self._fetch_time(key)
+        if key == "paged":
+            self._timing.paged(at, new, self._fast.page_keys if self._fast is not None else [])
+        elif key == "personnel":
+            mine = _person(new, self._station.person.value)
+            paused = self._fast is not None and self._fast.paused
+            self._timing.own(at, mine["on_intervention"] if mine else None, paused)
+            requested = tuple(self._station.availabilities.requested())
+            changed = self._requested is not None and requested != self._requested
+            self._requested = requested
+            persons = (new or {}).get("persons") or []
+            self._timing.persons(
+                at, sum(p["on_intervention"] for p in persons), bool((new or {}).get("truncated")), changed
+            )
+        elif key == "vehicles":
+            self._timing.vehicles(at, any(v["on_intervention"] for v in self._watched(new or [])))
+
     def _station_fetched(self, key: str, new: Any, old: Any) -> None:
         # Fires for the station and for the fast lane, so a moved lookup keeps its triggers.
+        self._record(key, new)
         if key == "personnel":
             self._own_name = self._own_name_of(new)
             self._set_pageability()
