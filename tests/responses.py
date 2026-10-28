@@ -272,26 +272,47 @@ GARRISON = {
     **_OK,
 }
 
-# PROVISIONAL (R4): the current-intervention shape is inferred from the app code and is confirmed
-# only after deploy. The sensitive fields are present on purpose, to prove the parser drops them.
+# Provisional until a real page confirms it. Made-up values. The sensitive fields are present on
+# purpose, to prove the parser drops them; the nested objects carry ids that must never leak.
 CURRENT_INTERVENTION = {
     "currentIntervention": {
-        "stationName": "Station 1",
-        "crewFunction": "Driver",
-        "vehicleName": "P100",
+        "guid": "iv-1",
+        "description": "secret description",
+        "station": {"guid": "st-1", "name": "Station 1"},
+        "crewFunction": {"guid": "cf-9", "functionName": "Driver"},
+        "interventionDate": "2026-10-24T08:59:00+00:00",
         "alarmDate": "2026-10-24T09:00:00+00:00",
-        "incidentType": "Fire",
-        "confirmationStatus": "confirmed",
+        "incident": "Fire",
         "address": "Main St 1",
         "city": "Townsville",
         "latitude": 51.1,
         "longitude": 3.7,
-        "callerName": "A Caller",
-        "callerPhone": "+320000",
         "info": "secret",
-        "extraInfo": "secret2",
+        "callerName": "A Caller",
+        "callerPhoneNumber": "+320000",
         "radioGroup": "RG1",
-        "interventionDate": "2026-10-24",
+        "extraInfo": "secret2",
+        "vehicle": "P100",
+        "callConfirmation": {
+            "guid": "cc-1",
+            "description": "Confirmed",
+            "backgroundColor": "#0f0",
+            "extraConfirmation": False,
+        },
+        "callConfirmations": [
+            {
+                "guid": "cc-1",
+                "description": "Confirmed",
+                "backgroundColor": "#0f0",
+                "extraConfirmation": False,
+            },
+            {
+                "guid": "cc-2",
+                "description": "Declined",
+                "backgroundColor": "#f00",
+                "extraConfirmation": False,
+            },
+        ],
     },
     **_OK,
 }

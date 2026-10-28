@@ -123,22 +123,45 @@ def garrison(data: dict[str, Any]) -> dict[str, Any]:
 
 
 def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
-    """Your current page, non-sensitive fields only. None when you're not paged.
+    """Your current page, non-sensitive fields only, each text or None. None when you're not paged.
 
     Everything locating the incident or a third party (address, city, coordinates, caller,
-    free-text info, radio group) is dropped here and never stored.
+    free-text info, radio group) is dropped here and never stored. Objects are reduced to their
+    label, so no identifier reaches the sensor's attributes.
     """
     page = data.get("currentIntervention")
     if not isinstance(page, dict) or not page:
         return None
+    alarm = page.get("alarmDate")
     return {
-        "station": page.get("stationName"),
-        "crew_function": page.get("crewFunction"),
-        "vehicle": page.get("vehicleName"),
-        "alarm_time": page.get("alarmDate"),
-        "incident": page.get("incidentType"),
-        "confirmation": page.get("confirmationStatus"),
+        "station": _label(page.get("station")),
+        "crew_function": _label(page.get("crewFunction")),
+        "vehicle": _label(page.get("vehicle")),
+        "alarm_time": alarm if isinstance(alarm, str) else None,
+        "incident": _label(page.get("incident")),
+        "confirmation": _label(page.get("callConfirmation")),
     }
+
+
+PAGE_KEY = re.compile(r"[A-Za-z]{1,40}")
+PAGE_NESTED = ("station", "crewFunction", "callConfirmation")
+PAGE_KEYS_MAX = 40
+
+
+def page_keys(data: dict[str, Any]) -> list[str]:
+    """The key names of your current page, one level deep under its station, crew function and
+    confirmation. Names only, never values: diagnostics show the shape of a real page."""
+    page = data.get("currentIntervention")
+    if not isinstance(page, dict):
+        return []
+    names: list[str] = []
+    for key, value in page.items():
+        if not (isinstance(key, str) and PAGE_KEY.fullmatch(key)):
+            continue
+        names.append(key)
+        if key in PAGE_NESTED and isinstance(value, dict):
+            names += [f"{key}.{sub}" for sub in value if isinstance(sub, str) and PAGE_KEY.fullmatch(sub)]
+    return sorted(names)[:PAGE_KEYS_MAX]
 
 
 def statistics(data: dict[str, Any], now: datetime) -> dict[str, list[dict[str, Any]]]:
