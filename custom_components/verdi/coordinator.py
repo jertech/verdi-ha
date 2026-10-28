@@ -19,6 +19,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -53,6 +54,7 @@ from .const import (
 )
 from .guard import Guard, get_guard
 from .schedule import MANUAL, TICK, LookupSchedule, earliest_after, jittered
+from .timing import TimingLog
 from .token import get_store
 
 _LOGGER = logging.getLogger(__name__)
@@ -528,6 +530,8 @@ class VerdiCoordinator(LookupCoordinator):
         self.show_names: bool = names
         self.personal: LookupCoordinator | None = None
         self.fast: LookupCoordinator | None = None
+        self.timing: TimingLog | None = None
+        self.timing_store: Store[dict[str, Any]] | None = None
 
     def _parse_roster(self, data: Any) -> list[dict[str, Any]]:
         self._roster_raw = data
@@ -584,6 +588,7 @@ class FastCoordinator(LookupCoordinator):
     ) -> None:
         self.station = station
         self.paused = False
+        self.page_keys: list[str] = []
         super().__init__(
             hass,
             entry,
@@ -634,7 +639,12 @@ def create_fast(hass: HomeAssistant, entry: ConfigEntry, station: VerdiCoordinat
             return await station.api.current_intervention(await station.person.get(report=False), language)
 
         paged_schedule = PagedSchedule(always=True)
-        lookups["paged"] = Lookup(paged, parse_personal.current_intervention, paged_schedule)
+
+        def parse_paged(data: dict[str, Any]) -> dict[str, Any] | None:
+            fast.page_keys = parse_personal.page_keys(data)  # names only, for the timing log
+            return parse_personal.current_intervention(data)
+
+        lookups["paged"] = Lookup(paged, parse_paged, paged_schedule)
     if not lookups:
         return None
     fast = FastCoordinator(hass, entry, station, lookups)

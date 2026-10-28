@@ -1,9 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """With "Show colleagues' names" off, no name reaches states, calendar, diagnostics or logs."""
 
+import copy
 import json
 import logging
 from datetime import timedelta
+from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
@@ -14,7 +16,7 @@ from pytest_homeassistant_custom_component.components.diagnostics import (
 
 from custom_components.verdi.const import CONF_FAST_LANE, CONF_PAGED, CONF_WATCHED_VEHICLES
 from tests import responses as r
-from tests.conftest import ALL_OFF, BASE_URL, DATA, VERDI, setup_with_token
+from tests.conftest import ALL_OFF, BASE_URL, DATA, VERDI, fake_command, setup_with_token
 
 NAME_PARTS = ("Alex", "Example", "Sam", "Sample", "Robin", "Test")
 
@@ -160,3 +162,38 @@ async def test_diagnostics_without_a_fast_lane(hass: HomeAssistant, config_entry
     await setup_with_token(hass, config_entry, options=ALL_OFF)
     diag = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
     assert diag["schedules"]["fast"] is None
+
+
+async def test_diagnostics_show_timing_without_ids_or_page_values(
+    hass: HomeAssistant, config_entry, hass_client
+):
+    responses = r.all_ok()
+    responses["mobile/app/commands"] = {
+        **responses["mobile/app/commands"],
+        "GetPersonCurrentInterventionInformationCommand": copy.deepcopy(r.CURRENT_INTERVENTION),
+    }
+    assert await async_setup_component(hass, "diagnostics", {})
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(responses)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+        raw = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
+    page = raw["timing"]["pages"][0]
+    assert list(page["fields"].values()) == [True] * 6
+    assert raw["timing"]["station_interventions"] == []
+    text = json.dumps(raw)
+    for leaked in (
+        "iv-1",
+        "st-1",
+        "cf-9",
+        "cc-1",
+        "Station 1",
+        "P100",
+        "Main St 1",
+        "A Caller",
+        "+320000",
+        "Confirmed",
+        "2026-10-24T08:59",
+    ):
+        assert leaked not in text, leaked

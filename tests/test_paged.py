@@ -9,7 +9,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
-from custom_components.verdi.api import APP_ROUTE
+from custom_components.verdi.api import APP_ROUTE, VerdiError
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
 
@@ -51,9 +51,14 @@ async def test_paged_on_with_safe_attributes(hass: HomeAssistant, config_entry, 
     assert state.attributes["station"] == "Station 1"
     assert state.attributes["vehicle"] == "P100"
     assert state.attributes["incident"] == "Fire"
+    assert state.attributes["crew_function"] == "Driver"
+    assert state.attributes["confirmation"] == "Confirmed"
     # The sensitive fields the parser drops never reach the attributes.
     for hidden in ("address", "city", "latitude", "longitude", "callerName", "info", "radioGroup"):
         assert hidden not in state.attributes
+    shown = repr(dict(state.attributes))
+    for identifier in ("iv-1", "st-1", "cf-9", "cc-1"):
+        assert identifier not in shown
 
 
 async def test_paged_off_but_available_when_not_paged(hass: HomeAssistant, config_entry, api, freezer):
@@ -117,3 +122,101 @@ async def test_pause_suppresses_only_paged(hass: HomeAssistant, config_entry, ap
     # Vehicles keep polling on the shared lane; only the paged lookup is suppressed.
     assert any(c[0] == VEHICLES for c in calls)
     assert interventions(calls) == 0
+
+
+async def test_pause_waits_until_the_page_ends(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls = api
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    station = config_entry.runtime_data
+    fast = station.fast
+    me(responses)["currentAvailability"]["description"] = {"default": "Niet beschikbaar"}
+    await station.async_refresh_lookup("personnel")
+    await hass.async_block_till_done()
+    assert fast.paused is False  # still paged: keep polling until the page ends
+    calls.clear()
+    freezer.tick(timedelta(seconds=15))
+    await fast.async_refresh()
+    assert interventions(calls) == 1
+    assert hass.states.get("binary_sensor.verdi_paged").state == "on"
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION_NONE
+    freezer.tick(timedelta(seconds=15))
+    await fast.async_refresh()
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.verdi_paged").state == "off"
+    assert fast.paused is True
+
+
+async def test_pageable_again_cancels_a_pending_pause(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _ = api
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    station = config_entry.runtime_data
+    fast = station.fast
+    me(responses)["currentAvailability"]["description"] = {"default": "Niet beschikbaar"}
+    await station.async_refresh_lookup("personnel")
+    me(responses)["currentAvailability"]["description"] = {"default": "Available"}
+    await station.async_refresh_lookup("personnel")
+    await hass.async_block_till_done()
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION_NONE
+    freezer.tick(timedelta(seconds=15))
+    await fast.async_refresh()
+    await hass.async_block_till_done()
+    assert fast.paused is False
+
+
+async def test_failing_paged_fetch_does_not_pause(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _ = api
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    station = config_entry.runtime_data
+    fast = station.fast
+    me(responses)["currentAvailability"]["description"] = {"default": "Niet beschikbaar"}
+    await station.async_refresh_lookup("personnel")
+    responses[APP_ROUTE][INTERVENTION] = VerdiError("mobile/app/commands: HTTP 500")
+    freezer.tick(timedelta(seconds=15))
+    await fast.async_refresh()
+    await hass.async_block_till_done()
+    assert fast.paused is False  # no answer is not "no page": keep polling
+
+
+async def test_cancelled_pause_keeps_the_timing_baseline(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _ = api
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    station = config_entry.runtime_data
+    fast = station.fast
+    me(responses)["currentAvailability"]["description"] = {"default": "Niet beschikbaar"}
+    await station.async_refresh_lookup("personnel")
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION_NONE
+    me(responses)["currentAvailability"]["description"] = {"default": "Available"}
+    await station.async_refresh_lookup("personnel")
+    await hass.async_block_till_done()
+    freezer.tick(timedelta(seconds=15))
+    await fast.async_refresh()
+    await hass.async_block_till_done()
+    timing = station.timing
+    record = timing.page or timing.pages[0]
+    assert record["paged_off"] is not None
+    assert record["interrupted"] is False  # the lookup never stopped, so the end is not late
+
+
+async def test_a_page_arriving_while_paused_keeps_polling_until_it_ends(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, _ = api
+    me(responses)["currentAvailability"]["description"] = {"default": "Niet beschikbaar"}
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    fast = config_entry.runtime_data.fast
+    signals = fast.on_fetched.__self__
+    assert fast.paused is True and signals._pageable is False
+    # A paged fetch that began before the pause decision returns a page.
+    signals._paged_fetched({"alarm_time": None}, None)
+    assert fast.paused is False and signals._pause_pending is True
+    signals._paged_fetched(None, {"alarm_time": None})
+    assert fast.paused is True and signals._pause_pending is False

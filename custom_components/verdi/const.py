@@ -123,6 +123,7 @@ STARTUP_DELAY = (60, 600)  # seconds before your events and statistics are first
 TRIGGER_DELAY = (0, 60)  # extra seconds on triggered event and statistics fetches
 CALL_GAP = (0.2, 1.0)  # seconds between the calls of one run
 STATISTICS_MAX_DELAY = 600  # a burst of triggers delays statistics at most this long
+TIMING_SAVE_DELAY = 5  # seconds; the timing log is saved this long after a record changes
 DAILY_OFFSET_MAX = 2700  # per-entry seconds after 00:05 for the daily statistics refresh
 DAILY_JITTER = 900  # plus up to this many seconds per day: between 00:05 and 01:05
 MIN_WAKE = 5  # seconds; a coordinator never wakes sooner

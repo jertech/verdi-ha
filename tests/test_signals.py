@@ -16,6 +16,7 @@ from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import MidRandom, fake_command, make_token, setup_with_token
 
+INTERVENTION = "GetPersonCurrentInterventionInformationCommand"
 AVAILABILITY = "GetPersonCurrentAvailabilityCarouselInformationCommand"
 PRE, STATS, EVENTS = (
     "GetPersonCurrentPreAlertInformationCommand",
@@ -383,3 +384,19 @@ async def test_late_person_id_fixes_roster_mine_without_events(
     await tick(hass, freezer, 60)
     await tick(hass, freezer, 31)
     assert count(calls, EVENTS) == 0
+
+
+async def test_paged_on_refreshes_your_own_data(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    await start(hass, config_entry, freezer, options={"pre_alert": True})
+    await tick(hass, freezer, 330)  # first events and statistics
+    fast = config_entry.runtime_data.fast
+    calls.clear()
+    responses[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    await fast.async_refresh_lookup("paged")
+    await hass.async_block_till_done()
+    assert count(calls, AVAILABILITY) == 1
+    assert count(calls, PRE) == 1
+    assert count(calls, STATS) == 0
+    await tick(hass, freezer, 151)  # 120 s after the page, plus the trigger delay
+    assert count(calls, STATS) == 1

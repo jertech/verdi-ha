@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.9.2
+
+- Playwright 1.64.1.
+
+## 0.9.1
+
+- No changes; the version follows the integration.
+
+## 0.9.0
+
+- No changes; the version follows the integration.
+
 ## 0.8.2
 
 - No changes; the version follows the integration.

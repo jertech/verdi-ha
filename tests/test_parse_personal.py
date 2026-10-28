@@ -255,12 +255,53 @@ def test_current_intervention_keeps_only_safe_fields():
     out = p.current_intervention(r.CURRENT_INTERVENTION)
     assert out == {
         "station": "Station 1", "crew_function": "Driver", "vehicle": "P100",
-        "alarm_time": "2026-10-24T09:00:00+00:00", "incident": "Fire", "confirmation": "confirmed",
+        "alarm_time": "2026-10-24T09:00:00+00:00", "incident": "Fire", "confirmation": "Confirmed",
     }  # fmt: skip
-    for leaked in ("Main St 1", "Townsville", "51.1", "3.7", "A Caller", "+320000", "secret", "RG1"):
+    for leaked in (
+        "Main St 1", "Townsville", "51.1", "3.7", "A Caller", "+320000", "secret", "RG1",
+        "iv-1", "st-1", "cf-9", "cc-1", "Declined",
+    ):  # fmt: skip
         assert leaked not in repr(out)
 
 
 def test_current_intervention_none_when_absent():
     assert p.current_intervention({"currentIntervention": None}) is None
     assert p.current_intervention({}) is None
+
+
+def test_current_intervention_never_returns_objects():
+    out = p.current_intervention(
+        {
+            "currentIntervention": {
+                "station": "Plain station",
+                "vehicle": {"guid": "x-1", "name": "P1"},
+                "incident": {"guid": "y-1"},
+                "alarmDate": {"guid": "z-1"},
+                "crewFunction": ["not", "a", "label"],
+            }
+        }
+    )
+    assert out == {
+        "station": "Plain station", "crew_function": None, "vehicle": "P1",
+        "alarm_time": None, "incident": None, "confirmation": None,
+    }  # fmt: skip
+    assert all(v is None or isinstance(v, str) for v in out.values())
+
+
+def test_page_keys_are_names_only():
+    keys = p.page_keys(r.CURRENT_INTERVENTION)
+    assert keys == sorted(keys)
+    for name in ("alarmDate", "station", "station.name", "station.guid", "crewFunction.functionName",
+                 "callConfirmation.description", "callerPhoneNumber", "vehicle"):  # fmt: skip
+        assert name in keys
+    for value in ("Station 1", "st-1", "Main St 1", "+320000", "Confirmed"):
+        assert value not in repr(keys)
+
+
+def test_page_keys_filter_and_cap():
+    assert p.page_keys({}) == []
+    assert p.page_keys({"currentIntervention": None}) == []
+    odd = {"ok": 1, "bad key": 2, "x" * 41: 3, "ünïcode": 4, "station": {"name": 1, "no-dash": 2}}
+    assert p.page_keys({"currentIntervention": odd}) == ["ok", "station", "station.name"]
+    many = {chr(65 + i % 26) * (1 + i // 26): i for i in range(60)}
+    assert len(p.page_keys({"currentIntervention": many})) == 40

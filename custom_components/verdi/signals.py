@@ -10,6 +10,7 @@ during an intervention, and refreshes statistics once a day between 00:05 and 01
 
 from __future__ import annotations
 
+import logging
 import zlib
 from contextlib import suppress
 from datetime import date, datetime, timedelta
@@ -17,7 +18,9 @@ from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import CALLBACK_TYPE, HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.event import async_track_point_in_time
+from homeassistant.helpers.storage import Store
 from homeassistant.util import dt as dt_util
 
 from .api import VerdiError
@@ -26,14 +29,19 @@ from .const import (
     CONF_WATCHED_VEHICLES,
     DAILY_JITTER,
     DAILY_OFFSET_MAX,
+    DOMAIN,
     PERSONAL_RETRY_SECONDS,
     STATISTICS_AFTER_INTERVENTION,
     STATISTICS_DAILY_AT,
     STATISTICS_MAX_DELAY,
+    TIMING_SAVE_DELAY,
     TRIGGER_DELAY,
 )
 from .coordinator import FastCoordinator, LookupCoordinator, VerdiCoordinator
 from .pageable import is_pageable
+from .timing import TimingLog
+
+_LOGGER = logging.getLogger(__name__)
 
 OWN = ("availability", "pre_alerts", "garrison")
 
@@ -48,6 +56,20 @@ def _mine(roster: list[dict[str, Any]] | None) -> list[bool]:
     return [bool((i[slot] or {}).get("mine")) for i in roster or [] for slot in ("current", "next")]
 
 
+def timing_store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
+    """Where the page and station-intervention times are kept between restarts."""
+    return Store(hass, 1, f"{DOMAIN}.timing.{entry_id}", private=True)
+
+
+async def load_timing(hass: HomeAssistant, entry: ConfigEntry, store: Store[dict[str, Any]]) -> TimingLog:
+    """The saved timing log, saved again a few seconds after each record change."""
+    timing = TimingLog()
+    with suppress(HomeAssistantError, ValueError):
+        timing.load(await store.async_load())
+    timing.on_change = lambda: store.async_delay_save(timing.dump, TIMING_SAVE_DELAY)
+    return timing
+
+
 class Signals:
     def __init__(
         self,
@@ -56,9 +78,12 @@ class Signals:
         station: VerdiCoordinator,
         personal: LookupCoordinator | None,
         fast: FastCoordinator | None = None,
+        timing: TimingLog | None = None,
     ) -> None:
         self._hass, self._entry, self._station, self._personal = hass, entry, station, personal
         self._fast = fast
+        self._timing = timing
+        self._requested: tuple[str, ...] | None = None
         self._picked = set(entry.options.get(CONF_WATCHED_VEHICLES) or [])
         self._ready = self._marked = False
         self._stats_first: datetime | None = None
@@ -68,6 +93,8 @@ class Signals:
         self._pageable = True
         self._own_name: str | None = None
         self._my_name: str | None = None
+        self._timing_failed = False
+        self._pause_pending = False  # non-pageable during a page: pause once the page ends
         station.on_fetched, station.on_run = self._station_fetched, self._station_run
         if personal is not None:
             personal.on_fetched = self._personal_fetched
@@ -89,12 +116,16 @@ class Signals:
         """Suppress the fast lane's paged lookup; vehicles/personnel on it keep polling."""
         if self._fast is not None:
             self._fast.paused = True
+            if self._timing is not None:
+                self._timing.paging(True)
 
     @callback
     def resume_paging(self) -> None:
         """Let the paged lookup run again and fetch it soon (a no-op until the lookup exists)."""
         if self._fast is not None:
             self._fast.paused = False
+            if self._timing is not None:
+                self._timing.paging(False)
             self._fast.mark_due("paged", "resume")
 
     def _later(self, base: float = 0.0) -> datetime:
@@ -110,13 +141,58 @@ class Signals:
         return picked or vehicles
 
     @callback
+    def _fetch_time(self, key: str) -> datetime:
+        """The start of the run that fetched key, shared by every lookup in that run."""
+        coordinator: LookupCoordinator = self._station
+        if self._fast is not None and key in self._fast.lookups:
+            coordinator = self._fast
+        return coordinator.lookups[key].schedule.last_fetch or dt_util.now()
+
+    def _record(self, key: str, new: Any) -> None:
+        """Feed the timing log; a failure here never reaches the fetch run."""
+        if self._timing is None:
+            return
+        try:
+            self._feed(key, new)
+        except Exception as err:  # a side record: the fetch run keeps its data
+            if not self._timing_failed:
+                self._timing_failed = True
+                _LOGGER.warning("Timing records could not be updated (%s); they restart", type(err).__name__)
+            self._timing.page = self._timing.intervention = None
+            if self._timing.on_change is not None:
+                self._timing.on_change()
+
+    def _feed(self, key: str, new: Any) -> None:
+        """Times, flags and counts only."""
+        assert self._timing is not None
+        at = self._fetch_time(key)
+        if key == "paged":
+            self._timing.paged(at, new, self._fast.page_keys if self._fast is not None else [])
+        elif key == "personnel":
+            mine = _person(new, self._station.person.value)
+            paused = self._fast is not None and self._fast.paused
+            self._timing.own(at, mine["on_intervention"] if mine else None, paused)
+            requested = tuple(self._station.availabilities.requested())
+            changed = self._requested is not None and requested != self._requested
+            self._requested = requested
+            persons = (new or {}).get("persons") or []
+            self._timing.persons(
+                at, sum(p["on_intervention"] for p in persons), bool((new or {}).get("truncated")), changed
+            )
+        elif key == "vehicles":
+            self._timing.vehicles(at, any(v["on_intervention"] for v in self._watched(new or [])))
+
+    @callback
     def _station_fetched(self, key: str, new: Any, old: Any) -> None:
         # Fires for the station and for the fast lane, so a moved lookup keeps its triggers.
+        self._record(key, new)
         if key == "personnel":
             self._own_name = self._own_name_of(new)
             self._set_pageability()
             if self._personal is not None:
                 self._own_line(new, old)
+        elif key == "paged":
+            self._paged_fetched(new, old)
         elif self._personal is None:
             return
         elif key == "vehicles" and old is not None:
@@ -153,13 +229,34 @@ class Signals:
             return
         self._pageable = pageable
         if not pageable:
-            self.pause_paging()
+            if self._fast is not None and (self._fast.data or {}).get("paged") is not None:
+                self._pause_pending = True  # keep polling the page until it ends
+            else:
+                self.pause_paging()
+            return
+        if self._pause_pending:
+            self._pause_pending = False  # the lookup never stopped: nothing to resume
             return
         self.resume_paging()  # marks paged due at once
         if self._ready:
             self._entry.async_create_background_task(
                 self._hass, self._fast.async_request_refresh(), "verdi paged resume"
             )
+
+    def _paged_fetched(self, new: Any, old: Any) -> None:
+        """Paged turning on refreshes your own data; a pause decided during the page applies
+        once a fetch reports no page."""
+        if new is not None and old is None:
+            self._mark("availability", "trigger:paged")
+            self._mark("pre_alerts", "trigger:paged")
+            self._statistics_soon("trigger:paged")
+        if new is not None and self._fast is not None and self._fast.paused and not self._pageable:
+            # A fetch that began before the pause returned a page: keep polling until it ends.
+            self._fast.paused = False
+            self._pause_pending = True
+        elif new is None and self._pause_pending:
+            self._pause_pending = False
+            self.pause_paging()
 
     def _own_line(self, new: dict[str, Any], old: dict[str, Any] | None) -> None:
         me = self._station.person.value
