@@ -58,9 +58,8 @@ def timing_store(hass: HomeAssistant, entry_id: str) -> Store[dict[str, Any]]:
     return Store(hass, 1, f"{DOMAIN}.timing.{entry_id}", private=True)
 
 
-async def load_timing(hass: HomeAssistant, entry: ConfigEntry) -> TimingLog:
+async def load_timing(hass: HomeAssistant, entry: ConfigEntry, store: Store[dict[str, Any]]) -> TimingLog:
     """The saved timing log, saved again a few seconds after each record change."""
-    store = timing_store(hass, entry.entry_id)
     timing = TimingLog()
     with suppress(HomeAssistantError, ValueError):
         timing.load(await store.async_load())

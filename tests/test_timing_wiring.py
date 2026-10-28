@@ -94,3 +94,30 @@ async def test_store_removed_with_the_entry(hass: HomeAssistant, config_entry, a
     assert await hass.config_entries.async_remove(config_entry.entry_id)
     await hass.async_block_till_done()
     assert key(config_entry) not in hass_storage
+
+
+async def test_reload_right_after_a_change_keeps_the_record(hass: HomeAssistant, config_entry, api, freezer):
+    api[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    first = config_entry.runtime_data.timing.page["paged_on"]
+    await wait(hass, freezer, 1)
+    assert await hass.config_entries.async_unload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    timing = config_entry.runtime_data.timing
+    assert timing.page["paged_on"] == first and timing.pages == []
+
+
+async def test_remove_right_after_a_change_leaves_no_store(
+    hass: HomeAssistant, config_entry, api, freezer, hass_storage
+):
+    api[APP_ROUTE][INTERVENTION] = r.CURRENT_INTERVENTION
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    await wait(hass, freezer, 1)
+    assert await hass.config_entries.async_remove(config_entry.entry_id)
+    await hass.async_block_till_done()
+    await wait(hass, freezer, 10)
+    assert key(config_entry) not in hass_storage

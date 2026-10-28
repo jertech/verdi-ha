@@ -19,6 +19,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
@@ -530,6 +531,7 @@ class VerdiCoordinator(LookupCoordinator):
         self.personal: LookupCoordinator | None = None
         self.fast: LookupCoordinator | None = None
         self.timing: TimingLog | None = None
+        self.timing_store: Store[dict[str, Any]] | None = None
 
     def _parse_roster(self, data: Any) -> list[dict[str, Any]]:
         self._roster_raw = data

@@ -103,7 +103,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     # Moves the chosen lookups off the station, so it must run before the station's first refresh.
     fast = create_fast(hass, entry, coordinator)
     # The first refresh already feeds the timing log, so it's loaded before Signals exists.
-    timing = await load_timing(hass, entry)
+    store = timing_store(hass, entry.entry_id)
+    timing = await load_timing(hass, entry, store)
     signals = Signals(hass, entry, coordinator, personal, fast, timing)
     # Without the list, personnel only lists the configured availabilities; a failure is retried later.
     with suppress(VerdiError):
@@ -119,7 +120,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
         await personal.async_refresh()
     coordinator.personal = personal
     coordinator.fast = fast
-    coordinator.timing = timing
+    coordinator.timing, coordinator.timing_store = timing, store
     signals.start()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -127,7 +128,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
 
 
 async def async_unload_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bool:
-    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    unloaded = await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+    coordinator = entry.runtime_data
+    if unloaded and coordinator.timing is not None and coordinator.timing_store is not None:
+        # One instance wrote the pending delayed save, so it flushes it; a reload or removal
+        # through another instance would otherwise read or be overwritten by stale data.
+        await coordinator.timing_store.async_save(coordinator.timing.dump())
+    return unloaded
 
 
 async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> None:
