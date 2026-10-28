@@ -5,6 +5,23 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.2] - unreleased
+
+### Integration
+- The Paged sensor reads the page's station, crew function, vehicle, incident and your confirmation
+  under the names Verdi uses; four of them used to stay empty. Every attribute is plain text, so no
+  identifier can reach the sensor's attributes.
+- Paged no longer stays on when your availability turns non-pageable during a page: the page is
+  polled until it ends, then paging pauses.
+- When you are paged, your own availability and pre-alert are refreshed at once and your statistics
+  about two minutes later.
+- Diagnostics show the times of your last ten pages and of the station's last ten interventions
+  (when the watched vehicles and the people on intervention changed). They are kept between restarts
+  in Home Assistant's storage and removed with the entry.
+
+### App
+- Playwright 1.64.1.
+
 ## [0.9.1] - unreleased
 
 ### Integration
