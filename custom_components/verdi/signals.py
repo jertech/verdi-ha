@@ -68,6 +68,7 @@ class Signals:
         self._pageable = True
         self._own_name: str | None = None
         self._my_name: str | None = None
+        self._pause_pending = False  # non-pageable during a page: pause once the page ends
         station.on_fetched, station.on_run = self._station_fetched, self._station_run
         if personal is not None:
             personal.on_fetched = self._personal_fetched
@@ -117,6 +118,8 @@ class Signals:
             self._set_pageability()
             if self._personal is not None:
                 self._own_line(new, old)
+        elif key == "paged":
+            self._paged_fetched(new, old)
         elif self._personal is None:
             return
         elif key == "vehicles" and old is not None:
@@ -153,13 +156,28 @@ class Signals:
             return
         self._pageable = pageable
         if not pageable:
-            self.pause_paging()
+            if self._fast is not None and (self._fast.data or {}).get("paged") is not None:
+                self._pause_pending = True  # keep polling the page until it ends
+            else:
+                self.pause_paging()
             return
+        self._pause_pending = False
         self.resume_paging()  # marks paged due at once
         if self._ready:
             self._entry.async_create_background_task(
                 self._hass, self._fast.async_request_refresh(), "verdi paged resume"
             )
+
+    def _paged_fetched(self, new: Any, old: Any) -> None:
+        """Paged turning on refreshes your own data; a pause decided during the page applies
+        once a fetch reports no page."""
+        if new is not None and old is None:
+            self._mark("availability", "trigger:paged")
+            self._mark("pre_alerts", "trigger:paged")
+            self._statistics_soon("trigger:paged")
+        elif new is None and self._pause_pending:
+            self._pause_pending = False
+            self.pause_paging()
 
     def _own_line(self, new: dict[str, Any], old: dict[str, Any] | None) -> None:
         me = self._station.person.value
