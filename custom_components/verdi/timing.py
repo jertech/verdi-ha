@@ -67,10 +67,15 @@ class TimingLog:
         self.intervention: Record | None = None
         self.on_change: Callable[[], None] | None = None
         # Memory only: (value, time) of the last fetch per input; None until seen after load.
-        self._paged: tuple[bool, datetime] | None = None
+        self._paged: tuple[bool, datetime, Any] | None = None  # (on, time, alarm_time)
         self._paged_loaded = True  # the next paged fetch is the first since load
         self._own: tuple[bool, datetime] | None = None
         self._own_known: bool | None = None  # False while your line is missing
+        # Memory only: the last own-flag off-blip rejoin, so a page split in the same run can undo it.
+        self._rejoin: tuple[Record, Any, Any, datetime, str | None, bool] | None = None
+        # Memory only: the open records as loaded, to tell late changes from live ones.
+        self._saved_page: Record | None = None
+        self._saved_intervention: Record | None = None
         self._vehicles: tuple[bool, datetime] | None = None
         self._counts: list[tuple[datetime, int, bool]] = []  # (time, count, list changed)
 
@@ -93,6 +98,7 @@ class TimingLog:
         page, intervention = data.get("page"), data.get("intervention")
         self.page = page if isinstance(page, dict) else None
         self.intervention = intervention if isinstance(intervention, dict) else None
+        self._saved_page, self._saved_intervention = self.page, self.intervention
 
     def diagnostics(self) -> dict[str, Any]:
         pages = ([self.page] if self.page else []) + self.pages
@@ -121,7 +127,8 @@ class TimingLog:
 
     def paged(self, now: datetime, page: dict[str, Any] | None, keys: list[str]) -> None:
         self._expire(now)
-        prev, self._paged = self._paged, (page is not None, now)
+        alarm = page.get("alarm_time") if page else None
+        prev, self._paged = self._paged, (page is not None, now, alarm)
         loaded, self._paged_loaded = self._paged_loaded, False
         rec = self.page
         if page is None:
@@ -129,14 +136,14 @@ class TimingLog:
                 self._end(rec, "paged_off", now, late=prev is None)
                 self._try_close_page(now)
             return
-        alarm = page.get("alarm_time")
+        moved = None
         if _active(rec, "paged_on", "paged_off"):
             if not _other_page(rec, alarm):
                 return  # the same page, still on
             self._end(rec, "paged_off", now, late=prev is None)  # back-to-back: no off fetch between
-            self._close_page(now)
+            moved = self._split(rec, now)
             rec = None
-        elif prev is not None and prev[0]:
+        elif prev is not None and prev[0] and not (alarm and prev[2] and alarm != prev[2]):
             return  # still on after its record timed out
         if rec is None and (recent := self._recent(now)) is not None and not _other_page(recent, alarm):
             rec = self._reopen()
@@ -144,7 +151,7 @@ class TimingLog:
             if not _other_page(rec, alarm):
                 self._set(rec, "paged_off", None)  # a short off-blip of the same page
                 return
-            self._close_page(now)  # an earlier page whose record your own flag kept open
+            moved = self._split(rec, now)  # an earlier page whose record your own flag kept open
             rec = None
         if rec is None:
             rec = self._open_page(now)
@@ -157,14 +164,17 @@ class TimingLog:
                 "keys": list(keys),
             }
         )
+        if moved:
+            rec.update({"own_on": _iso(now), "own_on_after": moved[4], "paged_paused": moved[5]})
         if prev is None and loaded:
-            rec["startup"] = True
+            self._late_or_startup(rec, self._saved_page)
         self._changed()
 
     def own(self, now: datetime, on: bool | None, paused: bool) -> None:
         """Your own line's on-intervention flag; None while your line is missing (unknown)."""
         self._expire(now)
         self._own_known = on is not None
+        self._rejoin = None
         if on is None:
             return  # unknown opens or closes nothing
         prev, self._own = self._own, (on, now)
@@ -176,9 +186,13 @@ class TimingLog:
             return
         if _active(rec, "own_on", "own_off") or (prev is not None and prev[0]):
             return  # already on
+        closed = None
         if rec is None and self._recent(now) is not None:
+            closed = self.pages[0].get("closed")
             rec = self._reopen()
         if rec is not None and rec.get("own_on") is not None:
+            after = _iso(prev[1]) if prev else None
+            self._rejoin = (rec, rec.get("own_off"), closed, now, after, paused)
             self._set(rec, "own_off", None)  # a short off-blip
             return
         if rec is None:
@@ -191,7 +205,7 @@ class TimingLog:
             }
         )
         if prev is None:
-            rec["startup"] = True
+            self._late_or_startup(rec, self._saved_page)
         self._changed()
 
     def vehicles(self, now: datetime, any_on: bool) -> None:
@@ -244,9 +258,11 @@ class TimingLog:
             return
         if rec.get("persons_rise") is None:
             if count > rec["persons_before"]:
+                self._late(rec, last is None)
                 rec.update({"persons_rise": _iso(now), "persons_rise_after": _iso(last[0]) if last else None})
                 self._changed()
         elif rec.get("persons_back") is None and count <= rec["persons_before"]:
+            self._late(rec, last is None)
             self._set(rec, "persons_back", _iso(now))
             self._try_close_intervention(now)
 
@@ -259,6 +275,31 @@ class TimingLog:
     def _set(self, rec: Record, field: str, value: Any) -> None:
         rec[field] = value
         self._changed()
+
+    def _late(self, rec: Record, first: bool) -> None:
+        """A change to a record as loaded, first seen after downtime: its times are late."""
+        if first and rec is self._saved_intervention:
+            rec["interrupted"] = True
+
+    def _late_or_startup(self, rec: Record, saved: Record | None) -> None:
+        if rec is saved:
+            rec["interrupted"] = True  # joined a saved record after downtime
+        else:
+            rec["startup"] = True
+
+    def _split(
+        self, rec: Record, now: datetime
+    ) -> tuple[Record, Any, Any, datetime, str | None, bool] | None:
+        """Close a page record for a new page; an own-flag rejoin from this run belongs to the new page."""
+        moved, self._rejoin = self._rejoin, None
+        if moved is not None and (moved[0] is not rec or moved[3] != now):
+            moved = None
+        if moved is not None:
+            rec["own_off"] = moved[1]
+        self._close_page(now)
+        if moved is not None and moved[2]:
+            rec["closed"] = moved[2]
+        return moved
 
     def _end(self, rec: Record, field: str, now: datetime, *, late: bool) -> None:
         rec[field] = _iso(now)

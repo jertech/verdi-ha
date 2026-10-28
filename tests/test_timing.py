@@ -314,3 +314,47 @@ def test_on_change_only_when_a_record_changes():
     count = len(changes)
     log.paged(at(45), PAGE, [])  # the same page, still on
     assert len(changes) == count
+
+
+def test_own_rejoin_then_new_page_moves_the_own_flag():
+    log = quiet()
+    log.paged(at(15), PAGE, [])
+    log.own(at(60), True, False)
+    log.paged(at(600), None, [])
+    log.own(at(660), False, False)
+    assert log.page is None
+    log.own(at(900), True, False)  # personnel runs before paged: rejoins the page just closed
+    log.paged(at(900), PAGE2, [])
+    assert log.pages[0]["alarm_time"] == A1 and log.pages[0]["own_off"] == iso(660)
+    assert (log.page["alarm_time"], log.page["own_on"], log.page["own_on_after"]) == (A2, iso(900), iso(660))
+    log.own(at(1200), False, False)
+    assert log.page["own_off"] == iso(1200)
+
+
+def test_new_page_after_a_timed_out_one():
+    log = quiet()
+    log.paged(at(15), PAGE, [])
+    log.paged(at(15 + 6 * 3600), PAGE, [])  # Paged still on; the record timed out
+    assert log.page is None
+    log.paged(at(15 + 6 * 3600 + 60), PAGE2, [])
+    assert log.page["alarm_time"] == A2
+    assert log.page["paged_on_after"] == iso(15 + 6 * 3600)
+
+
+def test_restart_then_own_joins_the_saved_page():
+    old = quiet()
+    old.paged(at(15), PAGE, [])
+    log = TimingLog()
+    log.load(old.dump())
+    log.own(at(500), True, False)
+    assert log.page["own_on"] == iso(500) and log.page["interrupted"] is True
+    assert log.page["startup"] is False
+
+
+def test_restart_mid_intervention_rise_is_interrupted():
+    old = quiet()
+    old.vehicles(at(60), True)
+    log = TimingLog()
+    log.load(old.dump())
+    log.persons(at(500), 3, False, False)
+    assert log.intervention["persons_rise"] == iso(500) and log.intervention["interrupted"] is True
