@@ -81,5 +81,6 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
             "paging_paused": bool(coordinator.fast.paused) if coordinator and coordinator.fast else False,
         },
         "guard": coordinator.guard.diagnostics() if coordinator else None,
+        "timing": coordinator.timing.diagnostics() if coordinator and coordinator.timing else None,
         "last_update_success": coordinator.last_update_success if coordinator else None,
     }

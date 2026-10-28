@@ -77,7 +77,8 @@ The token and the app's login state are credentials for your account:
 - the app keeps its login state (`verdi_state.json`) in its own data folder, which is part of
   Home Assistant backups. **Keep your backups encrypted** and store the encryption key safely.
 
-Diagnostics downloads contain only counts and settings with every identifier removed.
+Diagnostics downloads contain counts, settings, lookup times, and the times of your last ten pages and of the
+station's last ten interventions; every identifier is removed.
 
 ## Requirements
 
