@@ -137,6 +137,8 @@ class TimingLog:
                 self._try_close_page(now)
             return
         moved = None
+        if self._rejoin is not None and self._rejoin[0] is rec and not _other_page(rec, alarm):
+            self._rejoin = None  # the same page: the own flag's rejoin is confirmed
         if _active(rec, "paged_on", "paged_off"):
             if not _other_page(rec, alarm):
                 return  # the same page, still on
@@ -165,7 +167,7 @@ class TimingLog:
             }
         )
         if moved:
-            rec.update({"own_on": _iso(now), "own_on_after": moved[4], "paged_paused": moved[5]})
+            rec.update({"own_on": _iso(moved[3]), "own_on_after": moved[4], "paged_paused": moved[5]})
         if prev is None and loaded:
             self._late_or_startup(rec, self._saved_page)
         self._changed()
@@ -174,12 +176,12 @@ class TimingLog:
         """Your own line's on-intervention flag; None while your line is missing (unknown)."""
         self._expire(now)
         self._own_known = on is not None
-        self._rejoin = None
         if on is None:
             return  # unknown opens or closes nothing
         prev, self._own = self._own, (on, now)
         rec = self.page
         if not on:
+            self._rejoin = None  # the blip is confirmed
             if _active(rec, "own_on", "own_off"):
                 self._end(rec, "own_off", now, late=prev is None)
                 self._try_close_page(now)
@@ -292,7 +294,7 @@ class TimingLog:
     ) -> tuple[Record, Any, Any, datetime, str | None, bool] | None:
         """Close a page record for a new page; an own-flag rejoin from this run belongs to the new page."""
         moved, self._rejoin = self._rejoin, None
-        if moved is not None and (moved[0] is not rec or moved[3] != now):
+        if moved is not None and moved[0] is not rec:
             moved = None
         if moved is not None:
             rec["own_off"] = moved[1]

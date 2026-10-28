@@ -323,12 +323,51 @@ def test_own_rejoin_then_new_page_moves_the_own_flag():
     log.paged(at(600), None, [])
     log.own(at(660), False, False)
     assert log.page is None
-    log.own(at(900), True, False)  # personnel runs before paged: rejoins the page just closed
-    log.paged(at(900), PAGE2, [])
+    log.own(at(900), True, False)  # rejoins the page just closed
+    log.paged(at(915), None, [])  # no page yet: still tentative
+    log.own(at(930), True, False)
+    log.paged(at(930), PAGE2, [])
     assert log.pages[0]["alarm_time"] == A1 and log.pages[0]["own_off"] == iso(660)
     assert (log.page["alarm_time"], log.page["own_on"], log.page["own_on_after"]) == (A2, iso(900), iso(660))
     log.own(at(1200), False, False)
     assert log.page["own_off"] == iso(1200)
+
+
+def test_own_rejoin_then_new_page_in_the_same_run():
+    log = quiet()
+    log.paged(at(15), PAGE, [])
+    log.own(at(60), True, False)
+    log.paged(at(600), None, [])
+    log.own(at(660), False, False)
+    log.own(at(900), True, False)
+    log.paged(at(900), PAGE2, [])
+    assert log.pages[0]["own_off"] == iso(660)
+    assert (log.page["own_on"], log.page["own_on_after"]) == (iso(900), iso(660))
+
+
+def test_own_blip_on_open_page_then_new_page():
+    log = quiet()
+    log.paged(at(15), PAGE, [])
+    log.own(at(60), True, False)
+    log.own(at(120), False, False)
+    log.own(at(180), True, False)
+    log.paged(at(195), PAGE2, [])
+    log.own(at(300), False, False)
+    assert log.pages[0]["own_off"] == iso(120)
+    assert (log.page["own_on"], log.page["own_off"]) == (iso(180), iso(300))
+
+
+def test_own_rejoin_confirmed_by_same_page():
+    log = quiet()
+    log.paged(at(15), PAGE, [])
+    log.own(at(60), True, False)
+    log.paged(at(600), None, [])
+    log.own(at(660), False, False)
+    log.own(at(900), True, False)
+    log.paged(at(915), PAGE, [])
+    assert log.pages == [] and log.page["alarm_time"] == A1 and log.page["own_off"] is None
+    log.paged(at(930), PAGE2, [])
+    assert log.pages[0]["own_off"] is None and log.page["own_on"] is None
 
 
 def test_new_page_after_a_timed_out_one():
