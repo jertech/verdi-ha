@@ -9,6 +9,7 @@ import signal
 import sys
 import urllib.parse
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 import yaml
@@ -131,7 +132,6 @@ def run_loop(settings, monkeypatch, logins, pushes, ticks):
     """Run the main loop for a number of ticks, with fake logins, pushes and clock."""
     settings.state.write_text("{}")
     clock = iter(range(0, 100000, 100))
-    monkeypatch.setattr(relay.time, "monotonic", lambda: next(clock))
     monkeypatch.setattr(relay, "browser_login", lambda *a, **k: logins.pop(0) if logins else None)
     monkeypatch.setattr(relay, "push", lambda s, token: pushes.pop(0) if pushes else True)
     left = iter(range(ticks))
@@ -140,7 +140,8 @@ def run_loop(settings, monkeypatch, logins, pushes, ticks):
         if next(left, None) is None:
             raise SystemExit
 
-    monkeypatch.setattr(relay.time, "sleep", sleep)
+    # Only the relay gets the fake clock; patching the shared time module also moves asyncio's.
+    monkeypatch.setattr(relay, "time", SimpleNamespace(monotonic=lambda: next(clock), sleep=sleep))
     with pytest.raises(SystemExit):
         relay.run(settings, addon=True)
 
