@@ -184,3 +184,22 @@ async def test_unload_detaches_the_save_callback(hass: HomeAssistant, config_ent
     assert timing.on_change is not None
     assert await hass.config_entries.async_unload(config_entry.entry_id)
     assert timing.on_change is None
+
+
+async def test_a_failing_feed_saves_only_when_it_clears_a_record(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    def boom(*args, **kwargs):
+        raise RuntimeError("feed")
+
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    timing = config_entry.runtime_data.timing
+    saves: list[int] = []
+    timing.on_change = lambda: saves.append(1)
+    timing.intervention = {"opened": NOW}
+    with patch.object(TimingLog, "persons", boom):
+        await wait(hass, freezer, 60)
+        await wait(hass, freezer, 60)
+    assert timing.intervention is None
+    assert saves == [1]

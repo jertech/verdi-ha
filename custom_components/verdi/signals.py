@@ -140,7 +140,6 @@ class Signals:
         picked = [v for v in vehicles if v.get("id") in self._picked]
         return picked or vehicles
 
-    @callback
     def _fetch_time(self, key: str) -> datetime:
         """The start of the run that fetched key, shared by every lookup in that run."""
         coordinator: LookupCoordinator = self._station
@@ -158,9 +157,10 @@ class Signals:
             if not self._timing_failed:
                 self._timing_failed = True
                 _LOGGER.warning("Timing records could not be updated (%s); they restart", type(err).__name__)
-            self._timing.page = self._timing.intervention = None
-            if self._timing.on_change is not None:
-                self._timing.on_change()
+            if self._timing.page is not None or self._timing.intervention is not None:
+                self._timing.page = self._timing.intervention = None
+                if self._timing.on_change is not None:
+                    self._timing.on_change()
 
     def _feed(self, key: str, new: Any) -> None:
         """Times, flags and counts only."""
