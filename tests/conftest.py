@@ -84,18 +84,6 @@ def fake_command(responses, calls: list | None = None):
     return _command
 
 
-def fake_grid(grids: dict):
-    """Answer widget_grid from grids[grid_id]; an Exception value is raised."""
-
-    async def _grid(self, grid_id):
-        value = grids[grid_id]
-        if isinstance(value, Exception):
-            raise value
-        return value
-
-    return _grid
-
-
 @pytest.fixture(autouse=True)
 def auto_enable_custom_integrations(enable_custom_integrations):
     yield
@@ -130,7 +118,6 @@ def mock_api():
     with (
         patch("custom_components.verdi.api.VerdiApi.command", fake_command(r.all_ok())),
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
-        patch("custom_components.verdi.api.VerdiApi.widget_grid", fake_grid(r.WIDGET_GRID)),
     ):
         yield
 
