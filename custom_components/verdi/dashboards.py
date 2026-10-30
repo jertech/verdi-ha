@@ -39,9 +39,11 @@ def availability_ids(grid: Any, station_id: str) -> list[str]:
         config = item.get("configuration")
         if not isinstance(config, dict):
             continue
-        if station not in {str(s).lower() for s in config.get("stationIds") or []}:
+        stations = config.get("stationIds")
+        if not isinstance(stations, list) or station not in {str(s).lower() for s in stations}:
             continue
-        for value in config.get("availabilityIds") or []:
+        availabilities = config.get("availabilityIds")
+        for value in availabilities if isinstance(availabilities, list) else []:
             if is_guid(value) and value.lower() not in found:
                 found.append(value.lower())
     return found
@@ -55,7 +57,8 @@ async def discover(api: VerdiApi, guard: Guard, station_id: str) -> list[str]:
         listing = await _call(guard, api.widget_grids, "widgetgrid/commands")
         if listing is None:
             return found
-        for item in listing.get("items") or []:
+        items = listing.get("items")
+        for item in items if isinstance(items, list) else []:
             grid_id = item.get("guid") if isinstance(item, dict) else None
             if not is_guid(grid_id):
                 continue

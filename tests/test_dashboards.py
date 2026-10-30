@@ -85,3 +85,28 @@ async def test_items_without_an_id_are_not_fetched():
     api = FakeApi(listing=listing)
     assert await discover(api, guard(), "station-1") == [r.AV_CALLED, r.AV_RADIO]
     assert api.calls == ["list", r.DASH_1]
+
+
+async def test_busy_on_the_list_call_stops_everything():
+    api, g = FakeApi(listing=VerdiUnavailable("429", retry_after=30)), guard()
+    assert await discover(api, g, "station-1") == []
+    assert api.calls == ["list"]
+    assert not g.can_call()
+
+
+async def test_a_listing_with_odd_items_gives_nothing():
+    for items in (5, "abc", {"guid": r.DASH_1}):
+        api = FakeApi(listing={**r.WIDGET_GRIDS, "items": items})
+        assert await discover(api, guard(), "station-1") == []
+        assert api.calls == ["list"]
+
+
+def test_odd_widget_configuration_contributes_nothing():
+    for stations, avs in (
+        ("station-1", [r.AV_CALLED]),
+        (["station-1"], 7),
+        (5, [r.AV_CALLED]),
+        (["station-1"], "abc"),
+    ):
+        grid = r.widget_grid(r.DASH_1, [r.personnel_widget(stations, avs)])
+        assert availability_ids(grid, "station-1") == []
