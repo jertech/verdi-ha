@@ -105,6 +105,8 @@ def test_only_a_guid_last_segment_fills_the_template():
     assert allowlisted("widgetgrid/commands") == "widgetgrid/commands"
     assert allowlisted("widgetgrid/../x") == "widgetgrid/../x"
     assert allowlisted(f"configuration/{GRID}") == f"configuration/{GRID}"
+    assert allowlisted(f"x/widgetgrid/{GRID}") == f"x/widgetgrid/{GRID}"
+    assert allowlisted(f"widgetgrid/{GRID}/") == f"widgetgrid/{GRID}/"
 
 
 async def test_template_paths_are_refused_without_a_guid():
@@ -114,6 +116,8 @@ async def test_template_paths_are_refused_without_a_guid():
             await api.widget_grid("nope")
         with pytest.raises(VerdiError, match="not allowed"):
             await api._request("GET", f"configuration/vehicles/{GRID}", None)
+        with pytest.raises(VerdiError, match="not allowed"):
+            await api._request("GET", "widgetgrid/{id}", None)
 
 
 async def test_dashboard_list_body():

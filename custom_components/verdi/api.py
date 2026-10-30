@@ -158,7 +158,8 @@ class VerdiApi:
 
     async def _request(self, method: str, path: str, body: dict[str, Any] | None) -> dict[str, Any]:
         command = body.get("command") if body else None
-        if (method, allowlisted(path), command) not in ALLOWED_ENDPOINTS:
+        # A template name such as "widgetgrid/{id}" is an allowlist key, not a URL to call.
+        if "{" in path or "}" in path or (method, allowlisted(path), command) not in ALLOWED_ENDPOINTS:
             raise VerdiError(f"{path}: endpoint not allowed")
         if not self.token:
             raise VerdiAuthError(f"{path}: no token")
