@@ -8,7 +8,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
-from custom_components.verdi.api import VerdiAuthError, VerdiError
+from custom_components.verdi.api import VerdiAuthError, VerdiError, VerdiUnavailable
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
 from custom_components.verdi.token import get_store
 from tests import responses as r
@@ -454,6 +454,32 @@ async def test_options_read_the_dashboards_once_per_form(hass: HomeAssistant, co
     assert result["errors"] == {"base": "too_many_calls"}
     assert result["description_placeholders"]["unselected"] == "2"
     assert grid.await_count == 3
+
+
+async def test_options_read_the_names_once_per_form(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    items = [{"id": "g1", "text": "Standby"}]
+    with patch(ITEMS, return_value=items) as names:
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+        submit = _submit({"intervention_interval": 15, "fast_interval": 10})
+        submit["fast_lane"] = {"fast_lane": ["paged", "vehicles", "personnel"]}
+        with patch("custom_components.verdi.config_flow.CALL_LIMIT", 20):
+            result = await hass.config_entries.options.async_configure(result["flow_id"], submit)
+    assert result["errors"] == {"base": "too_many_calls"}
+    assert [o["value"] for o in _station_field(result, "non_pageable").config["options"]] == ["Standby"]
+    assert names.await_count == 1
+
+
+async def test_the_name_lookup_reports_to_the_guard(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    guard = config_entry.runtime_data.guard
+    with patch("custom_components.verdi.config_flow.discover", return_value=[]):
+        guard.level = 2
+        await hass.config_entries.options.async_init(config_entry.entry_id)
+        assert guard.level == 0  # a successful lookup counts as a success
+        with patch(ITEMS, side_effect=VerdiUnavailable("429", retry_after=30)):
+            await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert not guard.can_call()  # Verdi asked to wait: the guard waits
 
 
 async def test_pasted_ids_are_checked_and_lowered(hass: HomeAssistant, config_entry, mock_api):

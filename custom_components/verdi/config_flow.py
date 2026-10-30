@@ -278,6 +278,7 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class VerdiOptionsFlow(OptionsFlowWithReload):
     _dashboard: list[str] | None = None
+    _names: list[str] | None = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -438,8 +439,13 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
 
         A failed fetch (no token, expired, Verdi down) is not an error here: the form
         still opens with the saved names, and manual entry works. The call goes through the
-        entry's guard when the entry is loaded.
+        entry's guard when the entry is loaded, once per form.
         """
+        if self._names is None:
+            self._names = await self._fetch_availability_names()
+        return list(dict.fromkeys([*self._names, *saved]))
+
+    async def _fetch_availability_names(self) -> list[str]:
         entry = self.config_entry
         token = get_store(self.hass).get(entry.entry_id)
         names: list[str] = []
@@ -463,4 +469,4 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             _LOGGER.debug("Could not list availability names: %s", err)
         except (VerdiError, KeyError, TypeError) as err:
             _LOGGER.debug("Could not list availability names: %s", err)
-        return list(dict.fromkeys([*names, *saved]))
+        return names
