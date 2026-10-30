@@ -60,7 +60,7 @@
     "step": {
       "init": {
         "title": "Verdi-opties",
-        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Elke opvraging gebeurt pas als ze nodig is: personeel en voertuigen bij elke tik, de rest als de postgegevens een wijziging tonen, op een tijdstip dat Verdi meldde, of na het veiligheidsinterval.",
+        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Elke opvraging gebeurt pas als ze nodig is: personeel en voertuigen bij elke tik, de rest als de postgegevens een wijziging tonen, op een tijdstip dat Verdi meldde, of na het veiligheidsinterval. Bij Post staan statussen zonder naam niet in de planbare lijst; ze tonen een korte ID, en ★ betekent dat een dashboard van de post ze toont. Op een dashboard van de post getoond maar niet gekozen: {unselected}. Daartussen zitten meestal de statussen die mensen krijgen als ze opgeroepen worden; zonder die statussen vallen opgeroepen mensen uit Personen. Je kunt ook een status-ID plakken.",
         "data": {
           "show_names": "Namen van collega's tonen"
         },
@@ -112,7 +112,8 @@
     },
     "error": {
       "no_availability": "Kies minstens één status.",
-      "too_many_calls": "Te veel oproepen: deze opties zouden tijdens een interventie ongeveer {rate} oproepen per minuut volhouden; de limiet is {limit}."
+      "too_many_calls": "Te veel oproepen: deze opties zouden tijdens een interventie ongeveer {rate} oproepen per minuut volhouden; de limiet is {limit}.",
+      "invalid_availability_id": "Een geplakte status-ID moet eruitzien als 12345678-abcd-1234-abcd-1234567890ab."
     }
   },
   "entity": {

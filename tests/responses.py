@@ -455,6 +455,7 @@ def all_ok() -> dict:
             "AppGetUpcomingEventsCommand": UPCOMING,
             "GetPersonCurrentInterventionInformationCommand": CURRENT_INTERVENTION_NONE,
         },
+        "widgetgrid/commands": WIDGET_GRIDS,
     }
 
 

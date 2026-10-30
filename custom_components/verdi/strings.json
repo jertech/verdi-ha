@@ -60,7 +60,7 @@
     "step": {
       "init": {
         "title": "Verdi options",
-        "description": "With \"Show colleagues' names\" off, on-duty sensors show filled or open and calendar events show only the function. When on, colleagues' names and shift times are stored in Home Assistant's history. Each lookup is fetched only when it is due: personnel and vehicles every tick, the rest when the station data shows a change, at a time Verdi announced, or after its safety interval.",
+        "description": "With \"Show colleagues' names\" off, on-duty sensors show filled or open and calendar events show only the function. When on, colleagues' names and shift times are stored in Home Assistant's history. Each lookup is fetched only when it is due: personnel and vehicles every tick, the rest when the station data shows a change, at a time Verdi announced, or after its safety interval. In Station, availabilities without a name aren't in the plannable list and show a short ID; ★ marks one a station dashboard shows. Shown on a station dashboard but not selected: {unselected}. These usually include the statuses people get when they're called; without them, called people drop out of Personnel. You can also paste an availability ID.",
         "data": {
           "show_names": "Show colleagues' names"
         },
@@ -112,7 +112,8 @@
     },
     "error": {
       "no_availability": "Pick at least one availability.",
-      "too_many_calls": "Too many calls: these options would sustain about {rate} calls a minute during an intervention; the limit is {limit}."
+      "too_many_calls": "Too many calls: these options would sustain about {rate} calls a minute during an intervention; the limit is {limit}.",
+      "invalid_availability_id": "A pasted availability ID must look like 12345678-abcd-1234-abcd-1234567890ab."
     }
   },
   "entity": {
