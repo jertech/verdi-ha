@@ -14,7 +14,7 @@ from custom_components.verdi.api import APP_ROUTE, VerdiError
 from custom_components.verdi.const import CONF_FAST_LANE, DAILY_JITTER, DAILY_OFFSET_MAX
 from custom_components.verdi.token import get_store
 from tests import responses as r
-from tests.conftest import MidRandom, fake_command, make_token, setup_with_token
+from tests.conftest import ALL_OFF, MidRandom, fake_command, make_token, setup_with_token
 
 INTERVENTION = "GetPersonCurrentInterventionInformationCommand"
 AVAILABILITY = "GetPersonCurrentAvailabilityCarouselInformationCommand"
@@ -332,6 +332,49 @@ async def test_list_failure_falls_back_and_retries(hass: HomeAssistant, config_e
     calls.clear()
     await tick(hass, freezer, 60)
     assert count(calls, AVAILABILITY) == 0  # your line is found now
+
+
+async def test_list_failure_retried_without_personal_data(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, user = api
+    responses[LIST] = VerdiError(f"{LIST}: HTTP 500")
+    await start(hass, config_entry, freezer, options=ALL_OFF)
+    station = config_entry.runtime_data
+    assert station.availabilities.listed is None
+    asked = user.call_count
+    calls.clear()
+    for _ in range(3):
+        await tick(hass, freezer, 60)
+    assert sum(1 for c in calls if c[0] == LIST) == 0  # asked again only after five minutes
+    responses[LIST] = r.AVAILABILITIES
+    for _ in range(3):
+        await tick(hass, freezer, 60)
+    assert sum(1 for c in calls if c[0] == LIST) == 2  # the plannable and the full list
+    assert station.availabilities.listed is not None
+    assert user.call_count == asked  # no personal data: the retry never asks for your person GUID
+
+
+async def test_list_failure_retried_with_your_line_present(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, user = api
+    responses[LIST] = VerdiError(f"{LIST}: HTTP 500")
+    # Paged off: its fast-lane polls would share the per-minute call budget this test measures.
+    await start(
+        hass, config_entry, freezer, options={"my_events": False, "statistics": False, "paged": False}
+    )
+    station = config_entry.runtime_data
+    assert station.availabilities.listed is None
+    assert station.person.value is not None
+    asked = user.call_count
+    calls.clear()
+    for _ in range(3):
+        await tick(hass, freezer, 60)
+    assert count(calls, AVAILABILITY) == 0  # your line is listed: no fallback
+    assert sum(1 for c in calls if c[0] == LIST) == 0  # asked again only after five minutes
+    responses[LIST] = r.AVAILABILITIES
+    for _ in range(3):
+        await tick(hass, freezer, 60)
+    assert sum(1 for c in calls if c[0] == LIST) == 2  # the plannable and the full list
+    assert station.availabilities.listed is not None
+    assert user.call_count == asked  # the person GUID is known: not asked again
 
 
 async def test_vehicle_on_fast_lane_still_switches_the_pace(hass: HomeAssistant, config_entry, api, freezer):

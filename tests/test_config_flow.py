@@ -509,3 +509,21 @@ async def test_options_before_the_lists_load(hass: HomeAssistant, config_entry, 
     options = [(o["value"], o["label"]) for o in _station_field(result, "availability_ids").config["options"]]
     assert options == [("av-1", "av-1"), (CALLED, "00000000…")]
     assert _defaults(result["data_schema"])["station"]["availability_ids"] == ["av-1", CALLED]
+
+
+async def test_options_keep_the_automatic_status_seen_when_the_form_opened(
+    hass: HomeAssistant, config_entry, mock_api
+):
+    await setup_with_token(hass, config_entry)
+    data = {**config_entry.data, "availability_ids": ["av-1", CALLED]}
+    hass.config_entries.async_update_entry(config_entry, data=data)
+    await hass.async_block_till_done()  # a reload, if any, happens before the test sets its state
+    config_entry.runtime_data.availabilities.automatic = {CALLED: "Called"}
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    config_entry.runtime_data.availabilities.automatic = None  # a reload while the form is open
+    with patch("custom_components.verdi.async_setup_entry", return_value=True):
+        await hass.config_entries.options.async_configure(
+            result["flow_id"], _submit({"availability_ids": ["av-2"]})
+        )
+        await hass.async_block_till_done()
+    assert config_entry.data["availability_ids"] == ["av-2", CALLED]

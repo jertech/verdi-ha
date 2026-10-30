@@ -277,6 +277,7 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 class VerdiOptionsFlow(OptionsFlowWithReload):
     _names: list[str] | None = None
+    _automatic_ids: set[str] | None = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -398,10 +399,13 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
         return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]
 
     def _automatic(self) -> set[str]:
-        """IDs (lower case) of the statuses Verdi sets when someone is called; they always count."""
-        coordinator = getattr(self.config_entry, "runtime_data", None)
-        automatic = (coordinator.availabilities.automatic or {}) if coordinator else {}
-        return {k.lower() for k in automatic}
+        """IDs (lower case) of the statuses Verdi sets when someone is called; they always count.
+        Read once per form, so a reload while it's open can't drop a hidden one on save."""
+        if self._automatic_ids is None:
+            coordinator = getattr(self.config_entry, "runtime_data", None)
+            automatic = (coordinator.availabilities.automatic or {}) if coordinator else {}
+            self._automatic_ids = {k.lower() for k in automatic}
+        return self._automatic_ids
 
     def _availabilities(self) -> list[SelectOptionDict]:
         """The station's plannable availabilities by name, plus configured ones Verdi doesn't list by
