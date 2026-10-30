@@ -328,7 +328,7 @@ async def test_list_failure_falls_back_and_retries(hass: HomeAssistant, config_e
     responses[LIST] = r.AVAILABILITIES
     for _ in range(3):
         await tick(hass, freezer, 60)
-    assert sum(1 for c in calls if c[0] == LIST) == 1
+    assert sum(1 for c in calls if c[0] == LIST) == 2  # the plannable and the full list
     calls.clear()
     await tick(hass, freezer, 60)
     assert count(calls, AVAILABILITY) == 0  # your line is found now

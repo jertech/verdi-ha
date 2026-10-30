@@ -58,7 +58,7 @@ async def test_setup_burst_is_small(hass: HomeAssistant, config_entry, api, free
     # Paged off: it polls the app route on the fast lane, which is not the personal burst here.
     await setup_with_token(hass, config_entry, options={"paged": False})
     assert [c[1] for c in app_calls(calls)] == [AVAILABILITY]
-    assert len([c for c in calls if c[0] != APP_ROUTE]) == 7  # the availability list and 6 lookups
+    assert len([c for c in calls if c[0] != APP_ROUTE]) == 8  # the two availability lists and 6 lookups
     assert user.call_count == 1
     await tick(hass, freezer, 330)
     assert sorted(c[1] for c in app_calls(calls)) == sorted([AVAILABILITY, EVENTS, STATS])

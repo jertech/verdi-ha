@@ -52,6 +52,7 @@ async def test_every_lookup_is_allowed():
     await api.readiness("s", ["t"])
     await api.personnel("s", ["a"])
     await api.availabilities("s", 0, 50)
+    await api.availabilities("s", 0, 50, plannable=False)
     await api.vehicles("s")
     await api.team_on_duty("g")
     await api.roster(["c"])
@@ -138,4 +139,26 @@ async def test_dashboard_list_body():
             {"command": "WidgetGridGetListForCurrentUserCommand", "gridType": "Dashboard", "isDetail": None},
         ),
         ("GET", f"widgetgrid/{GRID}", None),
+    ]
+
+
+async def test_availability_list_bodies():
+    bodies = []
+
+    class Recorder(VerdiApi):
+        async def _request(self, method, path, body):
+            bodies.append(body)
+            return {}
+
+    api = Recorder(None, "https://x.example", "t")  # type: ignore[arg-type]
+    await api.availabilities("s", 0, 50)
+    await api.availabilities("s", 50, 50, plannable=False)
+    station = {"field": "station", "value": "s", "operator": "Contains"}
+    assert bodies == [
+        {
+            "filter": [{"field": "allowPlanning", "value": "true", "operator": "Eq"}, station],
+            "skip": 0,
+            "take": 50,
+        },
+        {"filter": [station], "skip": 50, "take": 50},
     ]

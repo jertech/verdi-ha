@@ -64,7 +64,8 @@ def make_token(*, sub: str | None = SUB, iss: str = f"{VERDI}/auth", lifetime: i
 
 
 def fake_command(responses, calls: list | None = None):
-    """Answer from responses[path]; the app route answers per command. An Exception value is raised."""
+    """Answer from responses[path]; the app route answers per command. An Exception value is raised.
+    A callable value is called with the request body."""
 
     async def _command(self, path, body):
         if isinstance(responses, Exception):
@@ -72,6 +73,8 @@ def fake_command(responses, calls: list | None = None):
         if calls is not None:
             calls.append((path, body.get("command"), body.get("language")))
         value = responses[path]
+        if callable(value):
+            value = value(body)
         if path == APP_ROUTE:
             value = value[body["command"]]
         if isinstance(value, Exception):

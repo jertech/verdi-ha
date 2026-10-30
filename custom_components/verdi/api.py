@@ -235,18 +235,16 @@ class VerdiApi:
             },
         )
 
-    async def availabilities(self, station_id: str, skip: int, take: int) -> dict[str, Any]:
-        """The station's plannable availabilities, as the web app's availability filter lists them."""
+    async def availabilities(
+        self, station_id: str, skip: int, take: int, *, plannable: bool = True
+    ) -> dict[str, Any]:
+        """The station's availabilities: the plannable ones, as the web app's availability filter lists
+        them, or (plannable=False) all of them, also the ones Verdi sets when someone is called."""
+        station = {"field": "station", "value": station_id, "operator": "Contains"}
+        planning = {"field": "allowPlanning", "value": "true", "operator": "Eq"}
         return await self.command(
             "domaindata/person/availabilities/displayitems",
-            {
-                "filter": [
-                    {"field": "allowPlanning", "value": "true", "operator": "Eq"},
-                    {"field": "station", "value": station_id, "operator": "Contains"},
-                ],
-                "skip": skip,
-                "take": take,
-            },
+            {"filter": [planning, station] if plannable else [station], "skip": skip, "take": take},
         )
 
     async def availability_display_items(self, station_id: str) -> list[dict[str, Any]]:
