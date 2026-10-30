@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.5] - unreleased
+
+### Integration
+- The statuses Verdi sets when someone is called are found automatically (from the station's full
+  availability list, read once per start) and are always requested and counted in Personnel, whether
+  or not they are selected.
+- The options list only the availabilities people choose themselves, by name. Call statuses already
+  in your settings are kept when you save.
+- The station-dashboard suggestions from 0.9.3 are removed: the names now come from Verdi directly.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.9.4] - unreleased
 
 ### Integration
