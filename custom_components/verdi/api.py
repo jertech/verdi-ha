@@ -13,6 +13,7 @@ from __future__ import annotations
 import base64
 import json
 import math
+import re
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
@@ -29,6 +30,20 @@ APP_COMMANDS = (
     "AppGetUpcomingEventsCommand",
     "GetPersonCurrentInterventionInformationCommand",
 )
+GUID = re.compile(r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}")
+# Paths that end in one ID; the allowlist names them with {id}.
+ID_TEMPLATES = ("widgetgrid",)
+
+
+def is_guid(value: Any) -> bool:
+    return isinstance(value, str) and GUID.fullmatch(value) is not None
+
+
+def allowlisted(path: str) -> str:
+    """The allowlist's name for path: a templated prefix followed by one GUID becomes '<prefix>/{id}'."""
+    prefix, _, last = path.rpartition("/")
+    return f"{prefix}/{{id}}" if prefix in ID_TEMPLATES and is_guid(last) else path
+
 
 # (method, path, command). Keep in sync with docs/endpoints.md; a test enforces it.
 ALLOWED_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
@@ -44,6 +59,8 @@ ALLOWED_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
             "FunctionCalendarEventGetForCalendarCommand",
         ),
         ("POST", "domaindata/person/availabilities/displayitems", None),
+        ("POST", "widgetgrid/commands", "WidgetGridGetListForCurrentUserCommand"),
+        ("GET", "widgetgrid/{id}", None),
         ("GET", "security/users/authorize", None),
     }
     | {("POST", APP_ROUTE, command) for command in APP_COMMANDS}
@@ -141,7 +158,7 @@ class VerdiApi:
 
     async def _request(self, method: str, path: str, body: dict[str, Any] | None) -> dict[str, Any]:
         command = body.get("command") if body else None
-        if (method, path, command) not in ALLOWED_ENDPOINTS:
+        if (method, allowlisted(path), command) not in ALLOWED_ENDPOINTS:
             raise VerdiError(f"{path}: endpoint not allowed")
         if not self.token:
             raise VerdiAuthError(f"{path}: no token")
@@ -235,6 +252,17 @@ class VerdiApi:
         """The station's plannable availabilities as id and name, for the options."""
         data = await self.availabilities(station_id, 0, 50)
         return [{"id": i["guid"], "text": i["text"]} for i in data.get("data") or []]
+
+    async def widget_grids(self) -> dict[str, Any]:
+        """The dashboards the web app lists for you; only their IDs are used."""
+        return await self.command(
+            "widgetgrid/commands",
+            {"command": "WidgetGridGetListForCurrentUserCommand", "gridType": "Dashboard", "isDetail": None},
+        )
+
+    async def widget_grid(self, grid_id: str) -> dict[str, Any]:
+        """One dashboard; only its personnel widgets' availability IDs are used."""
+        return await self._request("GET", f"widgetgrid/{grid_id}", None)
 
     async def vehicles(self, station_id: str) -> dict[str, Any]:
         return await self.command(
