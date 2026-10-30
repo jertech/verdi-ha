@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.4] - unreleased
+
+### Integration
+- The options read the station's availability names once per form, also when the form is shown again
+  after an error.
+- Clearer wording in the options for availabilities that aren't in the plannable list (en, nl, fr).
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.9.3] - unreleased
 
 ### Integration
