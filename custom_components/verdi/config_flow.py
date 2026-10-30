@@ -136,8 +136,11 @@ def _settings(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str
             data[key] = _csv(user_input.get(key))
         else:
             data[key] = (user_input.get(key) or "").strip()
-        if not data[key] and key not in OPTIONAL_FIELDS:
+        values = data[key] if key in LIST_FIELDS else [data[key]] if data[key] else []
+        if not values and key not in OPTIONAL_FIELDS:
             errors[key] = "required"
+        elif not all(is_guid(v) for v in values):
+            errors[key] = "invalid_id"
     return data, errors
 
 

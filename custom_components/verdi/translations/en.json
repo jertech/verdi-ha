@@ -41,6 +41,7 @@
       "invalid_url": "Enter the https address of your Verdi zone.",
       "required": "Required.",
       "must_accept": "You must accept this to continue.",
+      "invalid_id": "Enter Verdi IDs, such as 12345678-abcd-1234-abcd-1234567890ab, separated by commas.",
       "invalid_auth": "Verdi rejected the token.",
       "cannot_connect": "Could not reach Verdi. Check the address and your network.",
       "no_token": "Paste a token, or wait for the token relay.",

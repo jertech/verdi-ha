@@ -6,22 +6,29 @@ from unittest.mock import patch
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi.api import VerdiAuthError, VerdiError
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
 from custom_components.verdi.token import get_store
 from tests import responses as r
-from tests.conftest import BASE_URL, SUB, make_token, setup_with_token
+from tests.conftest import BASE_URL, DATA, SUB, make_token, setup_with_token
 
+
+def gid(n: int) -> str:
+    return f"00000000-0000-4000-8000-{n:012x}"
+
+
+STATION, OTHER_STATION = gid(1), gid(99)
 USER_INPUT = {
     "accept_disclaimer": True,
     "verdi_url": "https://zone.verdi.example/home",
-    "station_id": "station-1",
-    "team_group_id": "team-1",
-    "function_calendar_id": "cal-1",
-    "vehicle_train_ids": "train-1, train-2",
-    "crew_function_ids": "cf-1",
-    "availability_ids": "av-1",
+    "station_id": STATION,
+    "team_group_id": gid(2),
+    "function_calendar_id": gid(3),
+    "vehicle_train_ids": f"{gid(4)}, {gid(5)}",
+    "crew_function_ids": gid(6),
+    "availability_ids": gid(7),
 }
 VEHICLES = "custom_components.verdi.config_flow.VerdiApi.vehicles"
 
@@ -44,9 +51,9 @@ async def test_user_flow_without_token(hass: HomeAssistant):
     result = await hass.config_entries.flow.async_configure(result["flow_id"], USER_INPUT)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["base_url"] == BASE_URL
-    assert result["data"]["vehicle_train_ids"] == ["train-1", "train-2"]
+    assert result["data"]["vehicle_train_ids"] == [gid(4), gid(5)]
     assert "token" not in result["data"] and "accept_disclaimer" not in result["data"]
-    assert result["result"].unique_id == "station-1"
+    assert result["result"].unique_id == STATION
 
 
 async def test_user_flow_with_test_token(hass: HomeAssistant, mock_api):
@@ -82,22 +89,61 @@ async def test_user_flow_errors(hass: HomeAssistant):
     assert result["errors"] == {"base": "invalid_auth"}
 
 
-async def test_reconfigure(hass: HomeAssistant, config_entry, mock_api):
-    await setup_with_token(hass, config_entry)
-    result = await config_entry.start_reconfigure_flow(hass)
+async def test_reconfigure(hass: HomeAssistant, mock_api):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=4,
+        unique_id=STATION,
+        title="Verdi",
+        data={**DATA, "station_id": STATION},
+        source=SOURCE_USER,
+    )
+    await setup_with_token(hass, entry)
     new = {k: v for k, v in USER_INPUT.items() if k != "accept_disclaimer"}
+    result = await entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**new, "team_group_id": "team-2"}
+        result["flow_id"], {**new, "availability_ids": f"{gid(7)},{gid(8)}{gid(9)}"}
+    )
+    assert result["errors"] == {"availability_ids": "invalid_id"}
+    assert entry.data["availability_ids"] == DATA["availability_ids"]
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**new, "team_group_id": gid(12)}
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
-    assert config_entry.data["team_group_id"] == "team-2"
+    assert entry.data["team_group_id"] == gid(12)
 
-    result = await config_entry.start_reconfigure_flow(hass)
+    result = await entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**new, "station_id": "another"}
+        result["flow_id"], {**new, "station_id": OTHER_STATION}
     )
     assert result["reason"] == "wrong_station"
+
+
+async def test_setup_refuses_values_that_are_not_ids(hass: HomeAssistant):
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            **USER_INPUT,
+            "station_id": "station-1",
+            "availability_ids": f"{gid(7)}, {gid(8)}{gid(9)}",
+            "function_calendar_id": "",
+            "crew_function_ids": " ",
+        },
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {
+        "station_id": "invalid_id",
+        "availability_ids": "invalid_id",
+        "crew_function_ids": "required",
+    }
+    upper = gid(7).upper()
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**USER_INPUT, "availability_ids": upper}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["availability_ids"] == [upper]
 
 
 async def test_reauth_with_pasted_token(hass: HomeAssistant, config_entry, mock_api):

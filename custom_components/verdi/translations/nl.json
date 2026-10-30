@@ -41,6 +41,7 @@
       "invalid_url": "Vul het https-adres van je Verdi-zone in.",
       "required": "Verplicht.",
       "must_accept": "Je moet dit aanvaarden om verder te gaan.",
+      "invalid_id": "Vul Verdi-ID's in, zoals 12345678-abcd-1234-abcd-1234567890ab, gescheiden door komma's.",
       "invalid_auth": "Verdi heeft het token geweigerd.",
       "cannot_connect": "Kan Verdi niet bereiken. Controleer het adres en je netwerk.",
       "no_token": "Plak een token, of wacht op de token relay.",

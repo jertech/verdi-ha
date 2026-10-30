@@ -41,6 +41,7 @@
       "invalid_url": "Saisissez l'adresse https de votre zone Verdi.",
       "required": "Obligatoire.",
       "must_accept": "Vous devez accepter pour continuer.",
+      "invalid_id": "Saisissez des ID Verdi, comme 12345678-abcd-1234-abcd-1234567890ab, séparés par des virgules.",
       "invalid_auth": "Verdi a refusé le jeton.",
       "cannot_connect": "Impossible de joindre Verdi. Vérifiez l'adresse et votre réseau.",
       "no_token": "Collez un jeton ou attendez le token relay.",
