@@ -427,3 +427,19 @@ def test_load_drops_an_open_record_without_an_aware_time():
     log = TimingLog()
     log.load({"intervention": _saved(persons_before=None)})
     assert log.intervention is not None
+
+
+def test_load_drops_a_closed_record_without_an_aware_time():
+    log = TimingLog()
+    log.load(
+        {
+            "pages": [
+                {"opened": None, "closed": iso(0)},
+                {"opened": "2026-06-15T12:00:00"},
+                {"opened": iso(0)},
+            ],
+            "interventions": [_saved(opened=5), _saved()],
+        }
+    )
+    assert log.pages == [{"opened": iso(0)}]
+    assert log.interventions == [_saved()]

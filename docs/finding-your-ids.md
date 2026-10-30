@@ -25,6 +25,11 @@ web interface makes while you use its dashboard.
 Lists go into the integration comma-separated. Once the integration runs, the availabilities can
 also be picked by name in its options (**Station**).
 
+Copy **every** ID from `availabilityFilter`, including the ones the options later show without a name
+(as a short ID, marked ★ when a station dashboard shows it). Those are usually the statuses people get
+when they're called; without them, called people drop out of Personnel. The options also suggest the
+availabilities your station's dashboards show, and accept a pasted ID.
+
 ## Tenant name (for the Token Relay)
 
 Sign out, keep the network tab open with **Preserve log** on, and filter on `authorize`. Start the

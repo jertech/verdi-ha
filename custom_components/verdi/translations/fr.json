@@ -41,6 +41,7 @@
       "invalid_url": "Saisissez l'adresse https de votre zone Verdi.",
       "required": "Obligatoire.",
       "must_accept": "Vous devez accepter pour continuer.",
+      "invalid_id": "Saisissez des ID Verdi, comme 12345678-abcd-1234-abcd-1234567890ab, séparés par des virgules.",
       "invalid_auth": "Verdi a refusé le jeton.",
       "cannot_connect": "Impossible de joindre Verdi. Vérifiez l'adresse et votre réseau.",
       "no_token": "Collez un jeton ou attendez le token relay.",
@@ -60,7 +61,7 @@
     "step": {
       "init": {
         "title": "Options Verdi",
-        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent pourvu ou vacant et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. Chaque lecture n'a lieu que lorsqu'elle est nécessaire : le personnel et les véhicules à chaque cycle, le reste quand les données du poste montrent un changement, à une heure annoncée par Verdi, ou après l'intervalle de sécurité.",
+        "description": "Lorsque « Afficher les noms des collègues » est désactivé, les capteurs de garde indiquent pourvu ou vacant et les événements du calendrier n'indiquent que la fonction. Lorsqu'il est activé, les noms et horaires des collègues sont enregistrés dans l'historique de Home Assistant. Chaque lecture n'a lieu que lorsqu'elle est nécessaire : le personnel et les véhicules à chaque cycle, le reste quand les données du poste montrent un changement, à une heure annoncée par Verdi, ou après l'intervalle de sécurité. Dans Poste, les statuts sans nom ne figurent pas dans la liste planifiable et affichent un ID court ; ★ signale ceux qu'un tableau de bord du poste affiche. Affichés sur un tableau de bord du poste mais non sélectionnés : {unselected}. Ils comprennent généralement les statuts que reçoivent les personnes appelées ; sans eux, les personnes appelées disparaissent de Personnes. Vous pouvez aussi coller un ID de statut.",
         "data": {
           "show_names": "Afficher les noms des collègues"
         },
@@ -112,7 +113,8 @@
     },
     "error": {
       "no_availability": "Choisissez au moins un statut.",
-      "too_many_calls": "Trop d'appels : ces options soutiendraient environ {rate} appels par minute pendant une intervention ; la limite est de {limit}."
+      "too_many_calls": "Trop d'appels : ces options soutiendraient environ {rate} appels par minute pendant une intervention ; la limite est de {limit}.",
+      "invalid_availability_id": "Un ID de statut collé doit avoir la forme 12345678-abcd-1234-abcd-1234567890ab."
     }
   },
   "entity": {

@@ -6,21 +6,29 @@ from unittest.mock import patch
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi.api import VerdiAuthError, VerdiError
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
 from custom_components.verdi.token import get_store
-from tests.conftest import BASE_URL, SUB, make_token, setup_with_token
+from tests import responses as r
+from tests.conftest import BASE_URL, DATA, SUB, make_token, setup_with_token
 
+
+def gid(n: int) -> str:
+    return f"00000000-0000-4000-8000-{n:012x}"
+
+
+STATION, OTHER_STATION = gid(1), gid(99)
 USER_INPUT = {
     "accept_disclaimer": True,
     "verdi_url": "https://zone.verdi.example/home",
-    "station_id": "station-1",
-    "team_group_id": "team-1",
-    "function_calendar_id": "cal-1",
-    "vehicle_train_ids": "train-1, train-2",
-    "crew_function_ids": "cf-1",
-    "availability_ids": "av-1",
+    "station_id": STATION,
+    "team_group_id": gid(2),
+    "function_calendar_id": gid(3),
+    "vehicle_train_ids": f"{gid(4)}, {gid(5)}",
+    "crew_function_ids": gid(6),
+    "availability_ids": gid(7),
 }
 VEHICLES = "custom_components.verdi.config_flow.VerdiApi.vehicles"
 
@@ -43,9 +51,9 @@ async def test_user_flow_without_token(hass: HomeAssistant):
     result = await hass.config_entries.flow.async_configure(result["flow_id"], USER_INPUT)
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert result["data"]["base_url"] == BASE_URL
-    assert result["data"]["vehicle_train_ids"] == ["train-1", "train-2"]
+    assert result["data"]["vehicle_train_ids"] == [gid(4), gid(5)]
     assert "token" not in result["data"] and "accept_disclaimer" not in result["data"]
-    assert result["result"].unique_id == "station-1"
+    assert result["result"].unique_id == STATION
 
 
 async def test_user_flow_with_test_token(hass: HomeAssistant, mock_api):
@@ -81,22 +89,70 @@ async def test_user_flow_errors(hass: HomeAssistant):
     assert result["errors"] == {"base": "invalid_auth"}
 
 
-async def test_reconfigure(hass: HomeAssistant, config_entry, mock_api):
-    await setup_with_token(hass, config_entry)
-    result = await config_entry.start_reconfigure_flow(hass)
+async def test_reconfigure(hass: HomeAssistant, mock_api):
+    entry = MockConfigEntry(
+        domain=DOMAIN,
+        version=4,
+        unique_id=STATION,
+        title="Verdi",
+        data={**DATA, "station_id": STATION},
+        source=SOURCE_USER,
+    )
+    await setup_with_token(hass, entry)
     new = {k: v for k, v in USER_INPUT.items() if k != "accept_disclaimer"}
+    result = await entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**new, "team_group_id": "team-2"}
+        result["flow_id"], {**new, "availability_ids": f"{gid(7)},{gid(8)}{gid(9)}"}
+    )
+    assert result["errors"] == {"availability_ids": "invalid_id"}
+    assert entry.data["availability_ids"] == DATA["availability_ids"]
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**new, "team_group_id": gid(12)}
     )
     assert result["type"] is FlowResultType.ABORT
     assert result["reason"] == "reconfigure_successful"
-    assert config_entry.data["team_group_id"] == "team-2"
+    assert entry.data["team_group_id"] == gid(12)
 
-    result = await config_entry.start_reconfigure_flow(hass)
+    result = await entry.start_reconfigure_flow(hass)
     result = await hass.config_entries.flow.async_configure(
-        result["flow_id"], {**new, "station_id": "another"}
+        result["flow_id"], {**new, "station_id": OTHER_STATION}
     )
     assert result["reason"] == "wrong_station"
+
+
+async def test_setup_refuses_values_that_are_not_ids(hass: HomeAssistant):
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {
+            **USER_INPUT,
+            "station_id": "station-1",
+            "availability_ids": f"{gid(7)}, {gid(8)}{gid(9)}",
+            "function_calendar_id": "",
+            "crew_function_ids": " ",
+        },
+    )
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {
+        "station_id": "invalid_id",
+        "availability_ids": "invalid_id",
+        "crew_function_ids": "required",
+    }
+    upper = gid(7).upper()
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"], {**USER_INPUT, "availability_ids": upper}
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["availability_ids"] == [upper.lower()]
+    # Only the availabilities are lowered; the station ID is the entry's unique ID.
+    result = await _start(hass)
+    result = await hass.config_entries.flow.async_configure(
+        result["flow_id"],
+        {**USER_INPUT, "station_id": gid(0xA1).upper(), "team_group_id": gid(0xB2).upper()},
+    )
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert result["data"]["station_id"] == gid(0xA1).upper()
+    assert result["data"]["team_group_id"] == gid(0xB2).upper()
 
 
 async def test_reauth_with_pasted_token(hass: HomeAssistant, config_entry, mock_api):
@@ -227,6 +283,10 @@ def _submit(station: dict) -> dict:
     }
 
 
+GRID = "custom_components.verdi.api.VerdiApi.widget_grid"
+STAR = "00000000… ★"
+
+
 async def test_options_pick_availabilities_by_name(hass: HomeAssistant, config_entry, mock_api):
     await setup_with_token(hass, config_entry)
     result = await hass.config_entries.options.async_init(config_entry.entry_id)
@@ -244,6 +304,8 @@ async def test_options_pick_availabilities_by_name(hass: HomeAssistant, config_e
         ("av-3", "Not available"),
         ("av-4", "Sick"),
         ("av-radio", "av-radio"),
+        (r.AV_CALLED, STAR),
+        (r.AV_RADIO, STAR),
     ]
     with patch("custom_components.verdi.async_setup_entry", return_value=True) as setup:
         result = await hass.config_entries.options.async_configure(
@@ -329,3 +391,117 @@ async def test_options_at_or_under_24_calls_save(hass: HomeAssistant, config_ent
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert config_entry.options["fast_lane"] == ["paged", "vehicles"]
     assert config_entry.options["fast_interval"] == 12
+
+
+async def test_options_mark_dashboard_availabilities(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    options = [(o["value"], o["label"]) for o in _station_field(result, "availability_ids").config["options"]]
+    assert options == [
+        ("av-1", "Available"),
+        ("av-2", "Urgent"),
+        ("av-3", "Not available"),
+        ("av-4", "Sick"),
+        (r.AV_CALLED, STAR),
+        (r.AV_RADIO, STAR),
+    ]
+    field = _station_field(result, "availability_ids")
+    assert field.config["custom_value"] is True
+    assert result["description_placeholders"]["unselected"] == "2"
+
+
+async def test_options_count_only_unselected_dashboard_availabilities(
+    hass: HomeAssistant, config_entry, mock_api
+):
+    await setup_with_token(hass, config_entry)
+    data = {**config_entry.data, "availability_ids": ["av-1", r.AV_CALLED, r.AV_RADIO]}
+    hass.config_entries.async_update_entry(config_entry, data=data)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["description_placeholders"]["unselected"] == "0"
+    options = [(o["value"], o["label"]) for o in _station_field(result, "availability_ids").config["options"]]
+    assert (r.AV_CALLED, STAR) in options
+    assert (r.AV_RADIO, STAR) in options
+
+
+async def test_options_open_when_the_dashboard_lookup_blows_up(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    with patch("custom_components.verdi.config_flow.discover", side_effect=RuntimeError("x")):
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["description_placeholders"]["unselected"] == "\u2013"
+
+
+async def test_pasted_ids_are_trimmed(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    with patch("custom_components.verdi.async_setup_entry", return_value=True):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], _submit({"availability_ids": ["av-1", f" {r.guid(0xB2)}\n"]})
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.data["availability_ids"] == ["av-1", r.guid(0xB2)]
+
+
+async def test_options_read_the_dashboards_once_per_form(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    with patch(GRID, side_effect=lambda grid_id: r.WIDGET_GRID[grid_id]) as grid:
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+        submit = _submit({"intervention_interval": 15, "fast_interval": 10})
+        submit["fast_lane"] = {"fast_lane": ["paged", "vehicles", "personnel"]}
+        with patch("custom_components.verdi.config_flow.CALL_LIMIT", 20):
+            result = await hass.config_entries.options.async_configure(result["flow_id"], submit)
+    assert result["errors"] == {"base": "too_many_calls"}
+    assert result["description_placeholders"]["unselected"] == "2"
+    assert grid.await_count == 3
+
+
+async def test_pasted_ids_are_checked_and_lowered(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    new = r.guid(0xB1)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _submit({"availability_ids": ["av-1", "not-an-id"]})
+    )
+    assert result["errors"] == {"base": "invalid_availability_id"}
+    assert config_entry.data["availability_ids"] == ["av-1", "av-2"]
+    with patch("custom_components.verdi.async_setup_entry", return_value=True):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"],
+            _submit({"availability_ids": ["av-1", r.AV_CALLED.upper(), r.AV_CALLED, new.upper()]}),
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.data["availability_ids"] == ["av-1", r.AV_CALLED, new]
+
+
+async def test_options_without_discovery_look_as_before(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    config_entry.runtime_data.guard.wait(60)
+    with patch(GRID) as grid, patch(ITEMS) as names:
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    grid.assert_not_awaited()
+    names.assert_not_awaited()
+    assert result["description_placeholders"]["unselected"] == "\u2013"
+    labels = [o["label"] for o in _station_field(result, "availability_ids").config["options"]]
+    assert "★" not in "".join(labels)
+
+
+async def test_options_on_an_unloaded_entry(hass: HomeAssistant, config_entry, mock_api):
+    config_entry.add_to_hass(hass)  # not set up: no runtime_data, no token
+    with patch(GRID) as grid:
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    grid.assert_not_awaited()
+    assert result["description_placeholders"]["unselected"] == "\u2013"
+    options = [(o["value"], o["label"]) for o in _station_field(result, "availability_ids").config["options"]]
+    assert options == [("av-1", "av-1"), ("av-2", "av-2")]
+
+
+async def test_options_survive_failing_dashboards(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    with patch(GRID, side_effect=VerdiError("result=Failed")):
+        result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["description_placeholders"]["unselected"] == "\u2013"

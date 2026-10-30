@@ -4,6 +4,7 @@ The integration only calls the endpoints below. All are reads. The station looku
 bodies the official Verdi web interface sends; your own data uses the read commands of Verdi's mobile
 app route, which accept the same token. The API client refuses anything else, and a test keeps this
 table and the client's allowlist identical.
+`{id}` stands for one Verdi ID; the client accepts nothing else there.
 
 Paths are relative to `<your Verdi address>/verdi-core/api/v1/`.
 
@@ -12,6 +13,8 @@ Paths are relative to `<your Verdi address>/verdi-core/api/v1/`.
 | POST | `configuration/readinesses/commands` | `ReadinessGetWidgetsCommand` | Readiness per vehicle train |
 | POST | `configuration/persons/commands` | `PersonGetGroupedWidgetsCommand` | Personnel counts |
 | POST | `domaindata/person/availabilities/displayitems` | - | The station's availabilities: who is listed in personnel, and their names in the options |
+| POST | `widgetgrid/commands` | `WidgetGridGetListForCurrentUserCommand` | Options only: the station dashboards, to suggest the availabilities they show |
+| GET | `widgetgrid/{id}` | - | Options only: one dashboard's personnel widgets (their availability IDs, nothing else) |
 | POST | `configuration/vehicles/commands` | `VehicleWidgetsSummaryCommand` | Vehicle status |
 | POST | `configuration/team/groups/commands` | `TeamOnDutyWidgetCommand` | Team on duty |
 | POST | `planning/functioncalendars/commands` | `FunctionCalendarPlanningWidgetCommand` | On-duty sensors |

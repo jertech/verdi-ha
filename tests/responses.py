@@ -455,4 +455,70 @@ def all_ok() -> dict:
             "AppGetUpcomingEventsCommand": UPCOMING,
             "GetPersonCurrentInterventionInformationCommand": CURRENT_INTERVENTION_NONE,
         },
+        "widgetgrid/commands": WIDGET_GRIDS,
     }
+
+
+# Station dashboards (options only). Synthetic IDs; only the shape follows the web app.
+def guid(n: int) -> str:
+    return f"00000000-0000-4000-8000-{n:012x}"
+
+
+DASH_1, DASH_2, DASH_3 = guid(0xD1), guid(0xD2), guid(0xD3)
+AV_CALLED, AV_RADIO, AV_ELSEWHERE = guid(0xA1), guid(0xA2), guid(0xA3)
+WIDGET_GRIDS = {
+    "result": "Success",
+    "errorFeedback": [],
+    "warningFeedback": [],
+    "items": [
+        {
+            "guid": g,
+            "name": f"Dashboard {i}",
+            "gridType": "Dashboard",
+            "isDetail": False,
+            "isMine": False,
+            "allowEdit": False,
+            "allowDelete": False,
+        }
+        for i, g in enumerate((DASH_1, DASH_2, DASH_3), 1)
+    ],
+}
+
+
+def widget_grid(grid_id: str, items: list[dict]) -> dict:
+    return {
+        "guid": grid_id,
+        "name": "Dashboard",
+        "gridType": "Dashboard",
+        "owner": None,
+        "grantedRoles": [],
+        "permissions": {"canRead": False, "canEdit": False, "canDelete": False},
+        "isDetail": False,
+        "isObsolete": False,
+        "widgetGridItems": items,
+    }
+
+
+def personnel_widget(stations: list[str] | None, availabilities: list[str]) -> dict:
+    return {
+        "widgetType": "PersonnelGroupedWidget",
+        "x": 0,
+        "y": 0,
+        "rows": 10,
+        "cols": 5,
+        "isObsolete": False,
+        "configuration": {"stationIds": stations, "availabilityIds": availabilities, "title": "Personnel"},
+    }
+
+
+WIDGET_GRID = {
+    DASH_1: widget_grid(
+        DASH_1,
+        [
+            {"widgetType": "ReadinessWidget", "configuration": {"stationIds": ["station-1"]}},
+            personnel_widget(["station-1"], ["av-1", AV_CALLED, AV_RADIO]),
+        ],
+    ),
+    DASH_2: widget_grid(DASH_2, [personnel_widget(["station-2"], [AV_ELSEWHERE])]),
+    DASH_3: widget_grid(DASH_3, [personnel_widget(["STATION-1"], [AV_RADIO.upper()])]),
+}

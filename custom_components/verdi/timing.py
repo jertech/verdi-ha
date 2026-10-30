@@ -53,21 +53,21 @@ def _other_page(record: Record, alarm: Any) -> bool:
     return bool(alarm and record.get("alarm_time") and alarm != record["alarm_time"])
 
 
-def _sound(record: Any, *, open_: bool) -> bool:
-    """A saved record the logic can work with: a dict, a count that is an int or None, and (open
-    records) an aware time to measure the timeout from."""
+def _sound(record: Any) -> bool:
+    """A saved record the logic can work with: a dict, a count that is an int or None, and an
+    aware opening time (timeouts count from it, also after a closed page is reopened)."""
     if not isinstance(record, dict):
         return False
     before = record.get("persons_before")
     if before is not None and (isinstance(before, bool) or not isinstance(before, int)):
         return False
-    return not open_ or _at(record.get("opened")) is not None
+    return _at(record.get("opened")) is not None
 
 
 def _records(value: Any) -> list[Record]:
     if not isinstance(value, list):
         return []
-    return [r for r in value if _sound(r, open_=False)][:KEEP]
+    return [r for r in value if _sound(r)][:KEEP]
 
 
 class TimingLog:
@@ -110,8 +110,8 @@ class TimingLog:
         self.pages = _records(data.get("pages"))
         self.interventions = _records(data.get("interventions"))
         page, intervention = data.get("page"), data.get("intervention")
-        self.page = page if _sound(page, open_=True) else None
-        self.intervention = intervention if _sound(intervention, open_=True) else None
+        self.page = page if _sound(page) else None
+        self.intervention = intervention if _sound(intervention) else None
         self._saved_page, self._saved_intervention = self.page, self.intervention
 
     def diagnostics(self) -> dict[str, Any]:

@@ -37,7 +37,7 @@ from homeassistant.helpers.selector import (
     TextSelectorType,
 )
 
-from .api import VerdiApi, VerdiAuthError, VerdiError, clean_token, jwt_claims
+from .api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable, clean_token, is_guid, jwt_claims
 from .const import (
     API_PATH,
     CONF_ACCEPT,
@@ -75,6 +75,7 @@ from .const import (
     INTERVALS,
 )
 from .coordinator import enabled
+from .dashboards import discover
 from .estimate import CALL_LIMIT, steady_per_min
 from .token import get_store, is_usable, origin
 
@@ -114,6 +115,11 @@ def _csv(value: Any) -> list[str]:
     return [v.strip() for v in str(value or "").split(",") if v.strip()]
 
 
+def _short(value: str) -> str:
+    """An ID the options can't name: its first characters."""
+    return f"{value[:8]}…" if len(value) > 8 else value
+
+
 def _verdi_url(base_url: str | None) -> str:
     return origin(base_url) or ""
 
@@ -128,10 +134,16 @@ def _settings(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str
     for key in ID_FIELDS:
         if key in LIST_FIELDS:
             data[key] = _csv(user_input.get(key))
+            if key == CONF_AVAILABILITY_IDS:
+                # The coordinator compares availability IDs case-sensitively.
+                data[key] = [v.lower() for v in data[key]]
         else:
             data[key] = (user_input.get(key) or "").strip()
-        if not data[key] and key not in OPTIONAL_FIELDS:
+        values = data[key] if key in LIST_FIELDS else [data[key]] if data[key] else []
+        if not values and key not in OPTIONAL_FIELDS:
             errors[key] = "required"
+        elif not all(is_guid(v) for v in values):
+            errors[key] = "invalid_id"
     return data, errors
 
 
@@ -265,6 +277,8 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class VerdiOptionsFlow(OptionsFlowWithReload):
+    _dashboard: list[str] | None = None
+
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
         placeholders: dict[str, str] = {}
@@ -276,21 +290,30 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             for name in (STATION, FAST_LANE, OWN_DATA, SAFETY):
                 options.update(user_input.get(name) or {})
             # The availabilities are settings in entry.data, picked here by name.
-            availability_ids = [str(v) for v in options.pop(CONF_AVAILABILITY_IDS, None) or []]
+            availability_ids = [
+                str(v).strip() for v in options.pop(CONF_AVAILABILITY_IDS, None) or [] if str(v).strip()
+            ]
             for key in (*STATION_INTERVALS, *SAFETY_INTERVALS):
                 options[key] = max(int(options[key]), INTERVALS[key][1])
             options[CONF_WATCHED_VEHICLES] = [str(v) for v in options.get(CONF_WATCHED_VEHICLES) or []]
             options[CONF_NON_PAGEABLE] = [str(v) for v in options.get(CONF_NON_PAGEABLE) or []]
             chosen = options.get(CONF_FAST_LANE) or []
             options[CONF_FAST_LANE] = [str(v) for v in chosen if v in FAST_LANE_CHOICES]
+            known = {o["value"] for o in self._availabilities(await self._dashboard_ids())}
+            pasted = [v for v in availability_ids if v not in known]
             rate = steady_per_min(options, calendar=bool(entry.data.get(CONF_FUNCTION_CALENDAR_ID)))
             if not availability_ids:
                 errors["base"] = "no_availability"
+            elif not all(is_guid(v) for v in pasted):
+                errors["base"] = "invalid_availability_id"
             elif rate > CALL_LIMIT:
                 errors["base"] = "too_many_calls"
                 placeholders["rate"] = f"{rate:.1f}"
                 placeholders["limit"] = str(CALL_LIMIT)
             else:
+                availability_ids = list(
+                    dict.fromkeys(v if v in known else v.lower() for v in availability_ids)
+                )
                 if availability_ids != list(entry.data.get(CONF_AVAILABILITY_IDS) or []):
                     self.hass.config_entries.async_update_entry(
                         entry, data={**entry.data, CONF_AVAILABILITY_IDS: availability_ids}
@@ -314,13 +337,22 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
         ] = SelectSelector(
             SelectSelectorConfig(options=self._vehicles(), multiple=True, mode=SelectSelectorMode.DROPDOWN)
         )
+        dashboard = await self._dashboard_ids()
+        configured = {v.lower() for v in self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []}
+        # An en dash when no dashboard was read; HA needs the placeholder on every show.
+        placeholders["unselected"] = (
+            str(sum(i not in configured for i in dashboard)) if dashboard else "\u2013"
+        )
         station[
             vol.Required(
                 CONF_AVAILABILITY_IDS, default=list(self.config_entry.data.get(CONF_AVAILABILITY_IDS) or [])
             )
         ] = SelectSelector(
             SelectSelectorConfig(
-                options=self._availabilities(), multiple=True, mode=SelectSelectorMode.DROPDOWN
+                options=self._availabilities(dashboard),
+                multiple=True,
+                custom_value=True,
+                mode=SelectSelectorMode.DROPDOWN,
             )
         )
         saved = [str(v) for v in options.get(CONF_NON_PAGEABLE) or []]
@@ -369,30 +401,66 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             seen.setdefault(vehicle_id, vehicle_id)
         return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]
 
-    def _availabilities(self) -> list[SelectOptionDict]:
-        """The station's availabilities by name, plus configured ones the list doesn't have."""
+    async def _dashboard_ids(self) -> list[str]:
+        """Availability IDs a station dashboard shows; read once per form, never while the entry
+        isn't loaded or the guard says wait."""
+        if self._dashboard is None:
+            self._dashboard = []
+            entry = self.config_entry
+            coordinator = getattr(entry, "runtime_data", None)
+            token = get_store(self.hass).get(entry.entry_id)
+            if coordinator is not None and token is not None:
+                api = VerdiApi(async_get_clientsession(self.hass), entry.data[CONF_BASE_URL], token)
+                try:
+                    self._dashboard = await discover(api, coordinator.guard, entry.data[CONF_STATION_ID])
+                except Exception as err:  # suggestions are optional
+                    _LOGGER.debug("Dashboard suggestions failed (%s)", type(err).__name__)
+        return self._dashboard
+
+    def _availabilities(self, dashboard: list[str]) -> list[SelectOptionDict]:
+        """The station's availabilities by name; configured and dashboard ones the list doesn't have
+        by short ID, marked ★ when a station dashboard shows them."""
         coordinator = getattr(self.config_entry, "runtime_data", None)
         listed = (coordinator.availabilities.listed or {}) if coordinator else {}
         seen = dict(listed)
-        for availability_id in self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []:
-            seen.setdefault(availability_id, availability_id)
+        known = {k.lower() for k in seen}
+        shown = set(dashboard)
+        for availability_id in [*(self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []), *dashboard]:
+            if availability_id.lower() in known:
+                continue
+            known.add(availability_id.lower())
+            mark = " ★" if availability_id.lower() in shown else ""
+            seen[availability_id] = f"{_short(availability_id)}{mark}"
         return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]
 
     async def _availability_names(self, saved: list[str]) -> list[str]:
         """The station's availability names, plus saved ones the list doesn't have.
 
         A failed fetch (no token, expired, Verdi down) is not an error here: the form
-        still opens with the saved names, and manual entry works.
+        still opens with the saved names, and manual entry works. The call goes through the
+        entry's guard when the entry is loaded.
         """
         entry = self.config_entry
         token = get_store(self.hass).get(entry.entry_id)
         names: list[str] = []
+        coordinator = getattr(entry, "runtime_data", None)
+        guard = coordinator.guard if coordinator is not None else None
         try:
             if token is None:
                 raise VerdiAuthError("no usable token")
+            if guard is not None:
+                if not guard.can_call():
+                    raise VerdiError("waiting before calling Verdi again")
+                guard.record_call()
             api = VerdiApi(async_get_clientsession(self.hass), entry.data[CONF_BASE_URL], token)
             items = await api.availability_display_items(entry.data[CONF_STATION_ID])
+            if guard is not None:
+                guard.succeeded()
             names = [str(i["text"]) for i in items if i.get("text")]
+        except VerdiUnavailable as err:
+            if guard is not None:
+                guard.wait(err.retry_after)
+            _LOGGER.debug("Could not list availability names: %s", err)
         except (VerdiError, KeyError, TypeError) as err:
             _LOGGER.debug("Could not list availability names: %s", err)
         return list(dict.fromkeys([*names, *saved]))
