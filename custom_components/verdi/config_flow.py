@@ -134,6 +134,9 @@ def _settings(user_input: dict[str, Any]) -> tuple[dict[str, Any], dict[str, str
     for key in ID_FIELDS:
         if key in LIST_FIELDS:
             data[key] = _csv(user_input.get(key))
+            if key == CONF_AVAILABILITY_IDS:
+                # The coordinator compares availability IDs case-sensitively.
+                data[key] = [v.lower() for v in data[key]]
         else:
             data[key] = (user_input.get(key) or "").strip()
         values = data[key] if key in LIST_FIELDS else [data[key]] if data[key] else []
@@ -287,7 +290,9 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             for name in (STATION, FAST_LANE, OWN_DATA, SAFETY):
                 options.update(user_input.get(name) or {})
             # The availabilities are settings in entry.data, picked here by name.
-            availability_ids = [str(v) for v in options.pop(CONF_AVAILABILITY_IDS, None) or []]
+            availability_ids = [
+                str(v).strip() for v in options.pop(CONF_AVAILABILITY_IDS, None) or [] if str(v).strip()
+            ]
             for key in (*STATION_INTERVALS, *SAFETY_INTERVALS):
                 options[key] = max(int(options[key]), INTERVALS[key][1])
             options[CONF_WATCHED_VEHICLES] = [str(v) for v in options.get(CONF_WATCHED_VEHICLES) or []]
@@ -406,7 +411,10 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             token = get_store(self.hass).get(entry.entry_id)
             if coordinator is not None and token is not None:
                 api = VerdiApi(async_get_clientsession(self.hass), entry.data[CONF_BASE_URL], token)
-                self._dashboard = await discover(api, coordinator.guard, entry.data[CONF_STATION_ID])
+                try:
+                    self._dashboard = await discover(api, coordinator.guard, entry.data[CONF_STATION_ID])
+                except Exception as err:  # suggestions are optional
+                    _LOGGER.debug("Dashboard suggestions failed (%s)", type(err).__name__)
         return self._dashboard
 
     def _availabilities(self, dashboard: list[str]) -> list[SelectOptionDict]:

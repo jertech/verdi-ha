@@ -33,7 +33,8 @@ def availability_ids(grid: Any, station_id: str) -> list[str]:
     if not isinstance(grid, dict):
         return found
     station = station_id.lower()
-    for item in grid.get("widgetGridItems") or []:
+    items = grid.get("widgetGridItems")
+    for item in items if isinstance(items, list) else []:
         if not isinstance(item, dict) or item.get("widgetType") != PERSONNEL_WIDGET:
             continue
         config = item.get("configuration")

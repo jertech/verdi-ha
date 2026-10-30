@@ -110,3 +110,10 @@ def test_odd_widget_configuration_contributes_nothing():
     ):
         grid = r.widget_grid(r.DASH_1, [r.personnel_widget(stations, avs)])
         assert availability_ids(grid, "station-1") == []
+    for items in (5, 2.5, True, "abc", {"a": 1}):
+        assert availability_ids(r.widget_grid(r.DASH_1, items), "station-1") == []
+
+
+async def test_a_dashboard_with_odd_widget_items_does_not_stop_the_others():
+    grids = {**r.WIDGET_GRID, r.DASH_1: r.widget_grid(r.DASH_1, 5)}
+    assert await discover(FakeApi(grids), guard(), "station-1") == [r.AV_RADIO]
