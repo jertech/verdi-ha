@@ -5,6 +5,21 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.3] - unreleased
+
+### Integration
+- The options name every availability they can. The others show a short ID, marked ★ when a station
+  dashboard shows them, and you can paste an availability ID. The options say how many availabilities
+  a station dashboard shows that aren't selected: these usually include the statuses people get when
+  they're called, and without them called people drop out of Personnel. Reading the dashboards happens
+  only while the options are open.
+- Setup and Reconfigure refuse values that aren't Verdi IDs.
+- The timing log saves only when a failing update actually cleared a record, and drops saved records
+  without an opening time.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.9.2] - unreleased
 
 ### Integration
