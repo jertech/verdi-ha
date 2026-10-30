@@ -61,7 +61,7 @@
     "step": {
       "init": {
         "title": "Verdi-opties",
-        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Elke opvraging gebeurt pas als ze nodig is: personeel en voertuigen bij elke tik, de rest als de postgegevens een wijziging tonen, op een tijdstip dat Verdi meldde, of na het veiligheidsinterval. Bij Post hebben statussen die niet in de planbare lijst staan geen naam; ze tonen een korte ID, en ★ betekent dat een dashboard van de post ze toont. Op een dashboard van de post getoond maar niet gekozen: {unselected}. Daartussen zitten meestal de statussen die mensen krijgen als ze opgeroepen worden; zonder die statussen vallen opgeroepen mensen uit Personen. Je kunt ook een status-ID plakken.",
+        "description": "Als \"Namen van collega's tonen\" uit staat, geven de wachtsensoren ingevuld of open weer en tonen kalenderafspraken alleen de functie. Staat de optie aan, dan worden namen en diensturen van collega's in de geschiedenis van Home Assistant bewaard. Elke opvraging gebeurt pas als ze nodig is: personeel en voertuigen bij elke tik, de rest als de postgegevens een wijziging tonen, op een tijdstip dat Verdi meldde, of na het veiligheidsinterval. Statussen die Verdi instelt als iemand opgeroepen wordt, worden altijd meegenomen en meegeteld. Je kunt ook een status-ID plakken.",
         "data": {
           "show_names": "Namen van collega's tonen"
         },
