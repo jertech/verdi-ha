@@ -166,13 +166,14 @@ class PersonId:
 
 
 class Availabilities:
-    """The station's availabilities from the list behind the web app's availability filter, asked
-    on entry load and kept in memory.
+    """The station's availabilities, asked on entry load and kept in memory: the plannable list
+    behind the web app's availability filter, and the full list, whose extra entries are the
+    statuses Verdi sets when someone is called (automatic).
 
-    Personnel is requested with all of them, so your own line is there whatever your availability;
-    only the configured ones count. The list only has availabilities that can be planned: configured
-    ones not in it are still requested and counted. Until it is loaded, only the configured ones are
-    requested. The calls go through the guard, as PersonId's.
+    Personnel is requested with all of them, so your own line and called people are there whatever
+    their availability. Configured and automatic ones count; the other plannable ones are listed but
+    not counted. Configured ones Verdi doesn't list are still requested and counted. Until both lists
+    are loaded, only the configured ones are requested. The calls go through the guard, as PersonId's.
     """
 
     PAGE = 50
@@ -182,42 +183,53 @@ class Availabilities:
         self._api, self._guard, self._station_id = api, guard, station_id
         self.configured = list(configured)
         self.listed: dict[str, str] | None = None
+        self.automatic: dict[str, str] | None = None
 
     async def load(self) -> None:
-        listed: dict[str, str] = {}
+        listed = await self._read(plannable=True)
+        everything = await self._read(plannable=False)
+        self.listed = listed
+        self.automatic = {i: name for i, name in everything.items() if i not in listed}
+
+    async def _read(self, *, plannable: bool) -> dict[str, str]:
+        found: dict[str, str] = {}
         skip = 0
         for _ in range(self.MAX_PAGES):
             if not self._guard.can_call():
                 raise VerdiError("availabilities: waiting before calling Verdi again")
             self._guard.record_call()
             try:
-                data = await self._api.availabilities(self._station_id, skip, self.PAGE)
+                data = await self._api.availabilities(self._station_id, skip, self.PAGE, plannable=plannable)
             except VerdiUnavailable as err:
                 self._guard.wait(err.retry_after)
                 raise
             self._guard.succeeded()
-            listed |= parse.availability_list(data)
+            found |= parse.availability_list(data)
             items = len(data.get("data") or [])
             skip += items
             total = data.get("total")
             if not items or not isinstance(total, int) or skip >= total:
                 break
-        self.listed = listed
+        return found
 
     def requested(self) -> list[str]:
-        """The IDs to request personnel with: the configured ones, then the rest of the list."""
-        return self.configured + [i for i in self.listed or {} if i not in self.configured]
+        """The IDs to request personnel with: the configured ones, then the rest of the plannable list,
+        then the automatic ones."""
+        return list(dict.fromkeys([*self.configured, *(self.listed or {}), *(self.automatic or {})]))
 
     def excluded(self) -> frozenset[str]:
-        """Names of listed availabilities that aren't configured: listed in personnel, not counted."""
+        """Names of plannable availabilities that aren't configured: listed in personnel, not counted.
+        Automatic ones always count."""
         listed = self.listed or {}
         counted = {name for i, name in listed.items() if i in self.configured}
+        counted |= set((self.automatic or {}).values())
         return frozenset(name for i, name in listed.items() if i not in self.configured) - counted
 
     def diagnostics(self) -> dict[str, Any]:
         return {
             "loaded": self.listed is not None,
             "listed": len(self.listed) if self.listed is not None else None,
+            "automatic": len(self.automatic) if self.automatic is not None else None,
             "configured": len(self.configured),
             "requested": len(self.requested()),
         }

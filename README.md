@@ -13,7 +13,7 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `binary_sensor.<name>_readiness_<train>` | Whether a vehicle train is complete, with positions as attributes |
 | `sensor.<vehicle>` | Vehicle availability |
 | `binary_sensor.<vehicle>_on_intervention` | Whether the vehicle is on an intervention |
-| `sensor.<name>_personnel` | Head count of the configured availabilities, with counts per availability as attributes |
+| `sensor.<name>_personnel` | Head count of the configured availabilities (the statuses Verdi sets when someone is called always count too), with counts per availability as attributes |
 | `sensor.<name>_team_on_duty_<group>` | Current team, next team and rotation time |
 | `sensor.<name>_on_duty_<function>` | Whether a crew function is filled now (or who, see privacy) |
 | `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group (with its switch under "Your own data from the Verdi app" on) |
@@ -136,7 +136,8 @@ Options (**Configure** on the integration):
 - "Show colleagues' names";
 - **Station:** the tick (default 60 seconds, at least 30), the tick during an intervention
   (default 30, at least 15), the vehicles that count for interventions (none picked: all) and the
-  availabilities that count in the personnel sensor, by name;
+  availabilities that count in the personnel sensor, by name (the statuses Verdi sets when someone
+  is called always count too);
 - **Your own data from the Verdi app:** one switch each for your availability, pre-alert,
   garrison, your calendars and your statistics (pre-alert and garrison off by default);
 - **Safety intervals:** the longest time between two fetches of readiness, roster, team on duty,

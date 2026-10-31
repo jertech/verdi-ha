@@ -50,21 +50,26 @@ EXTRA = [person("p4", "Not available", intervention=True), person("p5", "Sick", 
 
 
 class FakeApi:
-    """Pages of the availability list; an Exception in pages is raised."""
+    """Pages of the plannable list and of the full list (the same pages unless given); an Exception
+    in pages is raised."""
 
-    def __init__(self, pages: list) -> None:
-        self.pages, self.calls = pages, []
+    def __init__(self, pages: list, full: list | None = None) -> None:
+        self.pages = {True: pages, False: pages if full is None else full}
+        self.calls: list = []
 
-    async def availabilities(self, station_id: str, skip: int, take: int) -> dict:
-        self.calls.append((station_id, skip, take))
-        page = self.pages[len(self.calls) - 1]
+    async def availabilities(self, station_id: str, skip: int, take: int, *, plannable: bool = True) -> dict:
+        self.calls.append((station_id, skip, take, plannable))
+        done = sum(1 for call in self.calls if call[3] == plannable)
+        page = self.pages[plannable][done - 1]
         if isinstance(page, Exception):
             raise page
         return page
 
 
-def make(pages: list, configured: list[str] | None = None) -> tuple[Availabilities, FakeApi, Guard, Clock]:
-    api, clock = FakeApi(pages), Clock()
+def make(
+    pages: list, configured: list[str] | None = None, full: list | None = None
+) -> tuple[Availabilities, FakeApi, Guard, Clock]:
+    api, clock = FakeApi(pages, full), Clock()
     guard = Guard(random.Random(1), clock)
     listed = Availabilities(api, guard, "station-1", configured or ["av-1", "av-2"])  # type: ignore[arg-type]
     return listed, api, guard, clock
@@ -93,10 +98,16 @@ async def test_requested_and_excluded():
     assert listed.requested() == ["av-radio", "av-1"]  # not loaded: as before
     assert listed.excluded() == frozenset()
     await listed.load()
-    assert api.calls == [("station-1", 0, 50)]
+    assert api.calls == [("station-1", 0, 50, True), ("station-1", 0, 50, False)]
     assert listed.requested() == ["av-radio", "av-1", "av-2", "av-3", "av-4"]
     assert listed.excluded() == frozenset({"Urgent", "Not available", "Sick"})
-    assert listed.diagnostics() == {"loaded": True, "listed": 4, "configured": 2, "requested": 5}
+    assert listed.diagnostics() == {
+        "loaded": True,
+        "listed": 4,
+        "automatic": 0,
+        "configured": 2,
+        "requested": 5,
+    }
 
 
 async def test_a_name_that_is_also_configured_is_counted():
@@ -111,9 +122,9 @@ async def test_pages_until_total():
     second = {"data": [{"guid": f"b{i}", "text": f"B{i}"} for i in range(10)], "total": 60}
     listed, api, guard, _ = make([first, second])
     await listed.load()
-    assert [c[1] for c in api.calls] == [0, 50]
+    assert [c[1] for c in api.calls] == [0, 50, 0, 50]
     assert len(listed.listed or {}) == 60
-    assert guard.calls_last_minute() == 2
+    assert guard.calls_last_minute() == 4
 
 
 async def test_guard_blocks_the_list():
@@ -223,3 +234,55 @@ async def test_your_line_while_on_an_unconfigured_availability(
     assert any(p["id"] == "me-1" for p in coordinator.data["personnel"]["persons"])
     assert coordinator.data["personnel"]["total"] == 1  # you aren't counted
     assert hass.states.get("sensor.verdi_personnel").state == "1"
+
+
+CALLED = {"guid": "av-call", "text": "Called"}
+FULL = {**r.AVAILABILITIES, "data": [*r.AVAILABILITIES["data"], CALLED], "total": 5}
+
+
+async def test_automatic_statuses_are_found_requested_and_counted():
+    listed, _, _, _ = make([r.AVAILABILITIES], configured=["av-1"], full=[FULL])
+    await listed.load()
+    assert listed.automatic == {"av-call": "Called"}
+    assert listed.requested() == ["av-1", "av-2", "av-3", "av-4", "av-call"]
+    assert listed.excluded() == frozenset({"Urgent", "Not available", "Sick"})
+    assert listed.diagnostics() == {
+        "loaded": True,
+        "listed": 4,
+        "automatic": 1,
+        "configured": 1,
+        "requested": 5,
+    }
+
+
+async def test_a_configured_automatic_status_is_requested_once():
+    listed, _, _, _ = make([r.AVAILABILITIES], configured=["av-call", "av-1"], full=[FULL])
+    await listed.load()
+    assert listed.requested() == ["av-call", "av-1", "av-2", "av-3", "av-4"]
+    assert "Called" not in listed.excluded()
+
+
+async def test_a_failing_full_list_loads_nothing():
+    listed, _, _, _ = make([r.AVAILABILITIES], full=[VerdiUnavailable("HTTP 503", retry_after=60)])
+    with pytest.raises(VerdiUnavailable):
+        await listed.load()
+    assert listed.listed is None and listed.automatic is None
+    assert listed.requested() == ["av-1", "av-2"]
+
+
+async def test_called_people_count_without_being_configured(hass: HomeAssistant, config_entry):
+    bodies: list = []
+    responses = r.all_ok()
+    responses[LIST] = lambda body: r.AVAILABILITIES if len(body["filter"]) == 2 else FULL
+    responses[PERSONNEL] = personnel(*COUNTED, person("p6", "Called", intervention=True))
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", recording(responses, bodies)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+    asked = [b["availabilityFilter"] for path, b in bodies if path == PERSONNEL]
+    assert asked[-1] == ["av-1", "av-2", "av-3", "av-4", "av-call"]
+    state = hass.states.get("sensor.verdi_personnel")
+    assert state.state == "4"  # Available, Urgent, Radio (configured elsewhere) and Called
+    assert state.attributes["Called"] == 1
+    assert state.attributes["on_intervention"] == 2

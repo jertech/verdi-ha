@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from aiohttp import ClientSession
 
-from custom_components.verdi.api import ALLOWED_ENDPOINTS, VerdiApi, VerdiError, allowlisted, is_guid
+from custom_components.verdi.api import ALLOWED_ENDPOINTS, VerdiApi, VerdiError, is_guid
 
 GRID = "00000000-0000-4000-8000-000000000001"
 
@@ -37,12 +37,12 @@ async def test_other_endpoints_are_refused():
 
 
 async def test_every_lookup_is_allowed():
-    """Each client method sends an allowlisted (method, path, command)."""
+    """Each client method sends an allowed (method, path, command)."""
     calls = []
 
     class Recorder(VerdiApi):
         async def _request(self, method, path, body):
-            calls.append((method, allowlisted(path), (body or {}).get("command")))
+            calls.append((method, path, (body or {}).get("command")))
             return {}
 
     from datetime import UTC, datetime
@@ -52,6 +52,7 @@ async def test_every_lookup_is_allowed():
     await api.readiness("s", ["t"])
     await api.personnel("s", ["a"])
     await api.availabilities("s", 0, 50)
+    await api.availabilities("s", 0, 50, plannable=False)
     await api.vehicles("s")
     await api.team_on_duty("g")
     await api.roster(["c"])
@@ -63,8 +64,6 @@ async def test_every_lookup_is_allowed():
     await api.statistics("p", "nl")
     await api.upcoming_events("p", "nl")
     await api.current_intervention("p", "nl")
-    await api.widget_grids()
-    await api.widget_grid(GRID)
     assert set(calls) == set(ALLOWED_ENDPOINTS)
 
 
@@ -100,42 +99,23 @@ def test_is_guid():
         assert not is_guid(value)
 
 
-def test_only_a_guid_last_segment_fills_the_template():
-    assert allowlisted(f"widgetgrid/{GRID}") == "widgetgrid/{id}"
-    assert allowlisted("widgetgrid/commands") == "widgetgrid/commands"
-    assert allowlisted("widgetgrid/../x") == "widgetgrid/../x"
-    assert allowlisted(f"configuration/{GRID}") == f"configuration/{GRID}"
-    assert allowlisted(f"x/widgetgrid/{GRID}") == f"x/widgetgrid/{GRID}"
-    assert allowlisted(f"widgetgrid/{GRID}/") == f"widgetgrid/{GRID}/"
-
-
-async def test_template_paths_are_refused_without_a_guid():
-    async with ClientSession() as session:
-        api = VerdiApi(session, "https://zone.verdi.example/verdi-core/api/v1", "x")
-        with pytest.raises(VerdiError, match="not allowed"):
-            await api.widget_grid("nope")
-        with pytest.raises(VerdiError, match="not allowed"):
-            await api._request("GET", f"configuration/vehicles/{GRID}", None)
-        with pytest.raises(VerdiError, match="not allowed"):
-            await api._request("GET", "widgetgrid/{id}", None)
-
-
-async def test_dashboard_list_body():
+async def test_availability_list_bodies():
     bodies = []
 
     class Recorder(VerdiApi):
         async def _request(self, method, path, body):
-            bodies.append((method, path, body))
+            bodies.append(body)
             return {}
 
     api = Recorder(None, "https://x.example", "t")  # type: ignore[arg-type]
-    await api.widget_grids()
-    await api.widget_grid(GRID)
+    await api.availabilities("s", 0, 50)
+    await api.availabilities("s", 50, 50, plannable=False)
+    station = {"field": "station", "value": "s", "operator": "Contains"}
     assert bodies == [
-        (
-            "POST",
-            "widgetgrid/commands",
-            {"command": "WidgetGridGetListForCurrentUserCommand", "gridType": "Dashboard", "isDetail": None},
-        ),
-        ("GET", f"widgetgrid/{GRID}", None),
+        {
+            "filter": [{"field": "allowPlanning", "value": "true", "operator": "Eq"}, station],
+            "skip": 0,
+            "take": 50,
+        },
+        {"filter": [station], "skip": 50, "take": 50},
     ]

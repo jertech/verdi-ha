@@ -75,7 +75,6 @@ from .const import (
     INTERVALS,
 )
 from .coordinator import enabled
-from .dashboards import discover
 from .estimate import CALL_LIMIT, steady_per_min
 from .token import get_store, is_usable, origin
 
@@ -277,8 +276,8 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class VerdiOptionsFlow(OptionsFlowWithReload):
-    _dashboard: list[str] | None = None
     _names: list[str] | None = None
+    _automatic_ids: set[str] | None = None
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -300,7 +299,7 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             options[CONF_NON_PAGEABLE] = [str(v) for v in options.get(CONF_NON_PAGEABLE) or []]
             chosen = options.get(CONF_FAST_LANE) or []
             options[CONF_FAST_LANE] = [str(v) for v in chosen if v in FAST_LANE_CHOICES]
-            known = {o["value"] for o in self._availabilities(await self._dashboard_ids())}
+            known = {o["value"] for o in self._availabilities()}
             pasted = [v for v in availability_ids if v not in known]
             rate = steady_per_min(options, calendar=bool(entry.data.get(CONF_FUNCTION_CALENDAR_ID)))
             if not availability_ids:
@@ -312,9 +311,12 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
                 placeholders["rate"] = f"{rate:.1f}"
                 placeholders["limit"] = str(CALL_LIMIT)
             else:
-                availability_ids = list(
-                    dict.fromkeys(v if v in known else v.lower() for v in availability_ids)
-                )
+                automatic = self._automatic()
+                kept = [v for v in entry.data.get(CONF_AVAILABILITY_IDS) or [] if v.lower() in automatic]
+                merged: dict[str, str] = {}
+                for v in [*(v if v in known else v.lower() for v in availability_ids), *kept]:
+                    merged.setdefault(v.lower(), v)
+                availability_ids = list(merged.values())
                 if availability_ids != list(entry.data.get(CONF_AVAILABILITY_IDS) or []):
                     self.hass.config_entries.async_update_entry(
                         entry, data={**entry.data, CONF_AVAILABILITY_IDS: availability_ids}
@@ -338,19 +340,13 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
         ] = SelectSelector(
             SelectSelectorConfig(options=self._vehicles(), multiple=True, mode=SelectSelectorMode.DROPDOWN)
         )
-        dashboard = await self._dashboard_ids()
-        configured = {v.lower() for v in self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []}
-        # An en dash when no dashboard was read; HA needs the placeholder on every show.
-        placeholders["unselected"] = (
-            str(sum(i not in configured for i in dashboard)) if dashboard else "\u2013"
-        )
+        automatic = self._automatic()
+        configured = list(self.config_entry.data.get(CONF_AVAILABILITY_IDS) or [])
         station[
-            vol.Required(
-                CONF_AVAILABILITY_IDS, default=list(self.config_entry.data.get(CONF_AVAILABILITY_IDS) or [])
-            )
+            vol.Required(CONF_AVAILABILITY_IDS, default=[v for v in configured if v.lower() not in automatic])
         ] = SelectSelector(
             SelectSelectorConfig(
-                options=self._availabilities(dashboard),
+                options=self._availabilities(),
                 multiple=True,
                 custom_value=True,
                 mode=SelectSelectorMode.DROPDOWN,
@@ -402,36 +398,26 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             seen.setdefault(vehicle_id, vehicle_id)
         return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]
 
-    async def _dashboard_ids(self) -> list[str]:
-        """Availability IDs a station dashboard shows; read once per form, never while the entry
-        isn't loaded or the guard says wait."""
-        if self._dashboard is None:
-            self._dashboard = []
-            entry = self.config_entry
-            coordinator = getattr(entry, "runtime_data", None)
-            token = get_store(self.hass).get(entry.entry_id)
-            if coordinator is not None and token is not None:
-                api = VerdiApi(async_get_clientsession(self.hass), entry.data[CONF_BASE_URL], token)
-                try:
-                    self._dashboard = await discover(api, coordinator.guard, entry.data[CONF_STATION_ID])
-                except Exception as err:  # suggestions are optional
-                    _LOGGER.debug("Dashboard suggestions failed (%s)", type(err).__name__)
-        return self._dashboard
+    def _automatic(self) -> set[str]:
+        """IDs (lower case) of the statuses Verdi sets when someone is called; they always count.
+        Read once per form, so a reload while it's open can't drop a hidden one on save."""
+        if self._automatic_ids is None:
+            coordinator = getattr(self.config_entry, "runtime_data", None)
+            automatic = (coordinator.availabilities.automatic or {}) if coordinator else {}
+            self._automatic_ids = {k.lower() for k in automatic}
+        return self._automatic_ids
 
-    def _availabilities(self, dashboard: list[str]) -> list[SelectOptionDict]:
-        """The station's availabilities by name; configured and dashboard ones the list doesn't have
-        by short ID, marked ★ when a station dashboard shows them."""
+    def _availabilities(self) -> list[SelectOptionDict]:
+        """The station's plannable availabilities by name, plus configured ones Verdi doesn't list by
+        short ID. The automatic ones aren't offered."""
         coordinator = getattr(self.config_entry, "runtime_data", None)
         listed = (coordinator.availabilities.listed or {}) if coordinator else {}
         seen = dict(listed)
-        known = {k.lower() for k in seen}
-        shown = set(dashboard)
-        for availability_id in [*(self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []), *dashboard]:
-            if availability_id.lower() in known:
-                continue
-            known.add(availability_id.lower())
-            mark = " ★" if availability_id.lower() in shown else ""
-            seen[availability_id] = f"{_short(availability_id)}{mark}"
+        known = {k.lower() for k in seen} | self._automatic()
+        for availability_id in self.config_entry.data.get(CONF_AVAILABILITY_IDS) or []:
+            if availability_id.lower() not in known:
+                known.add(availability_id.lower())
+                seen[availability_id] = _short(availability_id)
         return [SelectOptionDict(value=k, label=v) for k, v in seen.items()]
 
     async def _availability_names(self, saved: list[str]) -> list[str]:

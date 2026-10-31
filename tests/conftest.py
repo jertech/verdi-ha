@@ -64,7 +64,8 @@ def make_token(*, sub: str | None = SUB, iss: str = f"{VERDI}/auth", lifetime: i
 
 
 def fake_command(responses, calls: list | None = None):
-    """Answer from responses[path]; the app route answers per command. An Exception value is raised."""
+    """Answer from responses[path]; the app route answers per command. An Exception value is raised.
+    A callable value is called with the request body."""
 
     async def _command(self, path, body):
         if isinstance(responses, Exception):
@@ -72,6 +73,8 @@ def fake_command(responses, calls: list | None = None):
         if calls is not None:
             calls.append((path, body.get("command"), body.get("language")))
         value = responses[path]
+        if callable(value):
+            value = value(body)
         if path == APP_ROUTE:
             value = value[body["command"]]
         if isinstance(value, Exception):
@@ -79,18 +82,6 @@ def fake_command(responses, calls: list | None = None):
         return value
 
     return _command
-
-
-def fake_grid(grids: dict):
-    """Answer widget_grid from grids[grid_id]; an Exception value is raised."""
-
-    async def _grid(self, grid_id):
-        value = grids[grid_id]
-        if isinstance(value, Exception):
-            raise value
-        return value
-
-    return _grid
 
 
 @pytest.fixture(autouse=True)
@@ -127,7 +118,6 @@ def mock_api():
     with (
         patch("custom_components.verdi.api.VerdiApi.command", fake_command(r.all_ok())),
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
-        patch("custom_components.verdi.api.VerdiApi.widget_grid", fake_grid(r.WIDGET_GRID)),
     ):
         yield
 

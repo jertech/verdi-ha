@@ -189,6 +189,8 @@ class Signals:
         if key == "personnel":
             self._own_name = self._own_name_of(new)
             self._set_pageability()
+            if self._station.availabilities.listed is None:
+                self._retry_missing()  # with or without personal data and your own line
             if self._personal is not None:
                 self._own_line(new, old)
         elif key == "paged":
@@ -285,15 +287,17 @@ class Signals:
             self._statistics_soon("trigger:own_intervention")
 
     def _retry_missing(self) -> None:
-        """Ask again for your person GUID or the availability list, whichever is missing."""
+        """Ask again for the availability lists and, with personal data on, your person GUID,
+        whichever is missing; at most once every PERSONAL_RETRY_SECONDS."""
         now = dt_util.now()
         if self._retry_at and now < self._retry_at:
             return
         self._retry_at = now + timedelta(seconds=PERSONAL_RETRY_SECONDS)
 
         async def ask() -> None:
-            with suppress(VerdiError):
-                await self._station.person.get()
+            if self._personal is not None and self._station.person.value is None:
+                with suppress(VerdiError):
+                    await self._station.person.get()
             if self._station.availabilities.listed is None:
                 with suppress(VerdiError):
                     await self._station.availabilities.load()
