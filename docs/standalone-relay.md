@@ -53,7 +53,7 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-The venv needs `pip install playwright==1.64.0 && playwright install --with-deps chromium`.
+The venv needs `pip install playwright==1.64.1 && playwright install --with-deps chromium`.
 
 ## Several Verdi entries
 

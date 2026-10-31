@@ -31,7 +31,7 @@ On start, the app moves the file into its private data folder and deletes the co
 
 ## Reading the log
 
-- `Verdi Token Relay 0.6.0 (app)`: the version that is running.
+- `Verdi Token Relay <version> (app)`: the version that is running.
 - `New Verdi token, valid until ... (login took 8 s, login state seeded 3.2 days ago)`: an hourly
   renewal. The age tells you how long your one-time login has lasted so far.
 - `Token delivered to Home Assistant`: once per new token, and again after Home Assistant was away.
