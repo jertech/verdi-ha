@@ -409,9 +409,9 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
 
     def _automatic(self) -> set[str]:
         """IDs (lower case) of the statuses Verdi sets when someone is called; they always count.
-        Read once per form, with whether both lists were loaded then, so a reload while it's open
-        can't drop a hidden one on save."""
-        if self._automatic_ids is None:
+        Kept once both lists were loaded, so a reload while the form is open can't drop a hidden one
+        on save; read again until then, so a save retried after the lists load goes through."""
+        if not self._lists_loaded:
             coordinator = getattr(self.config_entry, "runtime_data", None)
             lists = coordinator.availabilities if coordinator else None
             self._lists_loaded = lists is not None and None not in (lists.listed, lists.automatic)

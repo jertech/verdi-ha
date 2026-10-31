@@ -571,19 +571,49 @@ async def test_options_add_before_the_lists_load(hass: HomeAssistant, config_ent
     assert config_entry.data["availability_ids"] == ["av-1", CALLED, new]
 
 
-async def test_options_loaded_after_the_form_opened_still_refuse(hass: HomeAssistant, config_entry, mock_api):
+async def test_options_saved_again_once_the_lists_load(hass: HomeAssistant, config_entry, mock_api):
     await setup_with_token(hass, config_entry)
-    result = await _open_with(hass, config_entry, ["av-1", CALLED], loaded=False)
+    result = await _open_with(hass, config_entry, ["av-1", "av-2", CALLED], loaded=False)
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], _submit({"availability_ids": ["av-1"]})
+    )
+    assert result["errors"] == {"base": "availabilities_not_loaded"}
     availabilities = config_entry.runtime_data.availabilities
     availabilities.listed, availabilities.automatic = (
         {a["guid"]: a["text"] for a in r.AVAILABILITIES["data"]},
         {CALLED: "Called"},
     )
+    with patch("custom_components.verdi.async_setup_entry", return_value=True):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], _submit({"availability_ids": ["av-1"]})
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.data["availability_ids"] == ["av-1", CALLED]  # the call status stays
+
+
+async def test_options_a_bad_paste_is_reported_before_the_lists(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await _open_with(hass, config_entry, ["av-1", CALLED], loaded=False)
     result = await hass.config_entries.options.async_configure(
-        result["flow_id"], _submit({"availability_ids": ["av-1"]})
+        result["flow_id"], _submit({"availability_ids": ["av-1", "not-an-id"]})
     )
-    assert result["errors"] == {"base": "availabilities_not_loaded"}
-    assert config_entry.data["availability_ids"] == ["av-1", CALLED]
+    assert result["errors"] == {"base": "invalid_availability_id"}
+
+
+async def test_options_a_configured_id_in_other_case_is_kept_once(
+    hass: HomeAssistant, config_entry, mock_api
+):
+    await setup_with_token(hass, config_entry)
+    pasted = r.guid(0xB3)
+    result = await _open_with(hass, config_entry, ["av-1", pasted], loaded=True)
+    with patch("custom_components.verdi.async_setup_entry", return_value=True):
+        result = await hass.config_entries.options.async_configure(
+            result["flow_id"], _submit({"availability_ids": ["av-1", pasted.upper()]})
+        )
+        await hass.async_block_till_done()
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert config_entry.data["availability_ids"] == ["av-1", pasted]
 
 
 async def test_options_on_an_unloaded_entry_refuse_a_removal(hass: HomeAssistant, config_entry, mock_api):
