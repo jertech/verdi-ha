@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.6] - unreleased
+
+### Integration
+- Ready for the Home Assistant Marketplace (2026.11) and HACS: the README explains installing through
+  **Settings > Marketplace** or HACS, with a button that opens the repository in your Home Assistant
+  and one that starts the setup.
+- `strings.json` is no longer shipped: custom integrations use the files in `translations/`.
+- `hacs.json` drops the `render_readme` key, which the Marketplace no longer uses.
+- The HACS and hassfest checks also run every night.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.9.5] - unreleased
 
 ### Integration
