@@ -97,11 +97,19 @@ station's last ten interventions; every identifier is removed.
 
 ## Installation
 
-### 1. Integration (HACS)
+### 1. Integration (Marketplace or HACS)
 
-1. In HACS, open the menu, choose **Custom repositories**, add `https://github.com/jertech/verdi-ha`
-   with type **Integration**.
-2. Install **Verdi (unofficial)** and restart Home Assistant.
+[![Open your Home Assistant instance and open this repository.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jertech&repository=verdi-ha&category=integration)
+
+The button opens this repository in your Home Assistant. Or add it by hand:
+
+- **Home Assistant 2026.11 or later:** **Settings > Marketplace**, open the menu, choose
+  **Custom repositories**, add `https://github.com/jertech/verdi-ha` with type **Integration**.
+  The Marketplace needs a GitHub connection for custom repositories.
+- **Older versions, with HACS:** in HACS, open the menu, choose **Custom repositories**, add
+  `https://github.com/jertech/verdi-ha` with type **Integration**.
+
+Then install **Verdi (unofficial)**, and restart Home Assistant when it asks you to.
 
 ### 2. Token Relay app (Home Assistant OS)
 
@@ -135,6 +143,8 @@ Sign in in the window that opens. The script saves `verdi_state.json`: **treat i
    It moves the file into its private data folder and deletes the copy you dropped in.
 
 ### 5. Add the integration
+
+[![Open your Home Assistant instance and start setting up the Verdi integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=verdi)
 
 **Settings > Devices & services > Add integration > Verdi (unofficial)**. Accept the notice, enter your
 Verdi address and the IDs ([how to find them](docs/finding-your-ids.md)). The app delivers a token

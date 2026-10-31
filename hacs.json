@@ -1,5 +1,4 @@
 {
   "name": "Verdi (unofficial)",
-  "homeassistant": "2026.4.0",
-  "render_readme": true
+  "homeassistant": "2026.4.0"
 }

@@ -28,7 +28,7 @@ docker run -d --name verdi-token-relay --restart=always \
   -e HA_URL=http://homeassistant.local:8123 \
   -e HA_TOKEN=<long-lived token of the dedicated user> \
   -v "$PWD/verdi-data:/data" \
-  ghcr.io/jertech/verdi-ha-token-relay:0.9.5
+  ghcr.io/jertech/verdi-ha-token-relay:0.9.6
 ```
 
 Prefer an `--env-file` with permissions `600` over putting `HA_TOKEN` on the command line.
