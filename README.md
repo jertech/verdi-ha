@@ -19,20 +19,24 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group (with its switch under "Your own data from the Verdi app" on) |
 | `binary_sensor.<name>_pre_alert` | Whether you have a pre-alert (off by default; switch on in the options) |
 | `binary_sensor.<name>_garrison` | Whether you're on garrison (off by default; switch on in the options) |
+| `binary_sensor.<name>_paged` | Whether you're paged right now, with the page's station, crew function, vehicle, alarm time, incident and your confirmation as attributes |
 | `sensor.<name>_availability_this_year_<station>` | Your availability % this year at a station; earlier years as attributes |
 | `sensor.<name>_times_called_<station>_<service>` | How often you were called for a service, with the last call |
 | `calendar.<name>_my_shifts` | Your own shifts, about a month ahead |
 | `calendar.<name>_my_availability` | Availability you set, and exceptions, about a month ahead |
 | `calendar.<name>_roster` | Shifts of the function calendar |
 | `sensor.<name>_token_expires` | When the current token expires |
+| `sensor.<name>_pace` | Polling pace: normal, intervention or backoff (diagnostic, disabled by default) |
 
 The integration only reads. It calls the endpoints listed in [docs/endpoints.md](docs/endpoints.md),
 with the same requests the Verdi web interface makes for the station data, and the read commands of
 Verdi's app route for your own data. Each lookup is fetched only when it's due: personnel and
 vehicles every tick (60 seconds by default, 30 seconds during an intervention), the rest when the
 station data shows a change, at a time Verdi announced (a team rotation, a shift change, the end of
-your availability), or after a safety interval. While Verdi has trouble, polling slows down; it never
-makes more than 30 calls a minute.
+your availability), or after a safety interval. While you can be paged, your current page is checked
+on a separate fast tick (15 seconds by default); when your availability says you can't be paged,
+that check pauses. While Verdi has trouble, polling slows down; it never makes more than 30 calls a
+minute.
 
 ## Optional: Remote Calendar subscription
 
@@ -64,7 +68,11 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
   per station and per planning group) with its end time; pre-alert details (description, station,
   function, start and, when Verdi sends one, end) and your garrison station and city, both off by
   default; your shifts and availability events about a month ahead; and your availability % per year
-  and times called with the last call. The calendar feed link Verdi returns is never stored.
+  and times called with the last call. The calendar feed link Verdi returns is never stored;
+- while you're paged: the page's station, crew function, vehicle, alarm time, incident and your
+  confirmation (as the Paged sensor's attributes, so also in the history);
+- the times of your last ten pages and of the station's last ten interventions, without IDs or page
+  contents, kept in Home Assistant's storage and removed with the integration.
 
 **Colleagues' names.** With the option "Show colleagues' names" **off** (the default for new setups),
 names are dropped as soon as a response is read: on-duty sensors show *filled* or *open*, and
@@ -107,7 +115,7 @@ The login includes your organisation's MFA, so it has to happen once in a real b
 
 ```sh
 python3 -m venv ~/.venvs/verdi && . ~/.venvs/verdi/bin/activate   # Windows: py -m venv %USERPROFILE%\.venvs\verdi && %USERPROFILE%\.venvs\verdi\Scripts\activate
-pip install playwright==1.64.0
+pip install playwright==1.64.1
 playwright install chromium
 export VERDI_URL=https://yourzone.verdi.cloud VERDI_TENANT=YourTenant VERDI_STATE=~/verdi_state.json   # Windows: set ...
 python3 verdi_token_relay/verdi_token_relay.py login
@@ -135,9 +143,12 @@ within about 90 seconds; until then the integration shows as "retrying setup".
 Options (**Configure** on the integration):
 - "Show colleagues' names";
 - **Station:** the tick (default 60 seconds, at least 30), the tick during an intervention
-  (default 30, at least 15), the vehicles that count for interventions (none picked: all) and the
-  availabilities that count in the personnel sensor, by name (the statuses Verdi sets when someone
-  is called always count too);
+  (default 30, at least 15), the fast tick (default 15, at least 10), the vehicles that count for
+  interventions (none picked: all), the availabilities that can't be paged (none picked: guessed
+  from the name) and the availabilities that count in the personnel sensor, by name (the statuses
+  Verdi sets when someone is called always count too);
+- **Fast lane:** which lookups run on the fast tick: your current page always, vehicles and
+  personnel if you add them (the options refuse a combination above 24 calls a minute);
 - **Your own data from the Verdi app:** one switch each for your availability, pre-alert,
   garrison, your calendars and your statistics (pre-alert and garrison off by default);
 - **Safety intervals:** the longest time between two fetches of readiness, roster, team on duty,

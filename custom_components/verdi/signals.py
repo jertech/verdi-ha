@@ -121,7 +121,7 @@ class Signals:
 
     @callback
     def resume_paging(self) -> None:
-        """Let the paged lookup run again and fetch it soon (a no-op until the lookup exists)."""
+        """Let the paged lookup run again and fetch it soon."""
         if self._fast is not None:
             self._fast.paused = False
             if self._timing is not None:
