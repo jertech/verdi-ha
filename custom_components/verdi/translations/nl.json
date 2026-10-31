@@ -114,7 +114,8 @@
     "error": {
       "no_availability": "Kies minstens één status.",
       "too_many_calls": "Te veel oproepen: deze opties zouden tijdens een interventie ongeveer {rate} oproepen per minuut volhouden; de limiet is {limit}.",
-      "invalid_availability_id": "Een geplakte status-ID moet eruitzien als 12345678-abcd-1234-abcd-1234567890ab."
+      "invalid_availability_id": "Een geplakte status-ID moet eruitzien als 12345678-abcd-1234-abcd-1234567890ab.",
+      "availabilities_not_loaded": "De lijst met statussen uit Verdi is nog niet geladen, dus een status kan nu niet verwijderd worden. Probeer het over enkele minuten opnieuw."
     }
   },
   "entity": {

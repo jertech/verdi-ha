@@ -5,6 +5,20 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.9.7] - unreleased
+
+### Integration
+- The options refuse to remove an availability while Verdi's availability list hasn't loaded yet
+  (Verdi unreachable, or no token yet): until then the form can't tell which configured ones are
+  the statuses Verdi sets when someone is called. Adding one still works; try again in a few minutes
+  to remove one.
+- Saving the options keeps the configured availabilities in their order; new ones are added at the
+  end. A save that changes nothing no longer reloads the integration.
+- A test covers a failing later page of the full availability list.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.9.6] - unreleased
 
 ### Integration

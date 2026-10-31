@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.9.7
+
+- No changes; the version follows the integration.
+
 ## 0.9.6
 
 - No changes; the version follows the integration.
