@@ -278,6 +278,7 @@ class VerdiConfigFlow(ConfigFlow, domain=DOMAIN):
 class VerdiOptionsFlow(OptionsFlowWithReload):
     _names: list[str] | None = None
     _automatic_ids: set[str] | None = None
+    _lists_loaded: bool = False
 
     async def async_step_init(self, user_input: dict[str, Any] | None = None) -> ConfigFlowResult:
         errors: dict[str, str] = {}
@@ -301,23 +302,31 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             options[CONF_FAST_LANE] = [str(v) for v in chosen if v in FAST_LANE_CHOICES]
             known = {o["value"] for o in self._availabilities()}
             pasted = [v for v in availability_ids if v not in known]
+            automatic = self._automatic()
+            configured = list(entry.data.get(CONF_AVAILABILITY_IDS) or [])
+            picked = {v.lower() for v in availability_ids}
+            removed = [v for v in configured if v.lower() not in picked and v.lower() not in automatic]
             rate = steady_per_min(options, calendar=bool(entry.data.get(CONF_FUNCTION_CALENDAR_ID)))
             if not availability_ids:
                 errors["base"] = "no_availability"
             elif not all(is_guid(v) for v in pasted):
                 errors["base"] = "invalid_availability_id"
+            elif removed and not self._lists_loaded:
+                # The form can't tell which configured ones are call statuses yet.
+                errors["base"] = "availabilities_not_loaded"
             elif rate > CALL_LIMIT:
                 errors["base"] = "too_many_calls"
                 placeholders["rate"] = f"{rate:.1f}"
                 placeholders["limit"] = str(CALL_LIMIT)
             else:
-                automatic = self._automatic()
-                kept = [v for v in entry.data.get(CONF_AVAILABILITY_IDS) or [] if v.lower() in automatic]
-                merged: dict[str, str] = {}
-                for v in [*(v if v in known else v.lower() for v in availability_ids), *kept]:
-                    merged.setdefault(v.lower(), v)
+                # Configured ones still picked or hidden keep their place and spelling; new ones follow.
+                merged: dict[str, str] = {
+                    v.lower(): v for v in configured if v.lower() in picked or v.lower() in automatic
+                }
+                for v in availability_ids:
+                    merged.setdefault(v.lower(), v if v in known else v.lower())
                 availability_ids = list(merged.values())
-                if availability_ids != list(entry.data.get(CONF_AVAILABILITY_IDS) or []):
+                if availability_ids != configured:
                     self.hass.config_entries.async_update_entry(
                         entry, data={**entry.data, CONF_AVAILABILITY_IDS: availability_ids}
                     )
@@ -400,11 +409,13 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
 
     def _automatic(self) -> set[str]:
         """IDs (lower case) of the statuses Verdi sets when someone is called; they always count.
-        Read once per form, so a reload while it's open can't drop a hidden one on save."""
+        Read once per form, with whether both lists were loaded then, so a reload while it's open
+        can't drop a hidden one on save."""
         if self._automatic_ids is None:
             coordinator = getattr(self.config_entry, "runtime_data", None)
-            automatic = (coordinator.availabilities.automatic or {}) if coordinator else {}
-            self._automatic_ids = {k.lower() for k in automatic}
+            lists = coordinator.availabilities if coordinator else None
+            self._lists_loaded = lists is not None and None not in (lists.listed, lists.automatic)
+            self._automatic_ids = {k.lower() for k in (lists.automatic or {})} if lists else set()
         return self._automatic_ids
 
     def _availabilities(self) -> list[SelectOptionDict]:

@@ -114,7 +114,8 @@
     "error": {
       "no_availability": "Choisissez au moins un statut.",
       "too_many_calls": "Trop d'appels : ces options soutiendraient environ {rate} appels par minute pendant une intervention ; la limite est de {limit}.",
-      "invalid_availability_id": "Un ID de statut collé doit avoir la forme 12345678-abcd-1234-abcd-1234567890ab."
+      "invalid_availability_id": "Un ID de statut collé doit avoir la forme 12345678-abcd-1234-abcd-1234567890ab.",
+      "availabilities_not_loaded": "La liste des statuts de Verdi n'est pas encore chargée, un statut ne peut donc pas être retiré maintenant. Réessayez dans quelques minutes."
     }
   },
   "entity": {

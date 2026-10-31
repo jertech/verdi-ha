@@ -270,6 +270,21 @@ async def test_a_failing_full_list_loads_nothing():
     assert listed.requested() == ["av-1", "av-2"]
 
 
+async def test_a_failing_later_page_of_the_full_list_loads_nothing():
+    first = {"data": [{"guid": f"a{i}", "text": f"A{i}"} for i in range(50)], "total": 60}
+    listed, api, guard, clock = make(
+        [r.AVAILABILITIES], full=[first, VerdiUnavailable("HTTP 503", retry_after=90)]
+    )
+    with pytest.raises(VerdiUnavailable):
+        await listed.load()
+    assert [(c[1], c[3]) for c in api.calls] == [(0, True), (0, False), (50, False)]
+    assert listed.listed is None and listed.automatic is None
+    assert listed.requested() == ["av-1", "av-2"]
+    assert not guard.can_call()
+    clock.now += 90
+    assert guard.can_call()
+
+
 async def test_called_people_count_without_being_configured(hass: HomeAssistant, config_entry):
     bodies: list = []
     responses = r.all_ok()

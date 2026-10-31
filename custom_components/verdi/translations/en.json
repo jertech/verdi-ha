@@ -114,7 +114,8 @@
     "error": {
       "no_availability": "Pick at least one availability.",
       "too_many_calls": "Too many calls: these options would sustain about {rate} calls a minute during an intervention; the limit is {limit}.",
-      "invalid_availability_id": "A pasted availability ID must look like 12345678-abcd-1234-abcd-1234567890ab."
+      "invalid_availability_id": "A pasted availability ID must look like 12345678-abcd-1234-abcd-1234567890ab.",
+      "availabilities_not_loaded": "Verdi's availability list hasn't loaded yet, so an availability can't be removed now. Try again in a few minutes."
     }
   },
   "entity": {
