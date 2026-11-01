@@ -44,6 +44,13 @@ jobs:
           pip install --no-deps "$(python -c "import json, pathlib, homeassistant.components.frontend as f; print(json.loads((pathlib.Path(f.__file__).parent / 'manifest.json').read_text())['requirements'][0])")"
       - run: python -m pytest -q
 
+  js-tests:
+    runs-on: ubuntu-latest
+    container: node:24-trixie-slim
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - run: node --test tests/js/verdi_panel.test.mjs
+
   hassfest:
     runs-on: ubuntu-latest
     steps:
