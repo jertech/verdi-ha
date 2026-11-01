@@ -305,3 +305,23 @@ def test_page_keys_filter_and_cap():
     assert p.page_keys({"currentIntervention": odd}) == ["ok", "station", "station.name"]
     many = {chr(65 + i % 26) * (1 + i // 26): i for i in range(60)}
     assert len(p.page_keys({"currentIntervention": many})) == 40
+
+
+def test_my_availability_keeps_blocks_for_writes():
+    blocks = p.my_availability(r.CAROUSEL)["blocks"]
+    assert [b["scope"] for b in blocks] == ["station", "station_group", "group"]
+    assert blocks[0] == {
+        "scope": "station",
+        "station_id": "st-1",
+        "planning_group_id": None,
+        "availability": "Available 5 min",
+        "can_return": True,
+        "end": datetime(2026, 6, 15, 23, 59, 10, 598243, tzinfo=TZ),
+    }
+    assert blocks[1]["planning_group_id"] == "pg-1" and blocks[2]["station_id"] is None
+
+
+def test_upcoming_events_keep_the_kind():
+    events = p.upcoming_events(r.UPCOMING)
+    assert [e["kind"] for e in events["availability"]] == ["single", "exception", "single"]
+    assert {e["kind"] for e in events["shifts"]} == {"shift"}

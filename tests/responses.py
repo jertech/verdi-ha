@@ -193,6 +193,72 @@ CURRENT_USER = {
 }
 
 
+_RIGHT_STATUS = "3d7e487d-2454-5452-946c-8ff5c1b3be9f"
+_RIGHT_CALENDAR = "93c495ad-6409-5c55-b07a-3c7ccea36c5a"
+
+
+def _right(per_type: str, model: str, scope: list[str]) -> dict:
+    return {
+        "roleGuid": "role-1",
+        "right": {"guid": "r-x", "name": {"default": "Right"}, "type": "SomeRight"},
+        "rightPerTypeGuid": per_type,
+        "rightType": {"guid": "allow", "name": {"default": "Allow"}},
+        "serviceModelType": model,
+        "applicabilities": [{"applicabilityGuid": "ap-1", "entityTypeGuid": "et-1"}],
+        "applicableEntityGuids": scope,
+    }
+
+
+# Rights as Verdi lists them: per right type, per model, scoped to entities. Yours are the Person ones
+# that list your person GUID; the same right on vehicles doesn't count.
+RIGHTS_USER = {
+    **CURRENT_USER,
+    "allowedRights": [
+        _right(_RIGHT_STATUS, "Person", ["ME-1"]),
+        _right(_RIGHT_CALENDAR, "Person", ["me-1"]),
+        _right(_RIGHT_STATUS, "Vehicle", ["veh-1", "veh-2"]),
+    ],
+}
+
+SINGLE_KIND = {
+    "name": {"default": "Event", "nl": "Gebeurtenis", "fr": "Événement", "en": "Event"},
+    "priority": 6,
+    "permissions": {"canEdit": True},
+    "guid": "7e390610-06d7-557e-b8aa-59d801261b29",
+    "isObsolete": False,
+}
+EVENT_PRIORITIES = {
+    "data": [
+        {"name": {"default": "Shift"}, "priority": 4, "guid": "9e9045a2-4612-468f-a7a3-6d5060f9e18d"},
+        {"name": {"default": "Exception"}, "priority": 5, "guid": "25cf071d-81e3-5ba3-91de-2388548afeb2"},
+        SINGLE_KIND,
+    ],
+    "total": 3,
+}
+PERSON_CALENDARS = {
+    "data": [
+        {
+            "guid": "cal-st",
+            "person": {"guid": "me-1"},
+            "station": {"guid": "st-1", "name": "Station North"},
+            "recurrenceGroups": [],
+            "permissions": {},
+            "isObsolete": False,
+        },
+        {
+            "guid": "cal-gen",
+            "person": {"guid": "me-1"},
+            "recurrenceGroups": [],
+            "permissions": {},
+            "isObsolete": False,
+        },
+        {"guid": "cal-old", "person": {"guid": "me-1"}, "isObsolete": True},
+    ],
+    "total": 3,
+}
+WRITE_OK = {"result": "Success", "warningFeedback": [], "errorFeedback": []}
+
+
 _OK = {"result": "Success", "warningFeedback": [], "errorFeedback": []}
 _NOW_UNTIL = "2026-06-15T23:59:10.5982431+02:00"
 

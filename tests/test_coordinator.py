@@ -4,7 +4,7 @@
 import asyncio
 import logging
 from datetime import timedelta
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -24,6 +24,7 @@ from custom_components.verdi.coordinator import Lookup, LookupCoordinator, Perso
 from custom_components.verdi.guard import Guard
 from custom_components.verdi.schedule import LookupSchedule
 from custom_components.verdi.token import get_store
+from tests import responses as r
 from tests.conftest import BASE_URL, MidRandom, make_token
 
 RETRY = timedelta(minutes=5)
@@ -502,3 +503,12 @@ async def test_person_id_reports_trouble_to_the_guard(hass: HomeAssistant):
         await person.get()
     assert guard.level == 0
     assert not guard.can_call()
+
+
+async def test_person_id_keeps_your_rights():
+    api = MagicMock()
+    api.current_user = AsyncMock(return_value=r.RIGHTS_USER)
+    person = PersonId(api, Guard(MidRandom()))
+    assert person.rights is None
+    assert await person.get() == "me-1"
+    assert person.rights == {"status": True, "calendar": True}

@@ -77,6 +77,38 @@ def last_called(text: Any, now: datetime) -> datetime | None:
     return None
 
 
+BLOCKS = (
+    ("stationAvailabilities", "station"),
+    ("stationPlanningGroupAvailabilities", "station_group"),
+    ("planningGroupAvailabilities", "group"),
+)
+
+
+def _text_id(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _blocks(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per station / planning group: the IDs and flags back to planning needs. Kept in memory only; the
+    sensor's attributes don't show them."""
+    found: list[dict[str, Any]] = []
+    for key, scope in BLOCKS:
+        for block in data.get(key) or []:
+            if not isinstance(block, dict):
+                continue
+            found.append(
+                {
+                    "scope": scope,
+                    "station_id": _text_id(block.get("stationId")),
+                    "planning_group_id": _text_id(block.get("planningGroupId")),
+                    "availability": clean(block.get("availabilityName")),
+                    "can_return": block.get("canReturnToPlanning") is True,
+                    "end": _moment(block.get("end")),
+                }
+            )
+    return found
+
+
 def my_availability(data: dict[str, Any]) -> dict[str, Any] | None:
     """Your availability now: overall, per station and per planning group."""
     overall = data.get("globalAvailability")
@@ -94,6 +126,7 @@ def my_availability(data: dict[str, Any]) -> dict[str, Any] | None:
         "stations": _by_name(data.get("stationAvailabilities"), "stationName"),
         "planning_groups": _by_name(data.get("planningGroupAvailabilities"), "planningGroupName"),
         "ends": ends,
+        "blocks": _blocks(data),
     }
 
 
@@ -233,6 +266,7 @@ def upcoming_events(data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
                 key,
                 {
                     "id": item.get("guid"),
+                    "kind": str(item.get("type")).lower(),
                     "start": start,
                     "end": end,
                     "summary": summary,
