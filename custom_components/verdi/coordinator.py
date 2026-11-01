@@ -546,6 +546,8 @@ class VerdiCoordinator(LookupCoordinator):
         self.show_names: bool = names
         self.personal: LookupCoordinator | None = None
         self.fast: LookupCoordinator | None = None
+        # The StatusWriter when status changes are on; set in __init__.py (Any avoids an import cycle).
+        self.writer: Any = None
         self.timing: TimingLog | None = None
         self.timing_store: Store[dict[str, Any]] | None = None
 

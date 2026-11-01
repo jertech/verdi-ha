@@ -217,6 +217,78 @@
     },
     "token_rejected": {
       "message": "Verdi heeft het token geweigerd."
+    },
+    "status_changes_off": {
+      "message": "Je status wijzigen staat uit in de Verdi-opties."
+    },
+    "calendar_edit_off": {
+      "message": "Toevoegen en verwijderen in de kalender staat uit in de Verdi-opties."
+    },
+    "not_admin": {
+      "message": "Alleen beheerders van Home Assistant kunnen je Verdi-status wijzigen."
+    },
+    "no_right": {
+      "message": "Je Verdi-account heeft daar geen recht toe."
+    },
+    "busy": {
+      "message": "Er wordt nog een andere wijziging verstuurd; probeer zo opnieuw."
+    },
+    "verdi_busy": {
+      "message": "Verdi vroeg te wachten voor de volgende oproep; er is niets verstuurd."
+    },
+    "verdi_refused": {
+      "message": "Verdi weigerde: {feedback}"
+    },
+    "outcome_unknown": {
+      "message": "Geen duidelijk antwoord van Verdi; kijk in Verdi of de wijziging gebeurd is."
+    },
+    "token_refused": {
+      "message": "Verdi weigerde het token; log opnieuw in via de app."
+    },
+    "not_ready": {
+      "message": "Je Verdi-account kon nog niet gelezen worden; probeer zo opnieuw."
+    },
+    "nothing_to_end": {
+      "message": "Niets te beëindigen: er loopt geen uitzondering."
+    },
+    "partly_ended": {
+      "message": "Maar gedeeltelijk terug naar planning; Verdi weigerde een stap ({feedback}). Kijk in Verdi."
+    },
+    "exception_over": {
+      "message": "Deze uitzondering is al voorbij; Verdi laat niet toe ze te wijzigen."
+    },
+    "not_own_event": {
+      "message": "Geen van je eigen geplande statussen (gebeurtenissen); er is niets verwijderd."
+    },
+    "needs_events": {
+      "message": "Een geplande status verwijderen vereist dat \"Kalenders met mijn shifts en beschikbaarheid\" aan staat."
+    },
+    "unknown_status": {
+      "message": "Onbekende status \"{status}\". Kies uit: {choices}."
+    },
+    "unknown_duration": {
+      "message": "Onbekende duur."
+    },
+    "lists_not_loaded": {
+      "message": "De statussen van de post zijn nog niet geladen; probeer over enkele minuten opnieuw."
+    },
+    "event_in_past": {
+      "message": "De start mag niet in het verleden liggen."
+    },
+    "end_before_start": {
+      "message": "Het einde moet na de start liggen."
+    },
+    "unknown_calendar": {
+      "message": "Onbekende kalender \"{calendar}\". Kies uit: {choices}."
+    },
+    "repeat_not_supported": {
+      "message": "Herhalingen worden niet ondersteund."
+    },
+    "unknown_event": {
+      "message": "Dit item staat niet in je beschikbaarheidskalender of kan niet verwijderd worden."
+    },
+    "entry_not_found": {
+      "message": "Geen geladen Verdi-integratie gevonden; kies er een."
     }
   },
   "selector": {
