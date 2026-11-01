@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Parsing, against synthetic responses and the scrubbed captured fixtures."""
+"""Parsing, against synthetic responses and the anonymised fixtures."""
 
 import copy
 import json
@@ -55,7 +55,7 @@ def test_calendar_summary():
     assert parse.calendar_events(r.CALENDAR, {}, names=False)[0]["summary"] == "Shift"
 
 
-# Scrubbed captures: real response shapes, every identifying value replaced.
+# Anonymised fixtures: the response shapes Verdi returns, every identifying value replaced.
 
 
 def test_fixture_readiness():
