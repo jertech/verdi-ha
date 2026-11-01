@@ -13,7 +13,18 @@ def test_brand_icon_present():
         assert (BRAND / name).read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", name
 
 
-def test_manifest_and_addon_versions_match():
+def test_versions_are_consistent():
+    """The integration and the app have their own versions (the app from 1.0.0); the version script checks
+    that each one is consistent with itself and has a changelog entry."""
+    import subprocess
+    import sys
+
+    result = subprocess.run(
+        [sys.executable, str(ROOT / "scripts" / "check_version.py")],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0, result.stdout
     manifest = json.loads((ROOT / "custom_components" / "verdi" / "manifest.json").read_text())
-    addon = (ROOT / "verdi_token_relay" / "config.yaml").read_text()
-    assert f'version: "{manifest["version"]}"' in addon
+    assert manifest["version"]

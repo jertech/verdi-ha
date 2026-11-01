@@ -2,10 +2,10 @@
 
 All notable changes to this project are documented here. The format is based on
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project follows
-[Semantic Versioning](https://semver.org/). The integration and the app share version
-numbers; each entry says which component changed.
+[Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
+app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
-## [0.10.1] - unreleased
+## [0.10.1] - 2026-11-01
 
 ### Integration
 - The status-change entities, actions and options use Verdi's own terms: **Add exception** (was "Set status"),
@@ -359,7 +359,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
-[0.10.1]: https://github.com/jertech/verdi-ha/compare/v0.10.0...HEAD
+[0.10.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.10.1
 [0.10.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.10.0
 [0.9.7]: https://github.com/jertech/verdi-ha/releases/tag/v0.9.7
 [0.9.6]: https://github.com/jertech/verdi-ha/releases/tag/v0.9.6

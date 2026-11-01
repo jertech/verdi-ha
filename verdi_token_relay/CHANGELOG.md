@@ -1,62 +1,19 @@
 # Changelog
 
-## 0.10.1
+The app has its own version number from 1.0.0 on and gets a new one only when the app itself changes.
+Before that it followed the integration's version.
 
-- No changes; the version follows the integration.
+## 1.0.0 - 2026-11-01
 
-## 0.10.0 - 2026-11-01
-
-- No changes; the version follows the integration.
-
-## 0.9.7 - 2026-10-31
-
-- No changes; the version follows the integration.
-
-## 0.9.6 - 2026-10-31
-
-- No changes; the version follows the integration.
-
-## 0.9.5 - 2026-10-31
-
-First public release.
-
-- No changes; the version follows the integration.
-
-## 0.9.4 - not published
-
-- No changes; the version follows the integration.
-
-## 0.9.3 - not published
-
-- No changes; the version follows the integration.
+- Own version number; the integration's releases no longer change the app's version. The same program as
+  0.9.2.
+- Until now the app followed the integration's version, so most of those versions had no app changes:
+  0.7.0 to 0.9.1 and 0.9.3 to 0.10.0 had none; 0.9.5 was the first public release (images 0.9.5 to 0.10.1 on
+  GHCR); 0.10.1 linked step 3 of the README, explained two more log lines, and corrected a French option text.
 
 ## 0.9.2 - not published
 
 - Playwright 1.64.1.
-
-## 0.9.1 - not published
-
-- No changes; the version follows the integration.
-
-## 0.9.0 - not published
-
-- No changes; the version follows the integration.
-
-## 0.8.2 - not published
-
-- No changes; the version follows the integration.
-
-## 0.8.1 - not published
-
-- No changes; the version follows the integration.
-
-## 0.8.0 - not published
-
-- No changes; the version follows the integration.
-
-## 0.7.0 - not published
-
-- No changes; the version follows the integration.
 
 ## 0.6.0 - not published
 
