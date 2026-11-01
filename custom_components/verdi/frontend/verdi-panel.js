@@ -247,8 +247,9 @@ function definePanel() {
       try {
         const { sections } = await this._hass.callWS({ type: "verdi/status_page" });
         this._sections = sections;
-      } catch {
-        this._sections = [];
+      } catch (err) {
+        console.error("verdi/status_page failed", err);
+        this._sections ??= [];
       }
       this._drawn = undefined;
       this._render();
