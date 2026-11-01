@@ -11,39 +11,40 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | Entity | Shows |
 |--------|-------|
 | `binary_sensor.<name>_readiness_<train>` | Whether a vehicle train is complete, with positions as attributes |
-| `sensor.<vehicle>` | Vehicle availability |
-| `binary_sensor.<vehicle>_on_intervention` | Whether the vehicle is on an intervention |
+| `sensor.<name>_<vehicle>` | Vehicle availability |
+| `binary_sensor.<name>_<vehicle>_on_intervention` | Whether the vehicle is on an intervention |
 | `sensor.<name>_personnel` | Head count of the configured availabilities (the statuses Verdi sets when someone is called always count too), with counts per availability as attributes |
 | `sensor.<name>_team_on_duty_<group>` | Current team, next team and rotation time |
 | `sensor.<name>_on_duty_<function>` | Whether a crew function is filled now (or who, see privacy) |
 | `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group (with its switch under "Your own data from the Verdi app" on) |
 | `binary_sensor.<name>_pre_alert` | Whether you have a pre-alert (off by default; switch on in the options) |
 | `binary_sensor.<name>_garrison` | Whether you're on garrison (off by default; switch on in the options) |
-| `binary_sensor.<name>_paged` | Whether you're paged right now, with the page's station, crew function, vehicle, alarm time, incident and your confirmation as attributes |
+| `binary_sensor.<name>_paged` | Whether you're paged right now (on by default; off when you untick Paged in the Fast lane), with the page's station, crew function, vehicle, alarm time, incident and your confirmation as attributes |
 | `sensor.<name>_availability_this_year_<station>` | Your availability % this year at a station; earlier years as attributes |
 | `sensor.<name>_times_called_<station>_<service>` | How often you were called for a service, with the last call |
 | `calendar.<name>_my_shifts` | Your own shifts, about a month ahead |
 | `calendar.<name>_my_availability` | Availability you set, and exceptions, about a month ahead |
-| `calendar.<name>_roster` | Shifts of the function calendar |
-| with "Change my status" on | Actions, two selects and two buttons to change your own status (see [Changing your status](#changing-your-status-optional)) |
+| `calendar.<name>_roster` | Shifts of the function calendar (only with a Function calendar ID) |
+| with "Change my status" on | Actions, two selects and up to two buttons to change your own status (see [Changing your status](#changing-your-status-optional)) |
 | `sensor.<name>_token_expires` | When the current token expires |
 | `sensor.<name>_pace` | Polling pace: normal, intervention or backoff (diagnostic, disabled by default) |
 
-The integration only reads, unless you switch on "Change my status": then it can also set and end your own
-status and add or remove your own planned statuses (four calls, listed in
+The integration only reads, unless you switch on "Change my status": then it can also add an exception to your
+own planning, return to planning, and add or remove your own events (four calls, listed in
 [docs/endpoints.md](docs/endpoints.md)). Its reads, listed there too, are the requests the Verdi web interface
 makes for the station data and the read commands of Verdi's app route for your own data. Each lookup is
 fetched only when it's due: personnel and vehicles every tick (60 seconds by default, 30 seconds during an
 intervention), the rest when the station data shows a change, at a time Verdi announced (a team rotation, a
 shift change, the end of your availability), or after a safety interval. While you can be paged, your current
-page is checked on a separate fast tick (15 seconds by default); when your availability says you can't be
-paged, that check pauses. While Verdi has trouble, polling slows down; it never makes more than 30 calls a
-minute.
+page is checked on a separate fast tick (15 seconds by default) unless you untick Paged in the Fast lane; when
+your availability says you can't be paged, that check pauses. While Verdi has trouble, polling slows down; it
+never makes more than 30 calls a minute per Verdi entry.
 
 ## Optional: Remote Calendar subscription
 
-Besides the integration's own two calendars, you can subscribe to your Verdi calendar feed with
-Home Assistant's built-in **Remote Calendar** integration. It is an optional, lightweight alternative:
+Besides the integration's **My shifts** and **My availability** calendars, you can subscribe to your
+Verdi calendar feed with Home Assistant's built-in **Remote Calendar** integration. It is an optional,
+lightweight alternative:
 
 - it gives you **one combined, read-only calendar**;
 - it refreshes **about once a day** by default; for another schedule, turn off "Enable polling for
@@ -57,33 +58,43 @@ personal calendar link you find in the Verdi web app.
 **Caveat.** The feed URL works without a login: anyone who has the link can read your planning.
 Remote Calendar stores the URL in Home Assistant's configuration, so it also ends up in your backups.
 Treat it like a password, keep your backups encrypted, and don't share the link. The integration's
-two typed calendars remain the default and are not affected by this option.
+own calendars remain the default and are not affected by this option.
 
 ## Changing your status (optional)
 
-Off by default. With **Change my status** on (options, "Your own data"):
+Off by default. With **Change my status** on (options, "Your own data"), using Verdi's own terms:
 
-- actions `verdi.add_exception` (your status now, for a duration or unlimited), `verdi.return_to_planning`,
-  `verdi.add_event` (a status for a time slot, returns the new event's ID) and `verdi.delete_event`;
-- a **Status to set** and a **Duration** select, and **Set status** and **Back to planning** buttons.
+- actions `verdi.add_exception` (**Add exception**: a status from now on, for a duration or unlimited),
+  `verdi.return_to_planning` (**Return to planning**), `verdi.add_event` (**New event**: a status for a time slot
+  in your availability calendar, returns the new event's ID) and `verdi.delete_event` (**Remove event**);
+- a **Status** and a **Duration** select, and up to two buttons: **Add exception** and **Return to planning**.
+
+The **Return to planning** button needs "My availability" on, and is unavailable while there is nothing to end.
+`verdi.delete_event` needs "My shifts and availability calendars" on and only removes your own events.
 
 Only Home Assistant administrators can use them; automations and scripts can too, so an automation you write can
 be started by anyone who can trigger it. Your Verdi account needs the rights to change your own status and
-calendar; without them the buttons stay unavailable. Pressing **Set status** without choosing a status gives an
-"unknown status" error that lists the choices.
+calendar; without the status right the buttons and the Status select stay unavailable, and an action without the
+right it needs is refused. Pressing **Add exception** without choosing a status gives an "unknown status" error
+that lists the choices. A second press or call while a change is still being sent is refused.
 
-A status you set while a fixed planning applies can be overruled by that planning: Verdi accepts it, but the
-planning keeps winning. The response of `verdi.add_exception` (`active`) says whether the status is active (true),
-overruled by a fixed planning (false), or empty when that couldn't be checked; your availability sensor shows what
-really applies.
+Verdi applies its own rules and refuses a change that breaks them, with its own message: an exception starts the
+moment it's created and, unless unlimited, its end must be at least 5 minutes from now; an event's end must be
+after its start.
 
-On the days the clocks change, a planned status's duration is the real elapsed time.
+An exception you add while a fixed planning applies can be overruled by that planning: Verdi accepts it, but the
+planning keeps winning. The response of `verdi.add_exception` (`active`) says whether the exception is active
+(true), overruled by a fixed planning (false), or empty when that couldn't be checked; your availability sensor
+shows what really applies.
 
-**Add and remove from the availability calendar** is a second switch. Home Assistant's calendar view doesn't tell
-the integration who is using it, so with this on **anyone who can open the calendar** can add or remove your planned
-statuses and end a running one. Removing a running status from the calendar goes back to planning: it ends
-**every** running status, not only that one. The event's title must be a status name. An all-day planned status
-for today can't be added from the calendar (its start, midnight, is already past); use a time slot.
+On the days the clocks change, an event's duration is the real elapsed time.
+
+**Add and remove events in the availability calendar** is a second switch; it needs **Change my status** and
+**My shifts and availability calendars** on. Home Assistant's calendar view doesn't tell the integration who is
+using it, so with this on **anyone who can open the calendar** can add or remove your events and end a running
+exception. Removing a running exception from the calendar returns to planning: it ends **every** running
+exception, not only that one. The event's title must be a status name. An all-day event for today can't be added
+from the calendar (its start, midnight, is already past); use a time slot.
 
 When a change fails, Home Assistant itself may write Verdi's refusal message to its own log: for automations, for
 failed actions and button presses started from the UI, and for every refused calendar removal. The integration
@@ -104,11 +115,15 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
 - while you're paged: the page's station, crew function, vehicle, alarm time, incident and your
   confirmation (as the Paged sensor's attributes, so also in the history);
 - with **Change my status** on, the integration sends Verdi your person ID, the chosen status, duration or
-  time slot, the time of a change, and Verdi's own IDs for your station, planning group, calendar and event
-  type; nothing about other people. Verdi's answers to these changes are shown to whoever made the change
-  and not stored or logged by the integration;
-- the times of your last ten pages and of the station's last ten interventions, without IDs or page
-  contents, kept in Home Assistant's storage and removed with the integration.
+  time slot, the time of a change, and Verdi's own IDs for your station, planning group, calendar, crew
+  function and event type; nothing about other people. Verdi's answers to these changes are shown to whoever
+  made the change and not stored or logged by the integration;
+- the times of your last ten pages and of the station's last ten interventions, with the field names (never
+  the values) of those pages, without IDs or page contents, kept in Home Assistant's storage and removed with
+  the integration;
+- the station and service names of your statistics counters (no values), so their sensors exist right after a
+  restart, kept and removed the same way;
+- the account ID from the token, in the entry's settings, to route the relay's tokens to the right entry.
 
 **Colleagues' names.** With the option "Show colleagues' names" **off** (the default for new setups),
 names are dropped as soon as a response is read: on-duty sensors show *filled* or *open*, and
@@ -121,14 +136,16 @@ The token and the app's login state are credentials for your account:
 - the app keeps its login state (`verdi_state.json`) in its own data folder, which is part of
   Home Assistant backups. **Keep your backups encrypted** and store the encryption key safely.
 
-Diagnostics downloads contain counts, settings, lookup times, and the times of your last ten pages and of the
-station's last ten interventions; every identifier is removed.
+Diagnostics downloads contain counts, settings, lookup times, the token's expiry, and the times of your last
+ten pages (with their field names, never values) and of the station's last ten interventions; with **Change my
+status** on, also whether your account has the two rights and, per kind of change, today's count, the last time
+and its outcome. Every identifier is removed.
 
 ## Requirements
 
 - Home Assistant 2026.4 or later.
-- For automatic token refresh: Home Assistant OS or Supervised (the app), or any machine that can
-  run a long-lived container or service ([standalone relay](docs/standalone-relay.md)).
+- For automatic token refresh: Home Assistant OS (the app). Other installs use the
+  [standalone relay](docs/standalone-relay.md) on any machine that can run a long-lived container or service.
 - A PC with a screen for the one-time login (Windows, macOS or Linux, with Python 3.11+).
 
 ## Installation
@@ -155,20 +172,22 @@ Then install **Verdi (unofficial)**, and restart Home Assistant when it asks you
 
 ### 3. One-time login on a PC
 
-The login includes your organisation's MFA, so it has to happen once in a real browser window:
+The login includes your organisation's MFA, so it has to happen once in a real browser window. Download this
+repository on the PC (**Code > Download ZIP** on GitHub, or `git clone https://github.com/jertech/verdi-ha`) and
+run these commands from its folder:
 
 ```sh
 python3 -m venv ~/.venvs/verdi && . ~/.venvs/verdi/bin/activate   # Windows: py -m venv %USERPROFILE%\.venvs\verdi && %USERPROFILE%\.venvs\verdi\Scripts\activate
 pip install playwright==1.64.1
 playwright install chromium
 export VERDI_URL=https://yourzone.verdi.cloud VERDI_TENANT=YourTenant VERDI_STATE=~/verdi_state.json   # Windows: set ...
-python3 verdi_token_relay/verdi_token_relay.py login
+python verdi_token_relay/verdi_token_relay.py login
 ```
 
 Keep the virtual environment and `verdi_state.json` outside the repository folder, as above.
 
 The script is [verdi_token_relay/verdi_token_relay.py](verdi_token_relay/verdi_token_relay.py).
-Your tenant name is the value after `tenant:` in the web login (see [docs/finding-your-ids.md](docs/finding-your-ids.md)).
+Your tenant name is the value after `tenant:` in the web login (see [docs/finding-your-ids.md](docs/finding-your-ids.md#tenant-name-for-the-token-relay)).
 Sign in in the window that opens. The script saves `verdi_state.json`: **treat it like a password.**
 
 ### 4. Give the login to the app
@@ -177,6 +196,9 @@ Sign in in the window that opens. The script saves `verdi_state.json`: **treat i
    into the Verdi Token Relay's folder in the `apps_configs` share).
 2. In the app's **Configuration** tab, set your Verdi address and tenant, then start the app.
    It moves the file into its private data folder and deletes the copy you dropped in.
+
+Until you add the integration in step 5, the app's log says "Home Assistant has no /api/verdi/token yet; is the
+Verdi integration installed?". That is expected.
 
 ### 5. Add the integration
 
@@ -193,10 +215,13 @@ Options (**Configure** on the integration):
   interventions (none picked: all), the availabilities that can't be paged (none picked: guessed
   from the name) and the availabilities that count in the personnel sensor, by name (the statuses
   Verdi sets when someone is called always count too);
-- **Fast lane:** which lookups run on the fast tick: your current page always, vehicles and
-  personnel if you add them (the options refuse a combination above 24 calls a minute);
+- **Fast lane:** which lookups run on the fast tick: your current page (Paged, on by default;
+  unticking it turns paging and the Paged sensor off), vehicles and personnel if you add them
+  (the options refuse a combination above 24 calls a minute);
 - **Your own data from the Verdi app:** one switch each for your availability, pre-alert,
-  garrison, your calendars and your statistics (pre-alert and garrison off by default);
+  garrison, your calendars and your statistics (pre-alert and garrison off by default), and the
+  two switches that change your own status (both off; see
+  [Changing your status](#changing-your-status-optional));
 - **Safety intervals:** the longest time between two fetches of readiness, roster, team on duty,
   your availability, pre-alert and garrison, your calendars and your statistics.
 

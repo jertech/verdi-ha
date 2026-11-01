@@ -59,7 +59,9 @@ def steady_per_min(options: Mapping[str, Any], *, calendar: bool = True) -> floa
     fast = [k for k in MOVABLE if k in lane]
     tick = [k for k in EVERY_TICK if k not in fast]
     total = len(tick) * 60 / _seconds(options, CONF_INTERVENTION_INTERVAL)
-    fast_count = len(fast) + (1 if _on(options, CONF_PAGED) else 0)
+    # The page is polled only when it is in the fast lane and switched on (as create_fast does).
+    paging = "paged" in lane and _on(options, CONF_PAGED)
+    fast_count = len(fast) + (1 if paging else 0)
     total += fast_count * 60 / _seconds(options, CONF_FAST_INTERVAL)
 
     # Timer-bounded lookups at their minimum safety floor.

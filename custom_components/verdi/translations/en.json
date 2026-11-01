@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Verdi (unofficial)",
-        "description": "Unofficial, not affiliated with Cevi or Verdi, not for operational use. The Verdi address looks like {example_url}. See the README for how to find the IDs (never share screenshots of your browser's network tab: it shows your token). Tokens are delivered by the Verdi Token Relay app; the token field is for testing only.",
+        "description": "Unofficial, not affiliated with Cevi or Verdi, not for operational use. The Verdi address looks like {example_url}. See docs/finding-your-ids.md in the integration's repository for how to find the IDs (never share screenshots of your browser's network tab: it shows your token). Tokens are delivered by the Verdi Token Relay app; the token field is for testing only.",
         "data": {
           "accept_disclaimer": "I understand that this is an unofficial integration, not affiliated with Cevi or Verdi, not intended for operational use, and that it uses my own Verdi account with all its permissions, at my own risk.",
           "verdi_url": "Verdi address",
@@ -79,14 +79,14 @@
           },
           "fast_lane": {
             "name": "Fast lane",
-            "description": "Polled at the fast tick instead of the station tick.",
+            "description": "Polled at the fast tick instead of the station tick. Paged is ticked by default; unticking it stops checking your current page, and the Paged sensor is no longer created.",
             "data": {
               "fast_lane": "Fast-lane lookups"
             }
           },
           "own_data": {
             "name": "Your own data from the Verdi app",
-            "description": "Read with the same token through the read commands of Verdi's app route. Switched off: nothing is fetched and the entities are not created.",
+            "description": "Read with the same token through the read commands of Verdi's app route. Switched off: nothing is fetched and the entities are not created. The last two switches change your own status in Verdi; both are off by default.",
             "data": {
               "my_availability": "My availability",
               "pre_alert": "Pre-alert",
@@ -94,11 +94,11 @@
               "my_events": "My shifts and availability calendars",
               "statistics": "Statistics",
               "status_changes": "Change my status from Home Assistant",
-              "calendar_edit": "Add and remove planned statuses from the availability calendar"
+              "calendar_edit": "Add and remove events in the availability calendar"
             },
             "data_description": {
-              "status_changes": "Adds actions, two selects and two buttons to set your status now, end it, plan a status and remove a planned one. Only Home Assistant administrators (and automations) can use them.",
-              "calendar_edit": "Home Assistant's calendar view can't tell who is using it: with this on, anyone who can open the calendar can add or remove your planned statuses and end a running one. Removing a running status ends every running status, not only that one. Needs \"Change my status\" and the calendars."
+              "status_changes": "Adds actions, two selects and up to two buttons (Return to planning needs My availability) to add an exception, return to planning, add a new event and remove an event. Only Home Assistant administrators (and automations) can use them.",
+              "calendar_edit": "Home Assistant's calendar view can't tell who is using it: with this on, anyone who can open the calendar can add or remove your events and end a running exception. Removing a running exception ends every running exception, not only that one. Needs \"Change my status\" and the calendars."
             }
           },
           "safety": {
@@ -122,16 +122,16 @@
       "too_many_calls": "Too many calls: these options would sustain about {rate} calls a minute during an intervention; the limit is {limit}.",
       "invalid_availability_id": "A pasted availability ID must look like 12345678-abcd-1234-abcd-1234567890ab.",
       "availabilities_not_loaded": "Verdi's availability list hasn't loaded yet, so an availability can't be removed now. Try again in a few minutes.",
-      "calendar_edit_needs": "Adding and removing from the calendar needs \"Change my status\" and \"My shifts and availability calendars\" on."
+      "calendar_edit_needs": "Adding and removing events in the calendar needs \"Change my status\" and \"My shifts and availability calendars\" on."
     }
   },
   "entity": {
     "button": {
-      "set_status": { "name": "Set status" },
-      "back_to_planning": { "name": "Back to planning" }
+      "set_status": { "name": "Add exception" },
+      "back_to_planning": { "name": "Return to planning" }
     },
     "select": {
-      "status_to_set": { "name": "Status to set" },
+      "status_to_set": { "name": "Status" },
       "duration": {
         "name": "Duration",
         "state": {
@@ -253,7 +253,7 @@
       "message": "Changing your status is switched off in the Verdi options."
     },
     "calendar_edit_off": {
-      "message": "Adding and removing from the calendar is switched off in the Verdi options."
+      "message": "Adding and removing events in the calendar is switched off in the Verdi options."
     },
     "not_admin": {
       "message": "Only Home Assistant administrators can change your Verdi status."
@@ -274,7 +274,7 @@
       "message": "No clear answer from Verdi; check in Verdi whether the change was made."
     },
     "token_refused": {
-      "message": "Verdi refused the token; log in again through the app."
+      "message": "Verdi refused the token; nothing was sent. Try again in a moment; if it keeps happening, check the Verdi Token Relay app's log."
     },
     "not_ready": {
       "message": "Couldn't read your Verdi account yet; try again in a moment."
@@ -283,16 +283,16 @@
       "message": "Nothing to end: no exception is running."
     },
     "partly_ended": {
-      "message": "Only partly back to planning; Verdi refused a step ({feedback}). Check in Verdi."
+      "message": "Only partly returned to planning; Verdi refused a step ({feedback}). Check in Verdi."
     },
     "exception_over": {
       "message": "This exception is already over; Verdi doesn't allow changing it."
     },
     "not_own_event": {
-      "message": "Not one of your own planned statuses; nothing was removed."
+      "message": "Not one of your own events; nothing was removed."
     },
     "needs_events": {
-      "message": "Removing a planned status needs \"My shifts and availability calendars\" on."
+      "message": "Removing an event needs \"My shifts and availability calendars\" on."
     },
     "unknown_status": {
       "message": "Unknown status \"{status}\". Choose one of: {choices}."
@@ -313,7 +313,7 @@
       "message": "Unknown calendar \"{calendar}\". Choose one of: {choices}."
     },
     "repeat_not_supported": {
-      "message": "Repeating planned statuses aren't supported."
+      "message": "Repeating events aren't supported."
     },
     "unknown_event": {
       "message": "This item isn't in your availability calendar, or can't be removed."
@@ -356,38 +356,38 @@
   },
   "services": {
     "add_exception": {
-      "name": "Set my status now",
-      "description": "Sets your Verdi status now for a duration, as an exception to your planning. A fixed planning can still overrule it; the response says whether it is active (empty when it couldn't be checked).",
+      "name": "Add exception",
+      "description": "Adds an exception in Verdi: a status that starts now and lasts for the chosen duration. A fixed planning can still overrule it; the response says whether it is active (empty when it couldn't be checked).",
       "fields": {
         "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." },
-        "status": { "name": "Status", "description": "A plannable status of the station, by name." },
-        "duration": { "name": "Duration", "description": "How long; unlimited lasts until you go back to planning." }
+        "status": { "name": "Status", "description": "A plannable status of the station, by name (or ID)." },
+        "duration": { "name": "Duration", "description": "How long; unlimited lasts until you return to planning." }
       }
     },
     "return_to_planning": {
-      "name": "Back to planning",
-      "description": "Ends your running exception(s): your planned status applies again.",
+      "name": "Return to planning",
+      "description": "Ends your running exception(s): your planning applies again.",
       "fields": {
         "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." }
       }
     },
     "add_event": {
-      "name": "Plan a status",
-      "description": "Plans a status for a time slot in your availability calendar. The response holds the new event's ID.",
+      "name": "New event",
+      "description": "Adds an event to your availability calendar: a status for a time slot. The response holds the new event's ID.",
       "fields": {
         "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." },
-        "status": { "name": "Status", "description": "A plannable status of the station, by name." },
+        "status": { "name": "Status", "description": "A plannable status of the station, by name (or ID)." },
         "start": { "name": "Start", "description": "Not in the past." },
         "end": { "name": "End", "description": "After the start." },
-        "calendar": { "name": "Calendar", "description": "A station's name for its calendar; empty for the general planning." }
+        "calendar": { "name": "Calendar", "description": "The calendar's station or crew function name; empty, \"general\" or \"General planning\" for the general planning." }
       }
     },
     "delete_event": {
-      "name": "Remove a planned status",
-      "description": "Removes one of your planned statuses, by the ID from \"Plan a status\" or the availability calendar.",
+      "name": "Remove event",
+      "description": "Removes one of your own events, by the ID from \"New event\" or the availability calendar.",
       "fields": {
         "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." },
-        "event_id": { "name": "Event ID", "description": "The planned status's ID." }
+        "event_id": { "name": "Event ID", "description": "The event's ID." }
       }
     }
   }

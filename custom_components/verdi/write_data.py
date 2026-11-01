@@ -18,7 +18,9 @@ RIGHTS = {"status": RIGHT_STATUS, "calendar": RIGHT_CALENDAR}
 
 BRUSSELS = "Europe/Brussels"
 GENERAL = "general"
-GENERAL_NAMES = frozenset({"general", "algemene planning", "planning général", "planning générale"})
+GENERAL_NAMES = frozenset(
+    {"general", "general planning", "algemene planning", "planning général", "planning générale"}
+)
 
 # The durations Verdi offers for an exception, as (option key → Verdi value); None is unlimited.
 DURATIONS: dict[str, str | None] = {

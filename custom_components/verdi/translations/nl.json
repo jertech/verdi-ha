@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Verdi (onofficieel)",
-        "description": "Onofficieel, niet verbonden aan Cevi of Verdi, niet voor operationeel gebruik. Het Verdi-adres ziet eruit als {example_url}. Zie de README om de ID's te vinden (deel nooit schermafbeeldingen van het netwerktabblad van je browser: daarin staat je token). Tokens worden geleverd door de Verdi Token Relay-app; het tokenveld is alleen om te testen.",
+        "description": "Onofficieel, niet verbonden aan Cevi of Verdi, niet voor operationeel gebruik. Het Verdi-adres ziet eruit als {example_url}. Zie docs/finding-your-ids.md in de repository van de integratie om de ID's te vinden (deel nooit schermafbeeldingen van het netwerktabblad van je browser: daarin staat je token). Tokens worden geleverd door de Verdi Token Relay-app; het tokenveld is alleen om te testen.",
         "data": {
           "accept_disclaimer": "Ik begrijp dat dit een onofficiële integratie is, niet verbonden aan Cevi of Verdi, niet bedoeld voor operationeel gebruik, en dat ze mijn eigen Verdi-account met al zijn rechten gebruikt, op eigen risico.",
           "verdi_url": "Verdi-adres",
@@ -72,21 +72,21 @@
               "scan_interval": "Tik (seconden, minstens 30)",
               "intervention_interval": "Tik tijdens een interventie (seconden, minstens 15)",
               "watched_vehicles": "Voertuigen die meetellen voor interventies (geen gekozen: alle)",
-              "non_pageable": "Beschikbaarheden die niet opgeroepen kunnen worden (geen gekozen: afgeleid van de naam)",
+              "non_pageable": "Statussen die niet opgeroepen kunnen worden (geen gekozen: afgeleid van de naam)",
               "availability_ids": "Statussen die meetellen in Personen",
               "fast_interval": "Snelle tik (seconden, minstens 10)"
             }
           },
           "fast_lane": {
             "name": "Snelle baan",
-            "description": "Wordt op de snelle tik opgevraagd in plaats van de tik van de post.",
+            "description": "Wordt op de snelle tik opgevraagd in plaats van de tik van de post. Opgeroepen staat standaard aangevinkt; vink je het uit, dan wordt je huidige oproep niet meer gecontroleerd en wordt de sensor Opgeroepen niet meer aangemaakt.",
             "data": {
               "fast_lane": "Opzoekingen op de snelle baan"
             }
           },
           "own_data": {
             "name": "Je eigen gegevens uit de Verdi-app",
-            "description": "Gelezen met hetzelfde token via de leesopdrachten van de Verdi-app. Uitgeschakeld: er wordt niets opgevraagd en de entiteiten worden niet aangemaakt.",
+            "description": "Gelezen met hetzelfde token via de leesopdrachten van de Verdi-app. Uitgeschakeld: er wordt niets opgevraagd en de entiteiten worden niet aangemaakt. De laatste twee schakelaars wijzigen je eigen status in Verdi; beide staan standaard uit.",
             "data": {
               "my_availability": "Mijn beschikbaarheid",
               "pre_alert": "Vooralarm",
@@ -94,11 +94,11 @@
               "my_events": "Kalenders met mijn shifts en beschikbaarheid",
               "statistics": "Statistieken",
               "status_changes": "Mijn status wijzigen vanuit Home Assistant",
-              "calendar_edit": "Geplande statussen toevoegen en verwijderen in de beschikbaarheidskalender"
+              "calendar_edit": "Gebeurtenissen toevoegen en verwijderen in de beschikbaarheidskalender"
             },
             "data_description": {
-              "status_changes": "Voegt acties, twee keuzelijsten en twee knoppen toe om je status nu in te stellen (uitzondering), te beëindigen (terug naar planning), een status te plannen (gebeurtenis) en een geplande te verwijderen. Alleen beheerders van Home Assistant (en automatiseringen) kunnen ze gebruiken.",
-              "calendar_edit": "De kalenderweergave van Home Assistant weet niet wie ze gebruikt: met dit aan kan iedereen die de kalender kan openen je geplande statussen toevoegen of verwijderen en een lopende beëindigen. Een lopende status verwijderen beëindigt elke lopende status, niet alleen die ene. Vereist \"Mijn status wijzigen\" en de kalenders."
+              "status_changes": "Voegt acties, twee keuzelijsten en tot twee knoppen toe (Terug naar planning vereist Mijn beschikbaarheid) om een uitzondering toe te voegen, terug naar planning te gaan, een nieuwe gebeurtenis toe te voegen en een gebeurtenis te verwijderen. Alleen beheerders van Home Assistant (en automatiseringen) kunnen ze gebruiken.",
+              "calendar_edit": "De kalenderweergave van Home Assistant weet niet wie ze gebruikt: met dit aan kan iedereen die de kalender kan openen je gebeurtenissen toevoegen of verwijderen en een lopende uitzondering beëindigen. Een lopende uitzondering verwijderen beëindigt elke lopende uitzondering, niet alleen die ene. Vereist \"Mijn status wijzigen\" en de kalenders."
             }
           },
           "safety": {
@@ -122,16 +122,16 @@
       "too_many_calls": "Te veel oproepen: deze opties zouden tijdens een interventie ongeveer {rate} oproepen per minuut volhouden; de limiet is {limit}.",
       "invalid_availability_id": "Een geplakte status-ID moet eruitzien als 12345678-abcd-1234-abcd-1234567890ab.",
       "availabilities_not_loaded": "De lijst met statussen uit Verdi is nog niet geladen, dus een status kan nu niet verwijderd worden. Probeer het over enkele minuten opnieuw.",
-      "calendar_edit_needs": "Toevoegen en verwijderen in de kalender vereist dat \"Mijn status wijzigen\" en \"Kalenders met mijn shifts en beschikbaarheid\" aan staan."
+      "calendar_edit_needs": "Gebeurtenissen toevoegen en verwijderen in de kalender vereist dat \"Mijn status wijzigen\" en \"Kalenders met mijn shifts en beschikbaarheid\" aan staan."
     }
   },
   "entity": {
     "button": {
-      "set_status": { "name": "Zet status" },
+      "set_status": { "name": "Uitzondering toevoegen" },
       "back_to_planning": { "name": "Terug naar planning" }
     },
     "select": {
-      "status_to_set": { "name": "In te stellen status" },
+      "status_to_set": { "name": "Status" },
       "duration": {
         "name": "Duur",
         "state": {
@@ -253,7 +253,7 @@
       "message": "Je status wijzigen staat uit in de Verdi-opties."
     },
     "calendar_edit_off": {
-      "message": "Toevoegen en verwijderen in de kalender staat uit in de Verdi-opties."
+      "message": "Gebeurtenissen toevoegen en verwijderen in de kalender staat uit in de Verdi-opties."
     },
     "not_admin": {
       "message": "Alleen beheerders van Home Assistant kunnen je Verdi-status wijzigen."
@@ -274,7 +274,7 @@
       "message": "Geen duidelijk antwoord van Verdi; kijk in Verdi of de wijziging gebeurd is."
     },
     "token_refused": {
-      "message": "Verdi weigerde het token; log opnieuw in via de app."
+      "message": "Verdi weigerde het token; er is niets verstuurd. Probeer zo opnieuw; blijft het gebeuren, kijk dan in het logboek van de Verdi Token Relay-app."
     },
     "not_ready": {
       "message": "Je Verdi-account kon nog niet gelezen worden; probeer zo opnieuw."
@@ -289,10 +289,10 @@
       "message": "Deze uitzondering is al voorbij; Verdi laat niet toe ze te wijzigen."
     },
     "not_own_event": {
-      "message": "Geen van je eigen geplande statussen (gebeurtenissen); er is niets verwijderd."
+      "message": "Geen van je eigen gebeurtenissen; er is niets verwijderd."
     },
     "needs_events": {
-      "message": "Een geplande status verwijderen vereist dat \"Kalenders met mijn shifts en beschikbaarheid\" aan staat."
+      "message": "Een gebeurtenis verwijderen vereist dat \"Kalenders met mijn shifts en beschikbaarheid\" aan staat."
     },
     "unknown_status": {
       "message": "Onbekende status \"{status}\". Kies uit: {choices}."
@@ -313,7 +313,7 @@
       "message": "Onbekende kalender \"{calendar}\". Kies uit: {choices}."
     },
     "repeat_not_supported": {
-      "message": "Herhalingen worden niet ondersteund."
+      "message": "Herhalende gebeurtenissen worden niet ondersteund."
     },
     "unknown_event": {
       "message": "Dit item staat niet in je beschikbaarheidskalender of kan niet verwijderd worden."
@@ -356,38 +356,38 @@
   },
   "services": {
     "add_exception": {
-      "name": "Mijn status nu instellen",
-      "description": "Stelt je Verdi-status nu in voor een duur, als uitzondering op je planning. Een vaste planning kan ze nog overrulen; het antwoord zegt of ze actief is (leeg als dat niet gecontroleerd kon worden).",
+      "name": "Uitzondering toevoegen",
+      "description": "Voegt een uitzondering toe in Verdi: een status die nu begint en zo lang duurt als gekozen. Een vaste planning kan ze nog overrulen; het antwoord zegt of ze actief is (leeg als dat niet gecontroleerd kon worden).",
       "fields": {
         "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." },
-        "status": { "name": "Status", "description": "Een planbare status van de post, bij naam." },
+        "status": { "name": "Status", "description": "Een planbare status van de post, bij naam (of ID)." },
         "duration": { "name": "Duur", "description": "Hoe lang; onbeperkt duurt tot je terug naar planning gaat." }
       }
     },
     "return_to_planning": {
       "name": "Terug naar planning",
-      "description": "Beëindigt je lopende uitzondering(en): je geplande status geldt weer.",
+      "description": "Beëindigt je lopende uitzondering(en): je planning geldt weer.",
       "fields": {
         "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." }
       }
     },
     "add_event": {
-      "name": "Een status plannen",
-      "description": "Plant een status voor een tijdvak in je beschikbaarheidskalender (gebeurtenis). Het antwoord bevat de ID van de nieuwe gebeurtenis.",
+      "name": "Nieuwe gebeurtenis",
+      "description": "Voegt een gebeurtenis toe aan je beschikbaarheidskalender: een status voor een tijdvak. Het antwoord bevat de ID van de nieuwe gebeurtenis.",
       "fields": {
         "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." },
-        "status": { "name": "Status", "description": "Een planbare status van de post, bij naam." },
+        "status": { "name": "Status", "description": "Een planbare status van de post, bij naam (of ID)." },
         "start": { "name": "Start", "description": "Niet in het verleden." },
         "end": { "name": "Einde", "description": "Na de start." },
-        "calendar": { "name": "Kalender", "description": "De naam van een post voor haar kalender; leeg voor de algemene planning." }
+        "calendar": { "name": "Kalender", "description": "De naam van de post of functie van de kalender; leeg, \"general\" of \"Algemene planning\" voor de algemene planning." }
       }
     },
     "delete_event": {
-      "name": "Een geplande status verwijderen",
-      "description": "Verwijdert een van je geplande statussen, met de ID uit \"Een status plannen\" of de beschikbaarheidskalender.",
+      "name": "Gebeurtenis verwijderen",
+      "description": "Verwijdert een van je eigen gebeurtenissen, met de ID uit \"Nieuwe gebeurtenis\" of de beschikbaarheidskalender.",
       "fields": {
         "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." },
-        "event_id": { "name": "Gebeurtenis-ID", "description": "De ID van de geplande status." }
+        "event_id": { "name": "Gebeurtenis-ID", "description": "De ID van de gebeurtenis." }
       }
     }
   }

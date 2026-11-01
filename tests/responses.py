@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Synthetic Verdi responses with the captured shapes. All names are made up."""
+"""Synthetic Verdi responses in the shapes Verdi returns. All names are made up."""
 
 PERSON_NAMES = ("Alex Example", "Sam Sample", "Robin Test")
 

@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""The status and duration the "Set status" button uses. Choosing writes nothing to Verdi."""
+"""The status and duration the "Add exception" button uses. Choosing writes nothing to Verdi."""
 
 from __future__ import annotations
 

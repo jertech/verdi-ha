@@ -10,4 +10,4 @@ configuration:
     description: Langue de la page de connexion Verdi.
   entry_id:
     name: ID de l'entrée de configuration
-    description: Nécessaire uniquement si vous avez plusieurs intégrations Verdi dans Home Assistant.
+    description: Nécessaire uniquement si vous avez plusieurs entrées Verdi dans Home Assistant.
