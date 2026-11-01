@@ -79,8 +79,8 @@ right it needs is refused. Pressing **Add exception** without choosing a status 
 that lists the choices. A second press or call while a change is still being sent is refused.
 
 Verdi applies its own rules and refuses a change that breaks them, with its own message: an exception starts the
-moment it's created and, unless unlimited, its end must be at least 5 minutes from now; you can create one event
-per day, and its end must be after its start.
+moment it's created and, unless unlimited, its end must be at least 5 minutes from now; an event's end must be
+after its start.
 
 An exception you add while a fixed planning applies can be overruled by that planning: Verdi accepts it, but the
 planning keeps winning. The response of `verdi.add_exception` (`active`) says whether the exception is active
