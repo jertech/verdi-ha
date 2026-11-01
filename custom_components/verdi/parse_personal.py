@@ -179,7 +179,7 @@ def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
 PAGE_KEY = re.compile(r"[A-Za-z]{1,40}")
 PAGE_NESTED = ("station", "crewFunction", "callConfirmation")
 PAGE_LISTS = ("callConfirmations",)
-PAGE_KEYS_MAX = 40
+PAGE_KEYS_MAX = 60  # as timing.KEYS_MAX: a fetch never keeps fewer names than the page record
 
 
 def page_keys(data: dict[str, Any]) -> list[str]:

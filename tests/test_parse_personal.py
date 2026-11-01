@@ -303,8 +303,15 @@ def test_page_keys_filter_and_cap():
     assert p.page_keys({"currentIntervention": None}) == []
     odd = {"ok": 1, "bad key": 2, "x" * 41: 3, "ünïcode": 4, "station": {"name": 1, "no-dash": 2}}
     assert p.page_keys({"currentIntervention": odd}) == ["ok", "station", "station.name"]
-    many = {chr(65 + i % 26) * (1 + i // 26): i for i in range(60)}
-    assert len(p.page_keys({"currentIntervention": many})) == 40
+    many = {chr(65 + i % 26) * (1 + i // 26): i for i in range(80)}
+    assert len(p.page_keys({"currentIntervention": many})) == 60
+
+
+def test_page_keys_cap_matches_the_timing_union():
+    """Each fetch keeps as many names as the page record does, so later names can't push station.* off."""
+    from custom_components.verdi.timing import KEYS_MAX
+
+    assert p.PAGE_KEYS_MAX == KEYS_MAX == 60
 
 
 def test_my_availability_keeps_blocks_for_writes():
