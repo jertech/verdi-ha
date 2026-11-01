@@ -34,6 +34,7 @@ def test_calendars_default_and_find():
     assert w.default_calendar(cals)["id"] == "cal-gen"
     assert w.find_calendar(cals, "station north")["id"] == "cal-st"
     assert w.find_calendar(cals, "General")["id"] == "cal-gen"
+    assert w.find_calendar(cals, "General planning")["id"] == "cal-gen"
     assert w.find_calendar(cals, "Algemene planning")["id"] == "cal-gen"
     assert w.find_calendar(cals, "elsewhere") is None
     assert w.default_calendar([cals[0]])["id"] == "cal-st"

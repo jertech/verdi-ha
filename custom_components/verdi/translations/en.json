@@ -379,7 +379,7 @@
         "status": { "name": "Status", "description": "A plannable status of the station, by name (or ID)." },
         "start": { "name": "Start", "description": "Not in the past." },
         "end": { "name": "End", "description": "After the start." },
-        "calendar": { "name": "Calendar", "description": "The calendar's station or crew function name; empty or \"general\" for the general planning." }
+        "calendar": { "name": "Calendar", "description": "The calendar's station or crew function name; empty, \"general\" or \"General planning\" for the general planning." }
       }
     },
     "delete_event": {

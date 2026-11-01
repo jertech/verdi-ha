@@ -66,6 +66,7 @@ The venv needs `pip install playwright==1.64.1 && playwright install --with-deps
 ## Several Verdi entries
 
 With more than one Verdi entry in Home Assistant, set `HA_ENTRY_ID` to the config entry ID the
-relay delivers to. To find it, open the integration under **Settings > Devices & services** and open the
-entry's devices or entities: the address bar then shows `config_entry=<ID>`. With a single entry this is not
+relay delivers to. To find it, open **Developer tools > Template** in Home Assistant and enter
+`{{ config_entry_id('sensor.verdi_token_expires') }}`, using the **Token expires** sensor of the entry the relay
+should feed (its entity ID may end in `_2` and so on for the other entries). With a single entry this is not
 needed.

@@ -18,7 +18,8 @@ numbers; each entry says which component changed.
 - The options' call estimate counts the page only while Paged is ticked in the Fast lane, as the polling does.
 - Clearer texts: the Fast lane says what unticking Paged does, "Your own data" mentions the two status switches,
   the calendar field of `verdi.add_event` takes a station or crew function name, a status can also be given by
-  ID, and a refused token says nothing was sent and where to look. French: "Cycle rapide", "Alarmé",
+  ID, and a refused token says nothing was sent and where to look. The calendar field also accepts "General
+  planning" in English. French: "Cycle rapide", "Alarmé",
   "Personnes".
 - Documentation: requirements, the one-time login steps, what is stored and what diagnostics contain, the
   prerequisites and Verdi's own rules for changing your status, and the standalone relay's settings.
