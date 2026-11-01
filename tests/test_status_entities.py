@@ -5,10 +5,11 @@ import copy
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from homeassistant.auth.const import GROUP_ID_USER
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import Context, State
-from homeassistant.exceptions import HomeAssistantError
-from pytest_homeassistant_custom_component.common import mock_restore_cache
+from homeassistant.exceptions import HomeAssistantError, Unauthorized
+from pytest_homeassistant_custom_component.common import MockUser, mock_restore_cache
 
 from custom_components.verdi.api import VerdiApi
 from tests import responses as r
@@ -49,15 +50,26 @@ async def test_selects_and_set_status(hass, config_entry, mock_api, writes, hass
     assert add.await_args.args[1:3] == ("av-2", None)
 
 
-async def test_non_admin_button_press_is_refused(hass, config_entry, mock_api, writes, hass_read_only_user):
+async def test_non_admin_button_press_is_refused(hass, config_entry, mock_api, writes, local_auth):
     add, _ = writes
     await setup_with_token(hass, config_entry, options=ON)
-    # HA's own service permission check already stops a read-only user; press the entity itself so ours decides.
-    button = hass.data["button"].get_entity("button.verdi_set_status")
-    button.async_set_context(Context(user_id=hass_read_only_user.id))
+    user = MockUser(groups=[await hass.auth.async_get_group(GROUP_ID_USER)]).add_to_hass(hass)
+    assert user.is_admin is False
     with pytest.raises(HomeAssistantError) as err:
-        await button.async_press()
+        await hass.services.async_call("button", "press", {"entity_id": "button.verdi_set_status"}, blocking=True,
+                                       context=Context(user_id=user.id))  # fmt: skip
     assert err.value.translation_key == "not_admin"
+    add.assert_not_called()
+
+
+async def test_read_only_user_is_stopped_by_home_assistant(
+    hass, config_entry, mock_api, writes, hass_read_only_user
+):
+    add, _ = writes
+    await setup_with_token(hass, config_entry, options=ON)
+    with pytest.raises(Unauthorized):
+        await hass.services.async_call("button", "press", {"entity_id": "button.verdi_set_status"}, blocking=True,
+                                       context=Context(user_id=hass_read_only_user.id))  # fmt: skip
     add.assert_not_called()
 
 
