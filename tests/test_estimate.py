@@ -35,3 +35,11 @@ def test_timer_floors_count_only_active_lookups():
     off = {"my_availability": False, "my_events": False, "statistics": False, CONF_PAGED: False}
     assert estimate.steady_per_min(off, calendar=False) < estimate.steady_per_min(off)
     assert estimate.steady_per_min(off) < estimate.steady_per_min({})
+
+
+def test_page_counts_only_while_paged_is_in_the_fast_lane():
+    base = {CONF_INTERVENTION_INTERVAL: 30, CONF_FAST_INTERVAL: 15}
+    unticked = {**base, CONF_FAST_LANE: []}
+    # the page: 4/min at 15 s, only while Paged is in the fast lane and its switch is on
+    assert estimate.steady_per_min(base) - estimate.steady_per_min(unticked) == 4.0
+    assert estimate.steady_per_min({**base, CONF_PAGED: False}) == estimate.steady_per_min(unticked)
