@@ -40,6 +40,17 @@ page is checked on a separate fast tick (15 seconds by default) unless you untic
 your availability says you can't be paged, that check pauses. While Verdi has trouble, polling slows down; it
 never makes more than 30 calls a minute per Verdi entry.
 
+## Status page
+
+The integration adds a **Verdi (unofficial)** page to the sidebar, with nothing to set up. It shows your own status,
+your vehicles and the personnel counts in the colours Verdi uses for each status. The colours come from Verdi's answers,
+so another zone's colours work by themselves, and a colour changed in Verdi shows up with the next update.
+
+Every Home Assistant user can open the page. It shows the statuses you chose in the integration's options, and no
+colleagues' names.
+
+Home Assistant's own history bars keep Home Assistant's colours: it has no setting for colours per status on sensors.
+
 ## Optional: Remote Calendar subscription
 
 Besides the integration's **My shifts** and **My availability** calendars, you can subscribe to your

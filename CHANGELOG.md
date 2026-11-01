@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.11.0] - 2026-11-02
+
+### Integration
+- New **Verdi (unofficial)** page in the sidebar: your own status, your vehicles and the personnel counts in the colours
+  Verdi uses for each status. No setup; the colours come from Verdi's answers, so they work in any zone.
+- The personnel and My availability sensors have a new attribute, `availability_colors`: the colour of each status.
+
 ## [0.10.1] - 2026-11-01
 
 ### Integration
