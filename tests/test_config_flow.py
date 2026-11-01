@@ -3,6 +3,7 @@
 
 from unittest.mock import patch
 
+import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
@@ -200,6 +201,8 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
             "garrison": False,
             "my_events": True,
             "statistics": True,
+            "status_changes": False,
+            "calendar_edit": False,
         },
         "safety": {
             "readiness_safety": 15,
@@ -255,6 +258,8 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         "garrison": False,
         "my_events": False,
         "statistics": True,
+        "status_changes": False,
+        "calendar_edit": False,
         "readiness_safety": 5,
         "roster_safety": 10,
         "teams_safety": 1,
@@ -641,3 +646,32 @@ async def test_options_saved_unchanged_keep_the_order(hass: HomeAssistant, confi
     assert result["type"] is FlowResultType.CREATE_ENTRY
     assert config_entry.data["availability_ids"] == [CALLED, "av-1"]
     assert setup.call_count == 0  # nothing changed: no reload
+
+
+async def test_options_status_switches_default_off(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    own = _defaults(result["data_schema"])["own_data"]
+    assert own["status_changes"] is False and own["calendar_edit"] is False
+
+
+@pytest.mark.parametrize(
+    ("status_changes", "my_events", "error"),
+    [(False, True, "calendar_edit_needs"), (True, False, "calendar_edit_needs"), (True, True, None)],
+)
+async def test_calendar_edit_needs_status_changes_and_events(
+    hass: HomeAssistant, config_entry, mock_api, status_changes, my_events, error
+):
+    await setup_with_token(hass, config_entry)
+    before = dict(config_entry.options)
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    submit = _submit({})
+    submit["own_data"] = {"status_changes": status_changes, "my_events": my_events, "calendar_edit": True}
+    result = await hass.config_entries.options.async_configure(result["flow_id"], submit)
+    if error:
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == {"base": error}
+        assert config_entry.options == before
+    else:
+        assert result["type"] is FlowResultType.CREATE_ENTRY
+        assert config_entry.options["calendar_edit"] is True

@@ -92,7 +92,13 @@
               "pre_alert": "Pre-alert",
               "garrison": "Garrison",
               "my_events": "My shifts and availability calendars",
-              "statistics": "Statistics"
+              "statistics": "Statistics",
+              "status_changes": "Change my status from Home Assistant",
+              "calendar_edit": "Add and remove planned statuses from the availability calendar"
+            },
+            "data_description": {
+              "status_changes": "Adds actions, two selects and two buttons to set your status now, end it, plan a status and remove a planned one. Only Home Assistant administrators (and automations) can use them.",
+              "calendar_edit": "Home Assistant's calendar view can't tell who is using it: with this on, anyone who can open the calendar can add or remove your planned statuses and end a running one. Needs \"Change my status\" and the calendars."
             }
           },
           "safety": {
@@ -115,7 +121,8 @@
       "no_availability": "Pick at least one availability.",
       "too_many_calls": "Too many calls: these options would sustain about {rate} calls a minute during an intervention; the limit is {limit}.",
       "invalid_availability_id": "A pasted availability ID must look like 12345678-abcd-1234-abcd-1234567890ab.",
-      "availabilities_not_loaded": "Verdi's availability list hasn't loaded yet, so an availability can't be removed now. Try again in a few minutes."
+      "availabilities_not_loaded": "Verdi's availability list hasn't loaded yet, so an availability can't be removed now. Try again in a few minutes.",
+      "calendar_edit_needs": "Adding and removing from the calendar needs \"Change my status\" and \"My shifts and availability calendars\" on."
     }
   },
   "entity": {

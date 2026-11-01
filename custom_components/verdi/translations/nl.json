@@ -92,7 +92,13 @@
               "pre_alert": "Vooralarm",
               "garrison": "Herbestaffing",
               "my_events": "Kalenders met mijn shifts en beschikbaarheid",
-              "statistics": "Statistieken"
+              "statistics": "Statistieken",
+              "status_changes": "Mijn status wijzigen vanuit Home Assistant",
+              "calendar_edit": "Geplande statussen toevoegen en verwijderen in de beschikbaarheidskalender"
+            },
+            "data_description": {
+              "status_changes": "Voegt acties, twee keuzelijsten en twee knoppen toe om je status nu in te stellen (uitzondering), te beëindigen (terug naar planning), een status te plannen (gebeurtenis) en een geplande te verwijderen. Alleen beheerders van Home Assistant (en automatiseringen) kunnen ze gebruiken.",
+              "calendar_edit": "De kalenderweergave van Home Assistant weet niet wie ze gebruikt: met dit aan kan iedereen die de kalender kan openen je geplande statussen toevoegen of verwijderen en een lopende beëindigen. Vereist \"Mijn status wijzigen\" en de kalenders."
             }
           },
           "safety": {
@@ -115,7 +121,8 @@
       "no_availability": "Kies minstens één status.",
       "too_many_calls": "Te veel oproepen: deze opties zouden tijdens een interventie ongeveer {rate} oproepen per minuut volhouden; de limiet is {limit}.",
       "invalid_availability_id": "Een geplakte status-ID moet eruitzien als 12345678-abcd-1234-abcd-1234567890ab.",
-      "availabilities_not_loaded": "De lijst met statussen uit Verdi is nog niet geladen, dus een status kan nu niet verwijderd worden. Probeer het over enkele minuten opnieuw."
+      "availabilities_not_loaded": "De lijst met statussen uit Verdi is nog niet geladen, dus een status kan nu niet verwijderd worden. Probeer het over enkele minuten opnieuw.",
+      "calendar_edit_needs": "Toevoegen en verwijderen in de kalender vereist dat \"Mijn status wijzigen\" en \"Kalenders met mijn shifts en beschikbaarheid\" aan staan."
     }
   },
   "entity": {

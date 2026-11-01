@@ -92,7 +92,13 @@
               "pre_alert": "Pré-alerte",
               "garrison": "Effectif en caserne",
               "my_events": "Calendriers de mes shifts et de ma disponibilité",
-              "statistics": "Statistiques"
+              "statistics": "Statistiques",
+              "status_changes": "Modifier mon statut depuis Home Assistant",
+              "calendar_edit": "Ajouter et supprimer des statuts planifiés dans le calendrier de disponibilité"
+            },
+            "data_description": {
+              "status_changes": "Ajoute des actions, deux listes et deux boutons pour définir votre statut maintenant, y mettre fin (retour au planning), planifier un statut et supprimer un statut planifié. Seuls les administrateurs de Home Assistant (et les automatisations) peuvent les utiliser.",
+              "calendar_edit": "La vue calendrier de Home Assistant ne sait pas qui l'utilise : activé, toute personne pouvant ouvrir le calendrier peut ajouter ou supprimer vos statuts planifiés et mettre fin à un statut en cours. Nécessite « Modifier mon statut » et les calendriers."
             }
           },
           "safety": {
@@ -115,7 +121,8 @@
       "no_availability": "Choisissez au moins un statut.",
       "too_many_calls": "Trop d'appels : ces options soutiendraient environ {rate} appels par minute pendant une intervention ; la limite est de {limit}.",
       "invalid_availability_id": "Un ID de statut collé doit avoir la forme 12345678-abcd-1234-abcd-1234567890ab.",
-      "availabilities_not_loaded": "La liste des statuts de Verdi n'est pas encore chargée : un statut ne peut donc pas être retiré pour l'instant. Réessayez dans quelques minutes."
+      "availabilities_not_loaded": "La liste des statuts de Verdi n'est pas encore chargée : un statut ne peut donc pas être retiré pour l'instant. Réessayez dans quelques minutes.",
+      "calendar_edit_needs": "Ajouter et supprimer depuis le calendrier nécessite « Modifier mon statut » et « Calendriers de mes shifts et de ma disponibilité » activés."
     }
   },
   "entity": {
