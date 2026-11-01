@@ -62,6 +62,20 @@ def test_my_availability():
     assert p.my_availability({"result": "Success"}) is None
 
 
+def test_my_availability_colors():
+    mine = p.my_availability(r.CAROUSEL)
+    assert mine["availability_colors"] == {"Available 5 min": "#00ff00"}
+
+
+def test_my_availability_colors_per_block():
+    data = copy.deepcopy(r.CAROUSEL)
+    data["stationAvailabilities"][0]["availabilityName"] = "Urgent"
+    data["stationAvailabilities"][0]["availabilityColor"] = "#dceb16"
+    mine = p.my_availability(data)
+    assert mine["availability_colors"] == {"Available 5 min": "#00ff00", "Urgent": "#dceb16"}
+    assert mine["stations"] == {"Station North": "Urgent"}
+
+
 def test_pre_alerts_accept_objects_and_text():
     assert p.pre_alerts(r.PRE_ALERTS) == [
         {

@@ -33,6 +33,7 @@ async def test_my_availability_from_the_app_route(hass: HomeAssistant, config_en
     assert state.attributes["planning_groups"] == {"All functions": "Available 5 min"}
     assert state.attributes["garrison_crew"] is False
     assert state.attributes["color"] == "#00ff00"
+    assert state.attributes["availability_colors"] == {"Available 5 min": "#00ff00"}
     assert state.attributes["end"].isoformat().startswith("2026-06-15T23:59:10")
     entity = er.async_get(hass).async_get("sensor.verdi_my_availability")
     assert entity.unique_id == f"{config_entry.entry_id}_my_availability"

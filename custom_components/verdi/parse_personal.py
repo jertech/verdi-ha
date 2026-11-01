@@ -122,6 +122,9 @@ def my_availability(data: dict[str, Any]) -> dict[str, Any] | None:
         "availability": clean(overall.get("availabilityName")),
         "end": _moment(overall.get("end")),
         "color": overall.get("availabilityColor"),
+        "availability_colors": {
+            name: b.get("availabilityColor") for b in blocks if (name := clean(b.get("availabilityName")))
+        },
         "garrison_crew": bool(overall.get("isGarrisonCrew")),
         "stations": _by_name(data.get("stationAvailabilities"), "stationName"),
         "planning_groups": _by_name(data.get("planningGroupAvailabilities"), "planningGroupName"),

@@ -105,6 +105,10 @@ def personnel_summary(data: dict[str, Any], exclude: frozenset[str] = frozenset(
         return localized((p.get("currentAvailability") or {}).get("description"))
 
     persons = [p for p in listed if availability(p) not in exclude]
+    colors: dict[str, str | None] = {}
+    for p in persons:
+        name = availability(p) or "unknown"
+        colors[name] = colors.get(name) or (p.get("currentAvailability") or {}).get("backgroundColor")
     return {
         "persons": [
             {
@@ -119,6 +123,7 @@ def personnel_summary(data: dict[str, Any], exclude: frozenset[str] = frozenset(
         ],
         "total": len(persons),
         "by_availability": dict(Counter(availability(p) or "unknown" for p in persons)),
+        "availability_colors": colors,
         "on_intervention": sum(bool(p.get("isOnIntervention")) for p in persons),
         "on_pre_alert": sum(bool(p.get("isOnPreAlert")) for p in persons),
         "present": sum(bool(p.get("isPresent")) for p in persons),
