@@ -178,12 +178,14 @@ def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
 
 PAGE_KEY = re.compile(r"[A-Za-z]{1,40}")
 PAGE_NESTED = ("station", "crewFunction", "callConfirmation")
+PAGE_LISTS = ("callConfirmations",)
 PAGE_KEYS_MAX = 40
 
 
 def page_keys(data: dict[str, Any]) -> list[str]:
-    """The key names of your current page, one level deep under its station, crew function and
-    confirmation. Names only, never values: diagnostics show the shape of a real page."""
+    """The key names of your current page, one level deep under its station, crew function,
+    confirmation, and the items of the confirmation choices. Names only, never values:
+    diagnostics show the shape of a real page."""
     page = data.get("currentIntervention")
     if not isinstance(page, dict):
         return []
@@ -194,6 +196,11 @@ def page_keys(data: dict[str, Any]) -> list[str]:
         names.append(key)
         if key in PAGE_NESTED and isinstance(value, dict):
             names += [f"{key}.{sub}" for sub in value if isinstance(sub, str) and PAGE_KEY.fullmatch(sub)]
+        if key in PAGE_LISTS and isinstance(value, list):
+            subs = {sub for item in value if isinstance(item, dict) for sub in item}
+            names += [
+                f"{key}[].{sub}" for sub in sorted(subs) if isinstance(sub, str) and PAGE_KEY.fullmatch(sub)
+            ]
     return sorted(names)[:PAGE_KEYS_MAX]
 
 

@@ -325,3 +325,9 @@ def test_upcoming_events_keep_the_kind():
     events = p.upcoming_events(r.UPCOMING)
     assert [e["kind"] for e in events["availability"]] == ["single", "exception", "single"]
     assert {e["kind"] for e in events["shifts"]} == {"shift"}
+
+
+def test_page_keys_list_confirmation_items():
+    keys = p.page_keys(r.CURRENT_INTERVENTION)
+    assert "callConfirmations[].description" in keys and "callConfirmations[].guid" in keys
+    assert "Declined" not in repr(keys)

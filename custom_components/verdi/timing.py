@@ -17,6 +17,7 @@ from itertools import pairwise
 from typing import Any
 
 KEEP = 10  # closed records kept per kind
+KEYS_MAX = 60  # key names kept per page record
 JOIN = timedelta(minutes=10)  # rejoin after a close; how far back an earlier rise counts
 PAGE_TIMEOUT = timedelta(hours=6)
 STATION_TIMEOUT = timedelta(hours=3)
@@ -155,7 +156,8 @@ class TimingLog:
             self._rejoin = None  # the same page: the own flag's rejoin is confirmed
         if _active(rec, "paged_on", "paged_off"):
             if not _other_page(rec, alarm):
-                return  # the same page, still on
+                self._grow(rec, page, keys, now)  # the same page, still on
+                return
             self._end(rec, "paged_off", now, late=prev is None)  # back-to-back: no off fetch between
             moved = self._split(rec, now)
             rec = None
@@ -177,7 +179,8 @@ class TimingLog:
                 "paged_on": _iso(now),
                 "paged_on_after": _iso(prev[1]) if prev else None,
                 "fields": {name: page.get(name) is not None for name in PAGE_FIELDS},
-                "keys": list(keys),
+                "confirmation_at": _iso(now) if page.get("confirmation") is not None else None,
+                "keys": sorted(set(keys))[:KEYS_MAX],
             }
         )
         if moved:
@@ -287,6 +290,21 @@ class TimingLog:
     def _changed(self) -> None:
         if self.on_change is not None:
             self.on_change()
+
+    def _grow(self, rec: Record, page: dict[str, Any], keys: list[str], now: datetime) -> None:
+        """The same page again: collect key names that weren't there before (names only), and note when
+        the confirmation first shows up."""
+        changed = False
+        merged = sorted(set(rec.get("keys") or []) | set(keys))[:KEYS_MAX]
+        if merged != rec.get("keys"):
+            rec["keys"] = merged
+            changed = True
+        if page.get("confirmation") is not None and rec.get("confirmation_at") is None:
+            rec["confirmation_at"] = _iso(now)
+            rec.setdefault("fields", {})["confirmation"] = True
+            changed = True
+        if changed:
+            self._changed()
 
     def _set(self, rec: Record, field: str, value: Any) -> None:
         rec[field] = value
