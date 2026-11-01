@@ -22,7 +22,7 @@ Paths are relative to `<your Verdi address>/verdi-core/api/v1/`.
 | POST | `mobile/app/commands` | `GetPersonCurrentGarrisonInformationCommand` | Garrison |
 | POST | `mobile/app/commands` | `AppGetPersonStatisticsCommand` | Availability this year, times called |
 | POST | `mobile/app/commands` | `AppGetUpcomingEventsCommand` | My shifts and My availability calendars |
-| POST | `mobile/app/commands` | `GetPersonCurrentInterventionInformationCommand` | Current page (provisional shape) |
+| POST | `mobile/app/commands` | `GetPersonCurrentInterventionInformationCommand` | Current page |
 | POST | `domaindata/predefined/eventpriorities/search` | - | Verdi's event kinds, for a new event (only with status changes on) |
 | POST | `planning/personcalendars/search` | - | Your availability calendars, for a new event (only with status changes on) |
 | POST | `planning/personcalendar/events/commands` | `PersonAvailabilityEventAddExceptionCommand` | **Write:** add an exception (your status from now on, for a duration or unlimited) |
