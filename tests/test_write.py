@@ -2,6 +2,7 @@
 """StatusWriter: every write passes the same checks, in order, and never retries."""
 
 import asyncio
+import copy
 import logging
 import random
 from datetime import timedelta
@@ -30,7 +31,9 @@ class Person:
         return self.value
 
 
-def make(hass, *, options=None, rights=None, events=None, availability=None, personal=True):
+def make(hass, *, options=None, rights=None, events=None, availability=None, personal=True, fetches=True):
+    """fetches: whether the personal coordinator's single-lookup refresh gets a new value. A successful
+    run stores a newly parsed object; a failed or guard-blocked run keeps the one it had."""
     api = MagicMock()
     for name in ("add_exception", "return_to_planning", "delete_event"):
         setattr(api, name, AsyncMock(return_value=dict(r.WRITE_OK)))
@@ -49,8 +52,13 @@ def make(hass, *, options=None, rights=None, events=None, availability=None, per
     }
     p = None
     if personal:
+
+        async def refresh(key):
+            if fetches:
+                p.data = {**p.data, key: copy.deepcopy(p.data[key])}
+
         p = SimpleNamespace(lookups={"availability": 1, "events": 1}, data=data,
-                            async_refresh_lookup=AsyncMock())  # fmt: skip
+                            async_refresh_lookup=AsyncMock(side_effect=refresh))  # fmt: skip
     station = SimpleNamespace(
         api=api,
         guard=guard,
@@ -117,6 +125,28 @@ async def test_add_exception_unknown_when_the_check_fails(hass):
     station.api.my_availability.side_effect = VerdiUnavailable("x", None, status=503)
     assert await writer.add_exception("Urgent", "5m") == {"active": None}
     station.api.add_exception.assert_awaited_once()
+
+
+async def test_add_exception_unknown_when_the_refresh_got_nothing(hass):
+    """A failed or guard-blocked refresh keeps the carousel from before the write: not an answer."""
+    availability = parse_personal.my_availability(r.CAROUSEL)
+    availability["blocks"][0].update({"station_id": STATION, "availability": "Urgent"})
+    writer, station = make(hass, availability=availability, fetches=False)
+    assert await writer.add_exception("Urgent", "5m") == {"active": None}
+    station.api.add_exception.assert_awaited_once()
+    assert writer.diagnostics()["writes"]["add_exception"]["outcome"] == "ok"
+
+
+async def test_diagnostics_count_resets_on_a_new_day(hass, freezer):
+    freezer.move_to("2026-11-01 10:00:00+01:00")
+    writer, _ = make(hass)
+    await writer.add_exception("Urgent", "5m")
+    assert writer.diagnostics()["writes"]["add_exception"]["today"] == 1
+    freezer.move_to("2026-11-02 10:00:00+01:00")
+    stats = writer.diagnostics()["writes"]["add_exception"]
+    assert stats["today"] == 0
+    assert stats["outcome"] == "ok"  # the last write is still shown
+    assert "day" not in stats
 
 
 async def test_unknown_status_lists_the_names(hass):
@@ -213,6 +243,19 @@ async def test_return_to_planning_unreadable_availability_is_not_nothing(hass):
     with pytest.raises(HomeAssistantError) as err:
         await writer.return_to_planning()
     assert err.value.translation_key == "outcome_unknown"
+    station.api.return_to_planning.assert_not_called()
+
+
+@pytest.mark.parametrize(("guard_open", "key"), [(True, "outcome_unknown"), (False, "verdi_busy")])
+async def test_return_to_planning_refresh_got_nothing(hass, guard_open, key):
+    """The held availability predates this press: its targets may be stale, so nothing is sent."""
+    writer, station = make(hass, fetches=False)
+    if not guard_open:
+        station.guard.wait(60)
+    with pytest.raises(HomeAssistantError) as err:
+        await writer.return_to_planning()
+    assert err.value.translation_key == key
+    station.personal.async_refresh_lookup.assert_awaited_once_with("availability")
     station.api.return_to_planning.assert_not_called()
 
 

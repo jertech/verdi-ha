@@ -5,7 +5,7 @@
 
 DOMAIN = "verdi"
 
-# hass.data key: one write lock per entry for status changes.
+# hass.data key: one status-change write lock per person (lower-cased ID), shared by all entries.
 WRITE_LOCKS = f"{DOMAIN}_write_locks"
 
 # entry.data

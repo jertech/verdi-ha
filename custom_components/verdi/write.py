@@ -26,6 +26,7 @@ from .const import CONF_CALENDAR_EDIT, CONF_STATION_ID, CONF_STATUS_CHANGES, DOM
 from .coordinator import enabled, request_language
 
 PAST_SLACK = timedelta(minutes=1)
+_REFRESH = object()  # _availability: refresh now, rather than check a refresh that already ran
 
 
 def fail(key: str, **placeholders: str) -> HomeAssistantError:
@@ -90,17 +91,20 @@ class StatusWriter:
         if key not in write_data.DURATIONS:
             raise invalid("unknown_duration")
 
+        held: list[Any] = []
+
         async def send(person: str) -> None:
             await self._call(
                 lambda: self._api.add_exception(
                     person, availability_id, write_data.DURATIONS[key], self._station_id, self._language
                 )
             )
+            held.append(self._held())
 
         await self._write("add_exception", "status", False, send)
-        # _write just refreshed your availability; read it without a second call.
+        # _write just refreshed your availability: read what that refresh got, without a second call.
         try:
-            mine = await self._availability(refresh=False)
+            mine = await self._availability(refreshed_from=held[0])
         except HomeAssistantError:
             mine = None
         if mine is None:
@@ -112,7 +116,8 @@ class StatusWriter:
         self._check_on(from_calendar)
 
         async def send(person: str) -> None:
-            # A failed read raises its own error: an unreadable availability isn't "nothing to end".
+            # An availability that couldn't be read now, or one held from before, raises: it isn't "nothing
+            # to end", and its targets may already have ended.
             mine = await self._availability()
             if mine is None:
                 raise fail("outcome_unknown")
@@ -228,7 +233,7 @@ class StatusWriter:
             "rights": dict(self._station.person.rights) if self._station.person.rights is not None else None,
             "event_kind_loaded": self._kind is not None,
             "calendars": len(self._calendars) if self._calendars is not None else None,
-            "writes": {k: {n: v for n, v in s.items() if n != "day"} for k, s in self._stats.items()},
+            "writes": {k: _shown(s) for k, s in self._stats.items()},
         }
 
     # The shared path.
@@ -318,15 +323,28 @@ class StatusWriter:
             self._calendars = write_data.calendars(data)
         return self._calendars
 
-    async def _availability(self, *, refresh: bool = True) -> dict[str, Any] | None:
-        """Your availability now: through the personal coordinator (refreshed unless just done), or read
-        once without it, a failure raising the mapped error. None: the coordinator has none."""
+    async def _availability(self, *, refreshed_from: Any = _REFRESH) -> dict[str, Any] | None:
+        """Your availability now, a failure raising the mapped error. Through the personal coordinator:
+        refreshed here, or refreshed_from is what it held before a refresh that already ran. Without it,
+        read once. None: Verdi's answer had none."""
         personal = self._station.personal
-        if personal is not None and "availability" in personal.lookups:
-            if refresh:
-                await personal.async_refresh_lookup("availability")
-            return (personal.data or {}).get("availability")
-        return parse_personal.my_availability(await self._call(self._api.my_availability))
+        if personal is None or "availability" not in personal.lookups:
+            return parse_personal.my_availability(await self._call(self._api.my_availability))
+        before = refreshed_from
+        if before is _REFRESH:
+            before = self._held()
+            await personal.async_refresh_lookup("availability")
+        mine = self._held()
+        # The refresh never raises. A fetch stores a newly parsed object; the same one means the run
+        # failed or the guard held it back, and what is held predates this write.
+        if mine is before:
+            raise fail("outcome_unknown" if self._station.guard.can_call() else "verdi_busy")
+        return mine
+
+    def _held(self) -> Any:
+        """The availability the personal coordinator holds right now (the object itself), if any."""
+        personal = self._station.personal
+        return ((personal.data or {}) if personal is not None else {}).get("availability")
 
     def _availability_item(self, item_id: str) -> dict[str, Any] | None:
         personal = self._station.personal
@@ -352,6 +370,14 @@ class StatusWriter:
         stats["today"] += 1
         stats["last"] = dt_util.now().isoformat(timespec="seconds")
         stats["outcome"] = outcome
+
+
+def _shown(stats: dict[str, Any]) -> dict[str, Any]:
+    """One write kind's counters for diagnostics; a count from an earlier day is today's zero."""
+    shown = {n: v for n, v in stats.items() if n != "day"}
+    if stats["day"] != dt_util.now().date().isoformat():
+        shown["today"] = 0
+    return shown
 
 
 def _aware(value: datetime) -> datetime:
