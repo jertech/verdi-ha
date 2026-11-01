@@ -39,6 +39,7 @@ from .const import (
 from .coordinator import VerdiCoordinator, create_fast, enabled
 from .guard import drop_guard
 from .personal import create_personal, statistics_store
+from .services import async_setup_services
 from .signals import Signals, load_timing, timing_store
 from .token import VerdiTokenView, get_store
 from .write import StatusWriter
@@ -66,6 +67,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 hass.config_entries.async_schedule_reload(entry.entry_id)
 
     async_call_later(hass, max(store.grace_left(), 0) + 1, HassJob(grace_over, cancel_on_shutdown=True))
+    async_setup_services(hass)
     return True
 
 

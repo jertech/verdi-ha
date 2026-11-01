@@ -23,5 +23,11 @@
       "token_expiry": { "default": "mdi:key-chain-variant" },
       "pace": { "default": "mdi:speedometer" }
     }
+  },
+  "services": {
+    "add_exception": { "service": "mdi:account-clock" },
+    "return_to_planning": { "service": "mdi:calendar-refresh" },
+    "add_event": { "service": "mdi:calendar-plus" },
+    "delete_event": { "service": "mdi:calendar-remove" }
   }
 }

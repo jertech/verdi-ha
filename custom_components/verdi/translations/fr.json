@@ -292,11 +292,71 @@
     }
   },
   "selector": {
+    "duration": {
+      "options": {
+        "5m": "5 min",
+        "10m": "10 min",
+        "15m": "15 min",
+        "20m": "20 min",
+        "30m": "30 min",
+        "45m": "45 min",
+        "1h": "1 h",
+        "2h": "2 h",
+        "4h": "4 h",
+        "6h": "6 h",
+        "8h": "8 h",
+        "9h": "9 h",
+        "10h": "10 h",
+        "11h": "11 h",
+        "12h": "12 h",
+        "13h": "13 h",
+        "1d": "1 jour",
+        "1d1h": "1 jour 1 h",
+        "unlimited": "Illimité"
+      }
+    },
     "fast_lane": {
       "options": {
         "paged": "Appelé",
         "vehicles": "Véhicules",
         "personnel": "Personnel"
+      }
+    }
+  },
+  "services": {
+    "add_exception": {
+      "name": "Définir mon statut maintenant",
+      "description": "Définit votre statut Verdi maintenant pour une durée, comme exception à votre planning. Un planning fixe peut encore la remplacer ; la réponse indique si elle est active (vide si cela n'a pas pu être vérifié).",
+      "fields": {
+        "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." },
+        "status": { "name": "Statut", "description": "Un statut planifiable du poste, par nom." },
+        "duration": { "name": "Durée", "description": "Combien de temps ; illimité dure jusqu'au retour au planning." }
+      }
+    },
+    "return_to_planning": {
+      "name": "Retour au planning",
+      "description": "Met fin à vos exceptions en cours : votre statut planifié s'applique à nouveau.",
+      "fields": {
+        "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." }
+      }
+    },
+    "add_event": {
+      "name": "Planifier un statut",
+      "description": "Planifie un statut pour une plage horaire dans votre calendrier de disponibilité. La réponse contient l'ID du nouvel événement.",
+      "fields": {
+        "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." },
+        "status": { "name": "Statut", "description": "Un statut planifiable du poste, par nom." },
+        "start": { "name": "Début", "description": "Pas dans le passé." },
+        "end": { "name": "Fin", "description": "Après le début." },
+        "calendar": { "name": "Calendrier", "description": "Le nom d'un poste pour son calendrier ; vide pour le planning général." }
+      }
+    },
+    "delete_event": {
+      "name": "Supprimer un statut planifié",
+      "description": "Supprime un de vos statuts planifiés, avec l'ID de « Planifier un statut » ou du calendrier de disponibilité.",
+      "fields": {
+        "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." },
+        "event_id": { "name": "ID de l'événement", "description": "L'ID du statut planifié." }
       }
     }
   }

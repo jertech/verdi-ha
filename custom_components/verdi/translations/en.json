@@ -292,11 +292,71 @@
     }
   },
   "selector": {
+    "duration": {
+      "options": {
+        "5m": "5 min",
+        "10m": "10 min",
+        "15m": "15 min",
+        "20m": "20 min",
+        "30m": "30 min",
+        "45m": "45 min",
+        "1h": "1 h",
+        "2h": "2 h",
+        "4h": "4 h",
+        "6h": "6 h",
+        "8h": "8 h",
+        "9h": "9 h",
+        "10h": "10 h",
+        "11h": "11 h",
+        "12h": "12 h",
+        "13h": "13 h",
+        "1d": "1 day",
+        "1d1h": "1 day 1 h",
+        "unlimited": "Unlimited"
+      }
+    },
     "fast_lane": {
       "options": {
         "paged": "Paged (are you called out)",
         "vehicles": "Vehicles",
         "personnel": "Personnel"
+      }
+    }
+  },
+  "services": {
+    "add_exception": {
+      "name": "Set my status now",
+      "description": "Sets your Verdi status now for a duration, as an exception to your planning. A fixed planning can still overrule it; the response says whether it is active (empty when it couldn't be checked).",
+      "fields": {
+        "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." },
+        "status": { "name": "Status", "description": "A plannable status of the station, by name." },
+        "duration": { "name": "Duration", "description": "How long; unlimited lasts until you go back to planning." }
+      }
+    },
+    "return_to_planning": {
+      "name": "Back to planning",
+      "description": "Ends your running exception(s): your planned status applies again.",
+      "fields": {
+        "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." }
+      }
+    },
+    "add_event": {
+      "name": "Plan a status",
+      "description": "Plans a status for a time slot in your availability calendar. The response holds the new event's ID.",
+      "fields": {
+        "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." },
+        "status": { "name": "Status", "description": "A plannable status of the station, by name." },
+        "start": { "name": "Start", "description": "Not in the past." },
+        "end": { "name": "End", "description": "After the start." },
+        "calendar": { "name": "Calendar", "description": "A station's name for its calendar; empty for the general planning." }
+      }
+    },
+    "delete_event": {
+      "name": "Remove a planned status",
+      "description": "Removes one of your planned statuses, by the ID from \"Plan a status\" or the availability calendar.",
+      "fields": {
+        "config_entry_id": { "name": "Verdi entry", "description": "Needed only with more than one Verdi entry." },
+        "event_id": { "name": "Event ID", "description": "The planned status's ID." }
       }
     }
   }

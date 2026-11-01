@@ -292,11 +292,71 @@
     }
   },
   "selector": {
+    "duration": {
+      "options": {
+        "5m": "5 min",
+        "10m": "10 min",
+        "15m": "15 min",
+        "20m": "20 min",
+        "30m": "30 min",
+        "45m": "45 min",
+        "1h": "1 u",
+        "2h": "2 u",
+        "4h": "4 u",
+        "6h": "6 u",
+        "8h": "8 u",
+        "9h": "9 u",
+        "10h": "10 u",
+        "11h": "11 u",
+        "12h": "12 u",
+        "13h": "13 u",
+        "1d": "1 dag",
+        "1d1h": "1 dag 1 u",
+        "unlimited": "Onbeperkt"
+      }
+    },
     "fast_lane": {
       "options": {
         "paged": "Opgeroepen",
         "vehicles": "Voertuigen",
         "personnel": "Personen"
+      }
+    }
+  },
+  "services": {
+    "add_exception": {
+      "name": "Mijn status nu instellen",
+      "description": "Stelt je Verdi-status nu in voor een duur, als uitzondering op je planning. Een vaste planning kan ze nog overrulen; het antwoord zegt of ze actief is (leeg als dat niet gecontroleerd kon worden).",
+      "fields": {
+        "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." },
+        "status": { "name": "Status", "description": "Een planbare status van de post, bij naam." },
+        "duration": { "name": "Duur", "description": "Hoe lang; onbeperkt duurt tot je terug naar planning gaat." }
+      }
+    },
+    "return_to_planning": {
+      "name": "Terug naar planning",
+      "description": "Beëindigt je lopende uitzondering(en): je geplande status geldt weer.",
+      "fields": {
+        "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." }
+      }
+    },
+    "add_event": {
+      "name": "Een status plannen",
+      "description": "Plant een status voor een tijdvak in je beschikbaarheidskalender (gebeurtenis). Het antwoord bevat de ID van de nieuwe gebeurtenis.",
+      "fields": {
+        "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." },
+        "status": { "name": "Status", "description": "Een planbare status van de post, bij naam." },
+        "start": { "name": "Start", "description": "Niet in het verleden." },
+        "end": { "name": "Einde", "description": "Na de start." },
+        "calendar": { "name": "Kalender", "description": "De naam van een post voor haar kalender; leeg voor de algemene planning." }
+      }
+    },
+    "delete_event": {
+      "name": "Een geplande status verwijderen",
+      "description": "Verwijdert een van je geplande statussen, met de ID uit \"Een status plannen\" of de beschikbaarheidskalender.",
+      "fields": {
+        "config_entry_id": { "name": "Verdi-integratie", "description": "Alleen nodig met meer dan één Verdi-integratie." },
+        "event_id": { "name": "Gebeurtenis-ID", "description": "De ID van de geplande status." }
       }
     }
   }
