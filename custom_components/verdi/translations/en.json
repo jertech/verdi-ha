@@ -98,7 +98,7 @@
             },
             "data_description": {
               "status_changes": "Adds actions, two selects and two buttons to set your status now, end it, plan a status and remove a planned one. Only Home Assistant administrators (and automations) can use them.",
-              "calendar_edit": "Home Assistant's calendar view can't tell who is using it: with this on, anyone who can open the calendar can add or remove your planned statuses and end a running one. Needs \"Change my status\" and the calendars."
+              "calendar_edit": "Home Assistant's calendar view can't tell who is using it: with this on, anyone who can open the calendar can add or remove your planned statuses and end a running one. Removing a running status ends every running status, not only that one. Needs \"Change my status\" and the calendars."
             }
           },
           "safety": {

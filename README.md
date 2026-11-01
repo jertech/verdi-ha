@@ -29,14 +29,15 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `sensor.<name>_token_expires` | When the current token expires |
 | `sensor.<name>_pace` | Polling pace: normal, intervention or backoff (diagnostic, disabled by default) |
 
-The integration only reads, unless you switch on "Change my status": then it can also set and end your own status and add or remove your own planned statuses (four calls, listed in [docs/endpoints.md](docs/endpoints.md)). Its reads are listed there too,
-with the same requests the Verdi web interface makes for the station data, and the read commands of
-Verdi's app route for your own data. Each lookup is fetched only when it's due: personnel and
-vehicles every tick (60 seconds by default, 30 seconds during an intervention), the rest when the
-station data shows a change, at a time Verdi announced (a team rotation, a shift change, the end of
-your availability), or after a safety interval. While you can be paged, your current page is checked
-on a separate fast tick (15 seconds by default); when your availability says you can't be paged,
-that check pauses. While Verdi has trouble, polling slows down; it never makes more than 30 calls a
+The integration only reads, unless you switch on "Change my status": then it can also set and end your own
+status and add or remove your own planned statuses (four calls, listed in
+[docs/endpoints.md](docs/endpoints.md)). Its reads, listed there too, are the requests the Verdi web interface
+makes for the station data and the read commands of Verdi's app route for your own data. Each lookup is
+fetched only when it's due: personnel and vehicles every tick (60 seconds by default, 30 seconds during an
+intervention), the rest when the station data shows a change, at a time Verdi announced (a team rotation, a
+shift change, the end of your availability), or after a safety interval. While you can be paged, your current
+page is checked on a separate fast tick (15 seconds by default); when your availability says you can't be
+paged, that check pauses. While Verdi has trouble, polling slows down; it never makes more than 30 calls a
 minute.
 
 ## Optional: Remote Calendar subscription
@@ -80,8 +81,9 @@ On the days the clocks change, a planned status's duration is the real elapsed t
 
 **Add and remove from the availability calendar** is a second switch. Home Assistant's calendar view doesn't tell
 the integration who is using it, so with this on **anyone who can open the calendar** can add or remove your planned
-statuses and end a running one. The event's title must be a status name. An all-day planned status for today can't
-be added from the calendar (its start, midnight, is already past); use a time slot.
+statuses and end a running one. Removing a running status from the calendar goes back to planning: it ends
+**every** running status, not only that one. The event's title must be a status name. An all-day planned status
+for today can't be added from the calendar (its start, midnight, is already past); use a time slot.
 
 When a change fails, Home Assistant itself may write Verdi's refusal message to its own log: for automations, for
 failed actions and button presses started from the UI, and for every refused calendar removal. The integration
@@ -102,8 +104,9 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
 - while you're paged: the page's station, crew function, vehicle, alarm time, incident and your
   confirmation (as the Paged sensor's attributes, so also in the history);
 - with **Change my status** on, the integration sends Verdi your person ID, the chosen status, duration or
-  time slot and your station or calendar, and nothing else; Verdi's answers to these changes are shown to
-  whoever made the change and not stored or logged by the integration;
+  time slot, the time of a change, and Verdi's own IDs for your station, planning group, calendar and event
+  type; nothing about other people. Verdi's answers to these changes are shown to whoever made the change
+  and not stored or logged by the integration;
 - the times of your last ten pages and of the station's last ten interventions, without IDs or page
   contents, kept in Home Assistant's storage and removed with the integration.
 

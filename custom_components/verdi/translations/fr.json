@@ -98,7 +98,7 @@
             },
             "data_description": {
               "status_changes": "Ajoute des actions, deux listes et deux boutons pour définir votre statut maintenant, y mettre fin (retour au planning), planifier un statut et supprimer un statut planifié. Seuls les administrateurs de Home Assistant (et les automatisations) peuvent les utiliser.",
-              "calendar_edit": "La vue calendrier de Home Assistant ne sait pas qui l'utilise : activé, toute personne pouvant ouvrir le calendrier peut ajouter ou supprimer vos statuts planifiés et mettre fin à un statut en cours. Nécessite « Modifier mon statut » et les calendriers."
+              "calendar_edit": "La vue calendrier de Home Assistant ne sait pas qui l'utilise : activé, toute personne pouvant ouvrir le calendrier peut ajouter ou supprimer vos statuts planifiés et mettre fin à un statut en cours. Supprimer un statut en cours met fin à tous les statuts en cours, pas seulement à celui-là. Nécessite « Modifier mon statut » et les calendriers."
             }
           },
           "safety": {

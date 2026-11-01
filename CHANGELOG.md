@@ -13,9 +13,11 @@ numbers; each entry says which component changed.
   one; a status and a duration select with "Set status" and "Back to planning" buttons. Only Home Assistant
   administrators (and automations) can use them. Your Verdi account needs the rights to change your own status
   and calendar.
-- A second option lets the availability calendar add and remove planned statuses. Home Assistant's calendar view
-  can't tell who uses it, so with this on anyone who can open the calendar can do so. An all-day planned status
-  for today can't be added from the calendar; use a time slot.
+- A second option lets the availability calendar add and remove planned statuses and end a running one. Home
+  Assistant's calendar view can't tell who uses it, so with this on anyone who can open the calendar can add or
+  remove planned statuses and end a running one. Removing a running status from the calendar ends every running
+  status, not only that one. An all-day planned status for today can't be added from the calendar; use a time
+  slot.
 - A status set while a fixed planning applies can be overruled by it; the response of `verdi.add_exception`
   says whether it is active (true), overruled (false) or empty when that couldn't be checked.
 - On the days the clocks change, a planned status's duration is the real elapsed time.

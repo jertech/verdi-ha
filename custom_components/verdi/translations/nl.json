@@ -98,7 +98,7 @@
             },
             "data_description": {
               "status_changes": "Voegt acties, twee keuzelijsten en twee knoppen toe om je status nu in te stellen (uitzondering), te beëindigen (terug naar planning), een status te plannen (gebeurtenis) en een geplande te verwijderen. Alleen beheerders van Home Assistant (en automatiseringen) kunnen ze gebruiken.",
-              "calendar_edit": "De kalenderweergave van Home Assistant weet niet wie ze gebruikt: met dit aan kan iedereen die de kalender kan openen je geplande statussen toevoegen of verwijderen en een lopende beëindigen. Vereist \"Mijn status wijzigen\" en de kalenders."
+              "calendar_edit": "De kalenderweergave van Home Assistant weet niet wie ze gebruikt: met dit aan kan iedereen die de kalender kan openen je geplande statussen toevoegen of verwijderen en een lopende beëindigen. Een lopende status verwijderen beëindigt elke lopende status, niet alleen die ene. Vereist \"Mijn status wijzigen\" en de kalenders."
             }
           },
           "safety": {
