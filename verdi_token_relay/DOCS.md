@@ -7,7 +7,9 @@ your password: it reuses the login state of a one-time browser login that you do
 
 ## Setup
 
-1. Do the one-time login on a PC (see the project README, step 3). This creates `verdi_state.json`.
+1. Do the one-time login on a PC (see
+   [step 3 of the project README](https://github.com/jertech/verdi-ha#3-one-time-login-on-a-pc)).
+   This creates `verdi_state.json`.
 2. Copy `verdi_state.json` into this app's configuration folder (for example through the Samba
    app's `apps_configs` share, in this app's folder).
 3. Set **Verdi address** and **Tenant** below and start the app.
@@ -37,6 +39,11 @@ On start, the app moves the file into its private data folder and deletes the co
 - `Token delivered to Home Assistant`: once per new token, and again after Home Assistant was away.
 - `Home Assistant is not reachable` / `reachable again`: Home Assistant restarted; nothing to do.
 - `Login stopped at <host>/<path>`: where a headless login did not finish (never the full address).
+- `Home Assistant has no /api/verdi/token yet; is the Verdi integration installed?`: expected until you add
+  the Verdi integration in Home Assistant; the app keeps trying.
+- `Home Assistant refused the token (HTTP ...)`: the message says why: no Verdi entry matches this account
+  (set **Config entry ID**), the token expired before it was delivered, or the Home Assistant user isn't an
+  administrator.
 
 ## When the log says "The login needs interaction"
 
