@@ -4,6 +4,7 @@
 from datetime import UTC, datetime, timedelta
 
 import pytest
+from homeassistant.util import dt as dt_util
 
 from custom_components.verdi import write_data as w
 from tests import responses as r
@@ -86,6 +87,23 @@ def test_event_body_web_shape_summer_and_winter():
     assert body["duration"] == "1.01:00:00"
     assert body["station"] == {"guid": "st-1"}
     assert "crewFunction" not in body
+
+
+@pytest.mark.parametrize(
+    ("day", "duration", "start", "end"),
+    [
+        ((2027, 3, 28), "23:00:00", "2027-03-27T23:00:00.000Z", "2027-03-28T22:00:00.000Z"),
+        ((2027, 10, 31), "1.01:00:00", "2027-10-30T22:00:00.000Z", "2027-10-31T23:00:00.000Z"),
+    ],
+)
+def test_event_body_duration_is_elapsed_across_dst(day, duration, start, end):
+    brussels = dt_util.get_time_zone(w.BRUSSELS)
+    first = datetime(*day, tzinfo=brussels)
+    body = w.event_body(person="me-1", availability="av-2", kind=r.SINGLE_KIND,
+                        calendar=w.calendars(r.PERSON_CALENDARS)[1], start=first,
+                        end=datetime.combine(first.date() + timedelta(days=1), first.time(), brussels))  # fmt: skip
+    assert (body["duration"], body["start"], body["end"]) == (duration, start, end)
+    assert body["startTime"] == "00:00:00"
 
 
 def _block(scope, station=None, group=None, flagged=True, name="Urgent"):

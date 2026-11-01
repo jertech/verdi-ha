@@ -153,7 +153,8 @@ def event_body(
         "start": utc_ms(start),
         "end": utc_ms(end),
         "editable": True,
-        "duration": timespan(end - start),
+        # Elapsed time, as start and end in UTC: across a DST change a wall-clock difference would disagree.
+        "duration": timespan(end.astimezone(UTC) - start.astimezone(UTC)),
         "startTime": local.strftime("%H:%M:%S"),
         "person": {"guid": person},
         "personAvailability": {"guid": availability},

@@ -112,6 +112,13 @@ async def test_add_exception_without_my_availability_reads_once(hass):
     station.api.my_availability.assert_awaited_once()
 
 
+async def test_add_exception_unknown_when_the_check_fails(hass):
+    writer, station = make(hass, personal=False)
+    station.api.my_availability.side_effect = VerdiUnavailable("x", None, status=503)
+    assert await writer.add_exception("Urgent", "5m") == {"active": None}
+    station.api.add_exception.assert_awaited_once()
+
+
 async def test_unknown_status_lists_the_names(hass):
     writer, _ = make(hass)
     with pytest.raises(ServiceValidationError) as err:
@@ -178,6 +185,8 @@ async def test_errors_map_and_never_retry(hass, error, key):
 
 
 async def test_feedback_never_logged(hass, caplog):
+    """The integration's own logging and diagnostics. HA core's service-call error log renders the raised
+    error, placeholder included: accepted and documented in the README."""
     caplog.set_level(logging.DEBUG)
     writer, station = make(hass)
     station.api.add_exception.side_effect = VerdiRefused("p: refused", "Alex Example is busy")
@@ -187,6 +196,8 @@ async def test_feedback_never_logged(hass, caplog):
     assert err.value.translation_placeholders == {"feedback": "Alex Example is busy"}
     assert "Alex" not in caplog.text
     assert "Alex" not in repr(writer.diagnostics())
+    # The message never carried it (test_api_writes.test_refusal_feedback_is_not_in_the_message).
+    assert "Alex" not in str(VerdiRefused("p: refused", "Alex Example is busy"))
 
 
 async def test_return_to_planning_one_command_per_target(hass):
@@ -194,6 +205,15 @@ async def test_return_to_planning_one_command_per_target(hass):
     await writer.return_to_planning()
     sent = [c.args[1:3] for c in station.api.return_to_planning.await_args_list]
     assert sent == [("st-1", None), (None, "pg-1")]  # the station-group block under st-1 is skipped
+
+
+async def test_return_to_planning_unreadable_availability_is_not_nothing(hass):
+    writer, station = make(hass, personal=False)
+    station.api.my_availability.side_effect = VerdiUnavailable("x", None, status=503)
+    with pytest.raises(HomeAssistantError) as err:
+        await writer.return_to_planning()
+    assert err.value.translation_key == "outcome_unknown"
+    station.api.return_to_planning.assert_not_called()
 
 
 async def test_return_to_planning_nothing_flagged(hass):

@@ -81,8 +81,9 @@ class StatusWriter:
 
     # The four writes.
 
-    async def add_exception(self, status: str | None, duration: str | None) -> dict[str, bool]:
-        """Your status now, for a duration (a key of write_data.DURATIONS) or unlimited."""
+    async def add_exception(self, status: str | None, duration: str | None) -> dict[str, bool | None]:
+        """Your status now, for a duration (a key of write_data.DURATIONS) or unlimited. active: whether
+        your availability shows it now; None when that couldn't be read (the change itself went through)."""
         self._check_on(False)
         availability_id, name = self._status(status)
         key = duration or write_data.DEFAULT_DURATION
@@ -98,7 +99,12 @@ class StatusWriter:
 
         await self._write("add_exception", "status", False, send)
         # _write just refreshed your availability; read it without a second call.
-        mine = await self._availability(refresh=False)
+        try:
+            mine = await self._availability(refresh=False)
+        except HomeAssistantError:
+            mine = None
+        if mine is None:
+            return {"active": None}
         return {"active": write_data.is_active(mine, self._station_id, name)}
 
     async def return_to_planning(self, *, from_calendar: bool = False) -> None:
@@ -106,8 +112,11 @@ class StatusWriter:
         self._check_on(from_calendar)
 
         async def send(person: str) -> None:
+            # A failed read raises its own error: an unreadable availability isn't "nothing to end".
             mine = await self._availability()
-            targets = write_data.return_targets((mine or {}).get("blocks") or [])
+            if mine is None:
+                raise fail("outcome_unknown")
+            targets = write_data.return_targets(mine.get("blocks") or [])
             if not targets:
                 raise fail("nothing_to_end")
             # done: how many commands Verdi already took before this one.
@@ -311,16 +320,13 @@ class StatusWriter:
 
     async def _availability(self, *, refresh: bool = True) -> dict[str, Any] | None:
         """Your availability now: through the personal coordinator (refreshed unless just done), or read
-        once without it."""
+        once without it, a failure raising the mapped error. None: the coordinator has none."""
         personal = self._station.personal
         if personal is not None and "availability" in personal.lookups:
             if refresh:
                 await personal.async_refresh_lookup("availability")
             return (personal.data or {}).get("availability")
-        try:
-            return parse_personal.my_availability(await self._call(self._api.my_availability))
-        except HomeAssistantError:
-            return None
+        return parse_personal.my_availability(await self._call(self._api.my_availability))
 
     def _availability_item(self, item_id: str) -> dict[str, Any] | None:
         personal = self._station.personal
