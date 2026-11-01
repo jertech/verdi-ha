@@ -126,6 +126,37 @@
     }
   },
   "entity": {
+    "button": {
+      "set_status": { "name": "Zet status" },
+      "back_to_planning": { "name": "Terug naar planning" }
+    },
+    "select": {
+      "status_to_set": { "name": "In te stellen status" },
+      "duration": {
+        "name": "Duur",
+        "state": {
+          "5m": "5 min",
+          "10m": "10 min",
+          "15m": "15 min",
+          "20m": "20 min",
+          "30m": "30 min",
+          "45m": "45 min",
+          "1h": "1 u",
+          "2h": "2 u",
+          "4h": "4 u",
+          "6h": "6 u",
+          "8h": "8 u",
+          "9h": "9 u",
+          "10h": "10 u",
+          "11h": "11 u",
+          "12h": "12 u",
+          "13h": "13 u",
+          "1d": "1 dag",
+          "1d1h": "1 dag 1 u",
+          "unlimited": "Onbeperkt"
+        }
+      }
+    },
     "binary_sensor": {
       "readiness": {
         "name": "Paraatheid {train}"
