@@ -338,8 +338,8 @@ GARRISON = {
     **_OK,
 }
 
-# Provisional until a real page confirms it. Made-up values. The sensitive fields are present on
-# purpose, to prove the parser drops them; the nested objects carry ids that must never leak.
+# The shape of a real page (confirmed, including the confirmation after you confirm). Made-up values. The
+# sensitive fields are present on purpose, to prove the parser drops them; the nested objects carry ids that must never leak.
 CURRENT_INTERVENTION = {
     "currentIntervention": {
         "guid": "iv-1",
