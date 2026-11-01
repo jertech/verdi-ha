@@ -5,6 +5,31 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
+## [0.10.0] - unreleased
+
+### Integration
+- **Change your own status from Home Assistant** (option "Change my status", off by default): actions to set your
+  status now for a duration or unlimited, go back to planning, plan a status for a time slot and remove a planned
+  one; a status and a duration select with "Set status" and "Back to planning" buttons. Only Home Assistant
+  administrators (and automations) can use them. Your Verdi account needs the rights to change your own status
+  and calendar.
+- A second option lets the availability calendar add and remove planned statuses. Home Assistant's calendar view
+  can't tell who uses it, so with this on anyone who can open the calendar can do so. An all-day planned status
+  for today can't be added from the calendar; use a time slot.
+- A status set while a fixed planning applies can be overruled by it; the response of `verdi.add_exception`
+  says whether it is active (true), overruled (false) or empty when that couldn't be checked.
+- On the days the clocks change, a planned status's duration is the real elapsed time.
+- Pressing "Set status" without choosing a status gives an "unknown status" error listing the choices.
+- When a change fails, Home Assistant itself may write Verdi's refusal message to its own log (for automations,
+  failed actions and button presses started from the UI, and every refused calendar removal); the integration
+  never logs it.
+- Diagnostics show the two options, the two rights and per change how often and how it went (no texts or IDs).
+- The page timing record collects the page's field names over the whole page and notes when your confirmation
+  first appears.
+
+### App
+- No changes; the version follows the integration.
+
 ## [0.9.7] - unreleased
 
 ### Integration

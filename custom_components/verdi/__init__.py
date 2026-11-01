@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""Verdi: unofficial, read-only lookups against the Verdi API with your own account."""
+"""Verdi: unofficial lookups against the Verdi API with your own account.
+
+Changes to your own status are made only when switched on.
+"""
 
 from __future__ import annotations
 

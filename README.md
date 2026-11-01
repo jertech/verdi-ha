@@ -3,7 +3,7 @@
 > **Unofficial, not affiliated with Cevi or Verdi, not for operational use, uses your own Verdi account and its permissions, use at your own risk.**
 > See [DISCLAIMER.md](DISCLAIMER.md) and [ADDITIONAL_TERMS.md](ADDITIONAL_TERMS.md).
 
-A Home Assistant integration that shows read-only information from Verdi with your own account,
+A Home Assistant integration that shows information from Verdi with your own account, read-only unless you switch on changing your own status,
 plus a Home Assistant app (formerly called add-on) that keeps the login token fresh.
 
 ## What you get
@@ -25,10 +25,11 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `calendar.<name>_my_shifts` | Your own shifts, about a month ahead |
 | `calendar.<name>_my_availability` | Availability you set, and exceptions, about a month ahead |
 | `calendar.<name>_roster` | Shifts of the function calendar |
+| with "Change my status" on | Actions, two selects and two buttons to change your own status (see [Changing your status](#changing-your-status-optional)) |
 | `sensor.<name>_token_expires` | When the current token expires |
 | `sensor.<name>_pace` | Polling pace: normal, intervention or backoff (diagnostic, disabled by default) |
 
-The integration only reads. It calls the endpoints listed in [docs/endpoints.md](docs/endpoints.md),
+The integration only reads, unless you switch on "Change my status": then it can also set and end your own status and add or remove your own planned statuses (four calls, listed in [docs/endpoints.md](docs/endpoints.md)). Its reads are listed there too,
 with the same requests the Verdi web interface makes for the station data, and the read commands of
 Verdi's app route for your own data. Each lookup is fetched only when it's due: personnel and
 vehicles every tick (60 seconds by default, 30 seconds during an intervention), the rest when the
@@ -57,6 +58,35 @@ Remote Calendar stores the URL in Home Assistant's configuration, so it also end
 Treat it like a password, keep your backups encrypted, and don't share the link. The integration's
 two typed calendars remain the default and are not affected by this option.
 
+## Changing your status (optional)
+
+Off by default. With **Change my status** on (options, "Your own data"):
+
+- actions `verdi.add_exception` (your status now, for a duration or unlimited), `verdi.return_to_planning`,
+  `verdi.add_event` (a status for a time slot, returns the new event's ID) and `verdi.delete_event`;
+- a **Status to set** and a **Duration** select, and **Set status** and **Back to planning** buttons.
+
+Only Home Assistant administrators can use them; automations and scripts can too, so an automation you write can
+be started by anyone who can trigger it. Your Verdi account needs the rights to change your own status and
+calendar; without them the buttons stay unavailable. Pressing **Set status** without choosing a status gives an
+"unknown status" error that lists the choices.
+
+A status you set while a fixed planning applies can be overruled by that planning: Verdi accepts it, but the
+planning keeps winning. The response of `verdi.add_exception` (`active`) says whether the status is active (true),
+overruled by a fixed planning (false), or empty when that couldn't be checked; your availability sensor shows what
+really applies.
+
+On the days the clocks change, a planned status's duration is the real elapsed time.
+
+**Add and remove from the availability calendar** is a second switch. Home Assistant's calendar view doesn't tell
+the integration who is using it, so with this on **anyone who can open the calendar** can add or remove your planned
+statuses and end a running one. The event's title must be a status name. An all-day planned status for today can't
+be added from the calendar (its start, midnight, is already past); use a time slot.
+
+When a change fails, Home Assistant itself may write Verdi's refusal message to its own log: for automations, for
+failed actions and button presses started from the UI, and for every refused calendar removal. The integration
+never logs it itself.
+
 ## Privacy
 
 What the integration pulls from Verdi and stores in Home Assistant, including the recorder history:
@@ -71,6 +101,9 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
   and times called with the last call. The calendar feed link Verdi returns is never stored;
 - while you're paged: the page's station, crew function, vehicle, alarm time, incident and your
   confirmation (as the Paged sensor's attributes, so also in the history);
+- with **Change my status** on, the integration sends Verdi your person ID, the chosen status, duration or
+  time slot and your station or calendar, and nothing else; Verdi's answers to these changes are shown to
+  whoever made the change and not stored or logged by the integration;
 - the times of your last ten pages and of the station's last ten interventions, without IDs or page
   contents, kept in Home Assistant's storage and removed with the integration.
 
