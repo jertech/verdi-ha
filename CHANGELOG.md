@@ -5,7 +5,28 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). The integration and the app share version
 numbers; each entry says which component changed.
 
-## [0.10.0] - unreleased
+## [0.10.1] - unreleased
+
+### Integration
+- The status-change entities, actions and options use Verdi's own terms: **Add exception** (was "Set status"),
+  **Return to planning** (was "Back to planning"), **New event** (was "Plan a status"), **Remove event** (was
+  "Remove a planned status"); the status select is now **Status**. Dutch and French follow Verdi's labels too
+  (Uitzondering toevoegen / Ajouter exception, Terug naar planning / Retour au planning, Nieuwe gebeurtenis /
+  Nouvel événement, Gebeurtenis verwijderen / Supprimer événement). Existing entities keep their IDs; only new
+  setups get IDs from the new names (such as `button.verdi_add_exception`). Action names (`verdi.add_exception`
+  and the others) don't change.
+- The options' call estimate counts the page only while Paged is ticked in the Fast lane, as the polling does.
+- Clearer texts: the Fast lane says what unticking Paged does, "Your own data" mentions the two status switches,
+  the calendar field of `verdi.add_event` takes a station or crew function name, a status can also be given by
+  ID, and a refused token says nothing was sent and where to look. French: "Cycle rapide", "Alarmé",
+  "Personnes".
+- Documentation: requirements, the one-time login steps, what is stored and what diagnostics contain, the
+  prerequisites and Verdi's own rules for changing your status, and the standalone relay's settings.
+
+### App
+- No changes; the version follows the integration.
+
+## [0.10.0] - 2026-11-01
 
 ### Integration
 - **Change your own status from Home Assistant** (option "Change my status", off by default): actions to set your
@@ -25,6 +46,9 @@ numbers; each entry says which component changed.
 - When a change fails, Home Assistant itself may write Verdi's refusal message to its own log (for automations,
   failed actions and button presses started from the UI, and every refused calendar removal); the integration
   never logs it.
+- The calendar option needs "Change my status" and "My shifts and availability calendars" on; removing a planned
+  status with `verdi.delete_event` needs the calendars switch. A second press or call while a change is still being
+  sent is refused.
 - Diagnostics show the two options, the two rights and per change how often and how it went (no texts or IDs).
 - The page timing record collects the page's field names over the whole page and notes when your confirmation
   first appears.
@@ -32,7 +56,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.9.7] - unreleased
+## [0.9.7] - 2026-10-31
 
 ### Integration
 - The options refuse to remove an availability while Verdi's availability list hasn't loaded yet
@@ -46,7 +70,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.9.6] - unreleased
+## [0.9.6] - 2026-10-31
 
 ### Integration
 - Ready for the Home Assistant Marketplace (2026.11) and HACS: the README explains installing through
@@ -59,7 +83,9 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.9.5] - unreleased
+## [0.9.5] - 2026-10-31
+
+First public release.
 
 ### Integration
 - The statuses Verdi sets when someone is called are found automatically (from the station's full
@@ -72,7 +98,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.9.4] - unreleased
+## [0.9.4] - not published
 
 ### Integration
 - The options read the station's availability names once per form, also when the form is shown again
@@ -82,7 +108,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.9.3] - unreleased
+## [0.9.3] - not published
 
 ### Integration
 - The options name every availability they can. The others show a short ID, marked ★ when a station
@@ -97,7 +123,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.9.2] - unreleased
+## [0.9.2] - not published
 
 ### Integration
 - The Paged sensor reads the page's station, crew function, vehicle, incident and your confirmation
@@ -114,7 +140,7 @@ numbers; each entry says which component changed.
 ### App
 - Playwright 1.64.1.
 
-## [0.9.1] - unreleased
+## [0.9.1] - not published
 
 ### Integration
 - Diagnostics now redact the watched-vehicles option. The vehicle IDs chosen under "watched vehicles"
@@ -126,7 +152,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.9.0] - unreleased
+## [0.9.0] - not published
 
 ### Integration
 - New **Paged** binary sensor and a **fast lane**: while you are pageable, your current page is
@@ -147,7 +173,10 @@ numbers; each entry says which component changed.
 - Documentation: an optional native Remote Calendar subscription.
 - Internal cleanup.
 
-## [0.8.2] - unreleased
+### App
+- No changes; the version follows the integration.
+
+## [0.8.2] - not published
 
 ### Integration
 - Your own availability, pre-alert, garrison and intervention are now seen in the personnel list
@@ -163,7 +192,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.8.1] - unreleased
+## [0.8.1] - not published
 
 ### Integration
 - While Verdi has trouble (busy, errors, timeouts), every call waits: a run stops at the first
@@ -178,7 +207,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.8.0] - unreleased
+## [0.8.0] - not published
 
 ### Integration
 - Each lookup is fetched only when it's due, which cuts the load on Verdi by more than half:
@@ -206,7 +235,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.7.0] - unreleased
+## [0.7.0] - not published
 
 ### Integration
 - Your own data, read with the same token through the read commands of Verdi's mobile app route
@@ -230,7 +259,7 @@ numbers; each entry says which component changed.
 ### App
 - No changes; the version follows the integration.
 
-## [0.6.0] - unreleased
+## [0.6.0] - not published
 
 ### App
 - Renamed the app from "Verdi Token Grabber" to "Verdi Token Relay". The name describes it better:
@@ -244,7 +273,7 @@ numbers; each entry says which component changed.
 - Wording that referred to the "Token Grabber" now says "Token Relay". Entity IDs and behaviour do
   not change.
 
-## [0.5.6] - unreleased
+## [0.5.6] - not published
 
 ### Integration
 - Dutch and French texts reviewed: clearer wording in setup, reauth, options and error messages.
@@ -260,7 +289,7 @@ numbers; each entry says which component changed.
 - French disclaimer: the liability sentence could be read as "not liable for all damage";
   it now says the authors are liable for no damage, loss or claim, as in the English version.
 
-## [0.5.5] - unreleased
+## [0.5.5] - not published
 
 ### App
 - The French option texts load again: the Supervisor could not read `translations/fr.yaml`
@@ -268,7 +297,7 @@ numbers; each entry says which component changed.
 - Stops cleanly when the Supervisor stops or updates it, instead of being killed after 10 seconds
   (exit code 137).
 
-## [0.5.4] - unreleased
+## [0.5.4] - not published
 
 ### Integration
 - When the 10-minute wait for the first token ends, an entry that still has none asks for
@@ -284,7 +313,7 @@ numbers; each entry says which component changed.
 - Logs its version at start, "Token delivered to Home Assistant" once per token, how long each login
   took and how many days ago the login state was made, and when a failed login is retried.
 
-## [0.5.3] - unreleased
+## [0.5.3] - not published
 
 ### App
 - The setup docs name the Samba share correctly: `apps_configs` (0.5.2 said `app_config`).
@@ -292,7 +321,7 @@ numbers; each entry says which component changed.
 ### Repository
 - Test: no person is suggested when Verdi returns an empty or missing `personGuid`.
 
-## [0.5.2] - unreleased
+## [0.5.2] - not published
 
 ### App
 - The setup docs name the app's configuration folder correctly (`app_config`).
@@ -301,16 +330,16 @@ numbers; each entry says which component changed.
 - `scripts/draw_icon.py` draws the integration and app icons; the committed icons are its output
   (no visible change).
 
-## [0.5.1] - unreleased
+## [0.5.1] - not published
 
 ### App
 - Uses the full Chromium build for the headless login instead of the headless shell.
 - When a headless login does not finish, the log says on which page (host and path only) it
   stopped.
 
-## [0.5.0] - unreleased
+## [0.5.0] - not published
 
-First public release.
+First release (not published).
 
 ### Integration
 - Configurable for any Verdi zone; no zone-specific defaults.
@@ -328,3 +357,9 @@ First public release.
 - Pushes the token to Home Assistant instead of writing a token file; no `/share` access.
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
+
+[0.10.1]: https://github.com/jertech/verdi-ha/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.10.0
+[0.9.7]: https://github.com/jertech/verdi-ha/releases/tag/v0.9.7
+[0.9.6]: https://github.com/jertech/verdi-ha/releases/tag/v0.9.6
+[0.9.5]: https://github.com/jertech/verdi-ha/releases/tag/v0.9.5
