@@ -9,7 +9,7 @@ import time
 from datetime import datetime
 from typing import Any
 
-from homeassistant.components.calendar import CalendarEntity, CalendarEvent
+from homeassistant.components.calendar import CalendarEntity, CalendarEntityFeature, CalendarEvent
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 from homeassistant.util import dt as dt_util
@@ -31,9 +31,10 @@ async def async_setup_entry(
     if entry.data.get(CONF_FUNCTION_CALENDAR_ID):
         entities.append(VerdiRosterCalendar(c))
     if (p := c.personal) is not None and "events" in p.lookups:
+        writer = c.writer if c.writer is not None and c.writer.calendar_edit else None
         entities += [
             PersonalCalendar(p, "my_shifts", "shifts"),
-            PersonalCalendar(p, "my_availability", "availability"),
+            PersonalCalendar(p, "my_availability", "availability", writer),
         ]
     async_add_entities(entities)
 
@@ -104,12 +105,21 @@ class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
 
 
 class PersonalCalendar(VerdiEntity, CalendarEntity):
-    """Your own shifts, or your availability events, about a month ahead, from the last poll."""
+    """Your own shifts, or your availability events, about a month ahead, from the last poll. With
+    "Add and remove ... from the availability calendar" on, the availability calendar can add and
+    remove your planned statuses."""
 
     lookup = "events"
 
-    def __init__(self, coordinator: LookupCoordinator, translation_key: str, section: str) -> None:
+    def __init__(
+        self, coordinator: LookupCoordinator, translation_key: str, section: str, writer: Any = None
+    ) -> None:
         super().__init__(coordinator)
+        self._writer = writer
+        if writer is not None:
+            self._attr_supported_features = (
+                CalendarEntityFeature.CREATE_EVENT | CalendarEntityFeature.DELETE_EVENT
+            )
         self._section = section
         self._attr_translation_key = translation_key
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{translation_key}_calendar"
@@ -146,3 +156,12 @@ class PersonalCalendar(VerdiEntity, CalendarEntity):
         self, hass: HomeAssistant, start_date: datetime, end_date: datetime
     ) -> list[CalendarEvent]:
         return [e for e in self._events if e.end > start_date and e.start < end_date]
+
+    async def async_create_event(self, **kwargs: Any) -> None:
+        """A planned status: the summary is the status name (HA's calendar view can't tell who adds it)."""
+        await self._writer.calendar_create(**kwargs)
+
+    async def async_delete_event(
+        self, uid: str, recurrence_id: str | None = None, recurrence_range: str | None = None
+    ) -> None:
+        await self._writer.calendar_delete(uid)
