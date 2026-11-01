@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Status select, duration select and the two buttons."""
 
+import asyncio
 import copy
 from unittest.mock import AsyncMock, patch
 
@@ -107,3 +108,41 @@ async def test_no_back_button_without_my_availability(hass, config_entry, mock_a
     await setup_with_token(hass, config_entry, options={**ON, "my_availability": False})
     assert hass.states.get("button.verdi_back_to_planning") is None
     assert hass.states.get("button.verdi_set_status") is not None
+
+
+async def test_second_press_while_busy_is_refused_not_queued(
+    hass, config_entry, mock_api, writes, hass_admin_user
+):
+    add, _ = writes
+    release = asyncio.Event()
+    entered = asyncio.Event()
+
+    async def held(*args, **kwargs):
+        entered.set()
+        await release.wait()
+        return dict(r.WRITE_OK)
+
+    add.side_effect = held
+    await setup_with_token(hass, config_entry, options=ON)
+    await hass.services.async_call("select", "select_option",
+                                   {"entity_id": "select.verdi_status_to_set", "option": "Urgent"}, blocking=True)  # fmt: skip
+    admin = Context(user_id=hass_admin_user.id)
+    first = hass.async_create_task(
+        hass.services.async_call(
+            "button", "press", {"entity_id": "button.verdi_set_status"}, blocking=True, context=admin
+        )
+    )
+    await entered.wait()
+    second = hass.async_create_task(
+        hass.services.async_call(
+            "button", "press", {"entity_id": "button.verdi_set_status"}, blocking=True, context=admin
+        )
+    )
+    # Refused at once; a queued press would still be waiting here, and would write once the first ends.
+    await asyncio.wait({second}, timeout=1)
+    release.set()
+    await first
+    with pytest.raises(HomeAssistantError) as err:
+        await second
+    assert err.value.translation_key == "busy"
+    assert add.await_count == 1

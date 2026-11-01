@@ -14,7 +14,8 @@ from .coordinator import LookupCoordinator
 from .entity import VerdiEntity, device_info
 from .write import StatusWriter, require_admin
 
-PARALLEL_UPDATES = 1
+# 0: a press while a write runs must reach the writer and be refused busy, not wait its turn and write again.
+PARALLEL_UPDATES = 0
 
 
 async def async_setup_entry(
