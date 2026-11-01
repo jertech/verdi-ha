@@ -23,7 +23,7 @@ from homeassistant.helpers.storage import Store
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 from homeassistant.util import dt as dt_util
 
-from . import parse, parse_personal, schedule
+from . import parse, parse_personal, schedule, write_data
 from .api import VerdiApi, VerdiAuthError, VerdiError, VerdiUnavailable
 from .const import (
     BACKOFF_START,
@@ -136,11 +136,14 @@ class PersonId:
 
     The call goes through the guard. report: tell the guard how it went (a success, or a
     Retry-After to honour); off inside a coordinator run, which reports for the whole lookup.
+    Also keeps whether your account may change your status and calendar (two booleans,
+    nothing else from the answer).
     """
 
     def __init__(self, api: VerdiApi, guard: Guard) -> None:
         self._api, self._guard = api, guard
         self.value: str | None = None
+        self.rights: dict[str, bool] | None = None
         self.on_resolved: Callable[[], None] | None = None
 
     async def get(self, *, report: bool = True) -> str:
@@ -159,6 +162,7 @@ class PersonId:
             guid = user.get("personGuid")
             if not isinstance(guid, str) or not guid:
                 raise VerdiError("security/users/authorize: no personGuid")
+            self.rights = write_data.rights(user, guid)
             self.value = guid
             if self.on_resolved:
                 self.on_resolved()
@@ -542,6 +546,8 @@ class VerdiCoordinator(LookupCoordinator):
         self.show_names: bool = names
         self.personal: LookupCoordinator | None = None
         self.fast: LookupCoordinator | None = None
+        # The StatusWriter when status changes are on; set in __init__.py (Any avoids an import cycle).
+        self.writer: Any = None
         self.timing: TimingLog | None = None
         self.timing_store: Store[dict[str, Any]] | None = None
 

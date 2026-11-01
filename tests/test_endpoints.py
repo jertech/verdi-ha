@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from aiohttp import ClientSession
 
-from custom_components.verdi.api import ALLOWED_ENDPOINTS, VerdiApi, VerdiError, is_guid
+from custom_components.verdi.api import ALLOWED_ENDPOINTS, VerdiApi, VerdiError, endpoint_key, is_guid
 
 GRID = "00000000-0000-4000-8000-000000000001"
 
@@ -17,7 +17,7 @@ DOC = Path(__file__).resolve().parent.parent / "docs" / "endpoints.md"
 def documented() -> set[tuple[str, str, str | None]]:
     rows = set()
     for line in DOC.read_text(encoding="utf-8").splitlines():
-        m = re.match(r"^\|\s*(GET|POST)\s*\|\s*`([^`]+)`\s*\|\s*(?:`([^`]+)`|-)\s*\|", line)
+        m = re.match(r"^\|\s*(GET|POST|DELETE)\s*\|\s*`([^`]+)`\s*\|\s*(?:`([^`]+)`|-)\s*\|", line)
         if m:
             rows.add((m.group(1), m.group(2), m.group(3)))
     return rows
@@ -41,8 +41,8 @@ async def test_every_lookup_is_allowed():
     calls = []
 
     class Recorder(VerdiApi):
-        async def _request(self, method, path, body):
-            calls.append((method, path, (body or {}).get("command")))
+        async def _request(self, method, path, body, **kwargs):
+            calls.append(endpoint_key(method, path, (body or {}).get("command")))
             return {}
 
     from datetime import UTC, datetime
@@ -64,6 +64,12 @@ async def test_every_lookup_is_allowed():
     await api.statistics("p", "nl")
     await api.upcoming_events("p", "nl")
     await api.current_intervention("p", "nl")
+    await api.event_priorities("nl")
+    await api.person_calendars("p", "nl")
+    await api.add_exception("p", "a", None, "s", "nl")
+    await api.return_to_planning("p", "s", None, "nl")
+    await api.add_event({}, "nl")
+    await api.delete_event(GRID, "nl")
     assert set(calls) == set(ALLOWED_ENDPOINTS)
 
 

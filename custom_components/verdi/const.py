@@ -5,6 +5,9 @@
 
 DOMAIN = "verdi"
 
+# hass.data key: one status-change write lock per person (lower-cased ID), shared by all entries.
+WRITE_LOCKS = f"{DOMAIN}_write_locks"
+
 # entry.data
 CONF_BASE_URL = "base_url"  # <verdi address>/verdi-core/api/v1
 CONF_STATION_ID = "station_id"
@@ -28,6 +31,8 @@ CONF_PAGED = "paged"  # the Paged sensor and its lookup
 CONF_PRE_ALERT = "pre_alert"
 CONF_GARRISON = "garrison"
 CONF_MY_EVENTS = "my_events"
+CONF_STATUS_CHANGES = "status_changes"
+CONF_CALENDAR_EDIT = "calendar_edit"
 CONF_STATISTICS = "statistics"
 # Safety intervals: the longest time between two fetches of a lookup.
 CONF_READINESS_SAFETY = "readiness_safety"  # minutes
@@ -92,6 +97,9 @@ FEATURES = {
     CONF_GARRISON: False,
     CONF_MY_EVENTS: True,
     CONF_STATISTICS: True,
+    # Changing your own status: off unless switched on; no lookup of their own.
+    CONF_STATUS_CHANGES: False,
+    CONF_CALENDAR_EDIT: False,
 }
 
 # Interval options: (default, minimum, maximum, seconds per unit).

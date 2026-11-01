@@ -443,3 +443,32 @@ def test_load_drops_a_closed_record_without_an_aware_time():
     )
     assert log.pages == [{"opened": iso(0)}]
     assert log.interventions == [_saved()]
+
+
+def test_keys_grow_over_the_page_and_confirmation_is_timed():
+    log = quiet()
+    changes = []
+    log.on_change = lambda: changes.append(1)
+    log.paged(at(15), PAGE, ["alarmDate", "station.name"])
+    assert log.page["confirmation_at"] is None
+    before = len(changes)
+    log.paged(at(30), {**PAGE, "confirmation": "Coming"}, ["alarmDate", "callConfirmation.description"])
+    rec = log.page
+    assert rec["keys"] == ["alarmDate", "callConfirmation.description", "station.name"]
+    assert rec["confirmation_at"] == iso(30) and rec["fields"]["confirmation"] is True
+    assert len(changes) > before
+    log.paged(at(45), {**PAGE, "confirmation": "Coming"}, ["alarmDate"])
+    assert log.page["confirmation_at"] == iso(30)  # first time only
+
+
+def test_confirmed_at_the_first_fetch():
+    log = quiet()
+    log.paged(at(15), {**PAGE, "confirmation": "Coming"}, [])
+    assert log.page["confirmation_at"] == iso(15)
+
+
+def test_keys_union_is_capped():
+    log = quiet()
+    log.paged(at(15), PAGE, [f"a{i}" for i in range(40)])
+    log.paged(at(30), PAGE, [f"b{i}" for i in range(40)])
+    assert len(log.page["keys"]) == 60

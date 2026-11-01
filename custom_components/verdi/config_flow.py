@@ -46,6 +46,7 @@ from .const import (
     CONF_AVAILABILITY_IDS,
     CONF_AVAILABILITY_SAFETY,
     CONF_BASE_URL,
+    CONF_CALENDAR_EDIT,
     CONF_CREW_FUNCTION_IDS,
     CONF_EVENTS_INTERVAL,
     CONF_FAST_INTERVAL,
@@ -64,6 +65,7 @@ from .const import (
     CONF_STATION_ID,
     CONF_STATISTICS,
     CONF_STATISTICS_INTERVAL,
+    CONF_STATUS_CHANGES,
     CONF_TEAM_GROUP_ID,
     CONF_TEAMS_SAFETY,
     CONF_TOKEN,
@@ -96,7 +98,15 @@ SECRET = TextSelector(TextSelectorConfig(type=TextSelectorType.PASSWORD))
 STATION, FAST_LANE, OWN_DATA, SAFETY = "station", "fast_lane", "own_data", "safety"
 STATION_INTERVALS = (CONF_SCAN_INTERVAL, CONF_INTERVENTION_INTERVAL, CONF_FAST_INTERVAL)
 FAST_LANE_CHOICES = ("paged", "vehicles", "personnel")
-OWN_SWITCHES = (CONF_MY_AVAILABILITY, CONF_PRE_ALERT, CONF_GARRISON, CONF_MY_EVENTS, CONF_STATISTICS)
+OWN_SWITCHES = (
+    CONF_MY_AVAILABILITY,
+    CONF_PRE_ALERT,
+    CONF_GARRISON,
+    CONF_MY_EVENTS,
+    CONF_STATISTICS,
+    CONF_STATUS_CHANGES,
+    CONF_CALENDAR_EDIT,
+)
 SAFETY_INTERVALS = (
     CONF_READINESS_SAFETY,
     CONF_ROSTER_SAFETY,
@@ -314,6 +324,10 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             elif removed and not self._lists_loaded:
                 # The form can't tell which configured ones are call statuses yet.
                 errors["base"] = "availabilities_not_loaded"
+            elif options.get(CONF_CALENDAR_EDIT) and not (
+                enabled(options, CONF_STATUS_CHANGES) and enabled(options, CONF_MY_EVENTS)
+            ):
+                errors["base"] = "calendar_edit_needs"
             elif rate > CALL_LIMIT:
                 errors["base"] = "too_many_calls"
                 placeholders["rate"] = f"{rate:.1f}"

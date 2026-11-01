@@ -146,6 +146,8 @@ SWITCHES_ON = {
     "garrison": False,
     "my_events": True,
     "statistics": True,
+    "status_changes": False,
+    "calendar_edit": False,
 }
 
 

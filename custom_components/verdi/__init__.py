@@ -1,7 +1,10 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""Verdi: unofficial, read-only lookups against the Verdi API with your own account."""
+"""Verdi: unofficial lookups against the Verdi API with your own account.
+
+Changes to your own status are made only when switched on.
+"""
 
 from __future__ import annotations
 
@@ -22,6 +25,7 @@ from .api import VerdiError
 from .const import (
     CONF_SCAN_INTERVAL,
     CONF_SHOW_NAMES,
+    CONF_STATUS_CHANGES,
     DOMAIN,
     FEATURES,
     INTERVALS,
@@ -35,15 +39,17 @@ from .const import (
     REQUIRED_DATA,
     TOKEN_GRACE_SECONDS,
 )
-from .coordinator import VerdiCoordinator, create_fast
+from .coordinator import VerdiCoordinator, create_fast, enabled
 from .guard import drop_guard
 from .personal import create_personal, statistics_store
+from .services import async_setup_services
 from .signals import Signals, load_timing, timing_store
 from .token import VerdiTokenView, get_store
+from .write import StatusWriter
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS = [Platform.BINARY_SENSOR, Platform.CALENDAR, Platform.SENSOR]
+PLATFORMS = [Platform.BINARY_SENSOR, Platform.BUTTON, Platform.CALENDAR, Platform.SELECT, Platform.SENSOR]
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
 type VerdiConfigEntry = ConfigEntry[VerdiCoordinator]
@@ -64,6 +70,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
                 hass.config_entries.async_schedule_reload(entry.entry_id)
 
     async_call_later(hass, max(store.grace_left(), 0) + 1, HassJob(grace_over, cancel_on_shutdown=True))
+    async_setup_services(hass)
     return True
 
 
@@ -100,6 +107,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
 
     coordinator = VerdiCoordinator(hass, entry, token)
     personal = create_personal(hass, entry, coordinator)
+    writer = StatusWriter(hass, entry, coordinator) if enabled(entry.options, CONF_STATUS_CHANGES) else None
     # Moves the chosen lookups off the station, so it must run before the station's first refresh.
     fast = create_fast(hass, entry, coordinator)
     # The first refresh already feeds the timing log, so it's loaded before Signals exists.
@@ -109,8 +117,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     # Without the list, personnel only lists the configured availabilities; a failure is retried later.
     with suppress(VerdiError):
         await coordinator.availabilities.load()
-    if personal is not None:
-        # Your own line in personnel and your roster shifts need it; a failure is retried later.
+    if personal is not None or writer is not None:
+        # Your own line in personnel and your roster shifts need it, and status changes need it and your
+        # rights; a failure is retried later.
         with suppress(VerdiError):
             await coordinator.person.get()
     await coordinator.async_config_entry_first_refresh()
@@ -119,6 +128,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     if personal is not None:
         await personal.async_refresh()
     coordinator.personal = personal
+    coordinator.writer = writer
     coordinator.fast = fast
     coordinator.timing, coordinator.timing_store = timing, store
     signals.start()

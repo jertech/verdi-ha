@@ -1,11 +1,12 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 # Copyright (C) 2026 jertech and contributors
 # Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-"""Minimal read-only client for the Verdi API.
+"""Minimal client for the Verdi API.
 
-Every lookup is a POST of {"command": "<Name>Command", ...} to <area>/commands: the web interface's
-bodies for the station lookups, and the read commands of Verdi's mobile app route for your own
-data. Only the endpoints in ALLOWED_ENDPOINTS can be called (see docs/endpoints.md).
+Lookups are a POST of {"command": "<Name>Command", ...} to <area>/commands: the web interface's bodies for
+the station lookups, and the read commands of Verdi's mobile app route for your own data. With "Change my
+status" on, four writes of your own status and planning go out on the web route, as the web interface sends
+them. Only the endpoints in ALLOWED_ENDPOINTS can be called (see docs/endpoints.md).
 """
 
 from __future__ import annotations
@@ -37,6 +38,23 @@ def is_guid(value: Any) -> bool:
     return isinstance(value, str) and GUID.fullmatch(value) is not None
 
 
+WEB_ACCEPT = "application/json, text/plain, */*"
+EVENTS = "planning/personcalendar/events"
+EVENT_TEMPLATE = f"{EVENTS}/{{guid}}"
+CALENDAR_INCLUDE = "recurrenceGroups,crewFunction,station"
+REFUSED_STATUSES = (400, 404, 409, 422)
+FEEDBACK_MAX = 300
+
+# The writes of your own status and planning; only the write calls below (refusals=True) may send them.
+WRITE_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
+    {
+        ("POST", "planning/personcalendar/events/commands", "PersonAvailabilityEventAddExceptionCommand"),
+        ("POST", "configuration/persons/commands", "PersonReturnToPlanningCommand"),
+        ("POST", EVENTS, None),
+        ("DELETE", EVENT_TEMPLATE, None),
+    }
+)
+
 # (method, path, command). Keep in sync with docs/endpoints.md; a test enforces it.
 ALLOWED_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
     {
@@ -52,9 +70,45 @@ ALLOWED_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
         ),
         ("POST", "domaindata/person/availabilities/displayitems", None),
         ("GET", "security/users/authorize", None),
+        ("POST", "domaindata/predefined/eventpriorities/search", None),
+        ("POST", "planning/personcalendars/search", None),
     }
     | {("POST", APP_ROUTE, command) for command in APP_COMMANDS}
+    | WRITE_ENDPOINTS
 )
+
+
+def endpoint_key(method: str, path: str, command: str | None) -> tuple[str, str, str | None]:
+    """The allowlist entry a request falls under: an event DELETE with a GUID as last segment maps to the
+    template; everything else must match exactly."""
+    prefix = f"{EVENTS}/"
+    if method == "DELETE" and path.startswith(prefix) and is_guid(path[len(prefix) :]):
+        return (method, EVENT_TEMPLATE, command)
+    return (method, path, command)
+
+
+def feedback(data: Any) -> str:
+    """Verdi's refusal texts, joined once each and capped. For the caller only: may name you, so never log or
+    store it."""
+    texts: list[str] = []
+    if isinstance(data, dict):
+        for key in ("errorFeedback", "warningFeedback"):
+            items = data.get(key)
+            for item in items if isinstance(items, list) else []:
+                text = item
+                if isinstance(item, dict):
+                    text = next(
+                        (item[k] for k in ("message", "description", "text") if isinstance(item.get(k), str)),
+                        None,
+                    )
+                if isinstance(text, str) and text.strip():
+                    texts.append(text.strip())
+        if not texts:
+            for key in ("message", "title", "detail"):
+                if isinstance(data.get(key), str) and data[key].strip():
+                    texts.append(data[key].strip())
+                    break
+    return "; ".join(dict.fromkeys(texts))[:FEEDBACK_MAX]
 
 
 class VerdiError(Exception):
@@ -68,12 +122,22 @@ class VerdiAuthError(VerdiError):
 class VerdiUnavailable(VerdiError):
     """Verdi is busy or unreachable: 429, 5xx, a timeout or a connection error.
 
-    retry_after: seconds Verdi asked to wait, if it said so.
+    retry_after: seconds Verdi asked to wait, if it said so. status: the HTTP status, None without one.
     """
 
-    def __init__(self, message: str, retry_after: float | None = None) -> None:
+    def __init__(self, message: str, retry_after: float | None = None, status: int | None = None) -> None:
         super().__init__(message)
         self.retry_after = retry_after
+        self.status = status
+
+
+class VerdiRefused(VerdiError):
+    """Verdi refused a write. feedback holds Verdi's own texts for the caller; it may name you, so it is
+    never part of the message and never logged or stored."""
+
+    def __init__(self, message: str, feedback: str = "") -> None:
+        super().__init__(message)
+        self.feedback = feedback
 
 
 def retry_after(value: str | None) -> float | None:
@@ -146,30 +210,55 @@ class VerdiApi:
     def set_token(self, token: str) -> None:
         self.token = clean_token(token)
 
-    async def _request(self, method: str, path: str, body: dict[str, Any] | None) -> dict[str, Any]:
+    async def _request(
+        self,
+        method: str,
+        path: str,
+        body: dict[str, Any] | None,
+        *,
+        headers: dict[str, str] | None = None,
+        ok: tuple[int, ...] = (200,),
+        refusals: bool = False,
+    ) -> dict[str, Any]:
+        """refusals: a write; a refusal raises VerdiRefused with Verdi's feedback (outside the message)."""
         command = body.get("command") if body else None
-        if (method, path, command) not in ALLOWED_ENDPOINTS:
+        key = endpoint_key(method, path, command)
+        if key not in ALLOWED_ENDPOINTS:
             raise VerdiError(f"{path}: endpoint not allowed")
+        if key in WRITE_ENDPOINTS and not refusals:
+            raise VerdiError(f"{path}: write not allowed here")
         if not self.token:
             raise VerdiAuthError(f"{path}: no token")
-        headers = {"Authorization": f"Bearer {self.token}", "Accept": "application/json"}
+        sent = {"Authorization": f"Bearer {self.token}", "Accept": "application/json", **(headers or {})}
         try:
             async with self._session.request(
                 method,
                 f"{self._base_url}/{path}",
                 json=body,
-                headers=headers,
+                headers=sent,
                 timeout=aiohttp.ClientTimeout(total=20),
             ) as resp:
                 if resp.status in (401, 403):
                     raise VerdiAuthError(f"{path}: HTTP {resp.status}")
                 if resp.status == 429 or resp.status >= 500:
                     raise VerdiUnavailable(
-                        f"{path}: HTTP {resp.status}", retry_after(resp.headers.get("Retry-After"))
+                        f"{path}: HTTP {resp.status}",
+                        retry_after(resp.headers.get("Retry-After")),
+                        status=resp.status,
                     )
-                if resp.status != 200:
+                if resp.status not in ok:
+                    if refusals and resp.status in REFUSED_STATUSES:
+                        try:
+                            answer = await resp.json(content_type=None)
+                        except ValueError:
+                            answer = None
+                        raise VerdiRefused(f"{path}: refused", feedback(answer))
                     raise VerdiError(f"{path}: HTTP {resp.status}")
+                if resp.status == 204:
+                    return {}
                 data = await resp.json(content_type=None)
+                if data is None and refusals:
+                    data = {}  # a write answered 200 without a body went through
         except aiohttp.ClientError as err:
             raise VerdiUnavailable(f"{path}: {type(err).__name__}") from err
         except TimeoutError as err:
@@ -179,6 +268,8 @@ class VerdiApi:
         if not isinstance(data, dict):
             raise VerdiError(f"{path}: unexpected response type")
         if data.get("result") not in (None, "Success"):
+            if refusals:
+                raise VerdiRefused(f"{path}: refused", feedback(data))
             # errorFeedback can contain personal data; never put it in the message.
             raise VerdiError(f"{path}: result={data.get('result')}")
         return data
@@ -316,4 +407,70 @@ class VerdiApi:
         return await self.command(
             APP_ROUTE,
             {"command": APP_COMMANDS[5], "personId": person_id, "language": language},
+        )
+
+    # Changing your own status and planning (only with "Change my status" on). The web route, as the
+    # web interface sends them. Never an include header with "person": the national number rides along.
+
+    @staticmethod
+    def _web(language: str, **extra: str) -> dict[str, str]:
+        return {"Accept": WEB_ACCEPT, "include-all": "false", "language": language, **extra}
+
+    async def event_priorities(self, language: str) -> dict[str, Any]:
+        return await self._request(
+            "POST", "domaindata/predefined/eventpriorities/search", {}, headers=self._web(language)
+        )
+
+    async def person_calendars(self, person_id: str, language: str) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            "planning/personcalendars/search",
+            {"filter": [{"field": "person", "value": person_id, "operator": "Eq"}]},
+            headers=self._web(language, **{"include-personcalendar": CALENDAR_INCLUDE}),
+        )
+
+    async def add_exception(
+        self, person_id: str, availability_id: str, duration: str | None, station_id: str, language: str
+    ) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            "planning/personcalendar/events/commands",
+            {
+                "command": "PersonAvailabilityEventAddExceptionCommand",
+                "personId": person_id,
+                "availabilityId": availability_id,
+                "duration": duration,
+                "stationIds": [station_id],
+            },
+            headers=self._web(language),
+            refusals=True,
+        )
+
+    async def return_to_planning(
+        self, person_id: str, station_id: str | None, planning_group_id: str | None, language: str
+    ) -> dict[str, Any]:
+        return await self._request(
+            "POST",
+            "configuration/persons/commands",
+            {
+                "command": "PersonReturnToPlanningCommand",
+                "personId": person_id,
+                "stationId": station_id,
+                "planningGroupId": planning_group_id,
+                "timeStamp": utc_now_iso(),
+            },
+            headers=self._web(language),
+            refusals=True,
+        )
+
+    async def add_event(self, body: dict[str, Any], language: str) -> dict[str, Any]:
+        return await self._request(
+            "POST", EVENTS, body, headers=self._web(language), ok=(200, 201), refusals=True
+        )
+
+    async def delete_event(self, event_id: str, language: str) -> dict[str, Any]:
+        if not is_guid(event_id):
+            raise VerdiError("delete: not an event ID")
+        return await self._request(
+            "DELETE", f"{EVENTS}/{event_id}", None, headers=self._web(language), ok=(200, 204), refusals=True
         )

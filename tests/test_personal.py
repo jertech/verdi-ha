@@ -4,7 +4,7 @@
 import copy
 import zlib
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 from homeassistant.core import HomeAssistant
@@ -12,7 +12,7 @@ from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
 from custom_components.verdi.const import DAILY_OFFSET_MAX
-from custom_components.verdi.personal import request_language
+from custom_components.verdi.personal import create_personal, request_language
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import ALL_OFF, fake_command, make_token, setup_with_token
@@ -144,3 +144,10 @@ async def test_no_personal_calls_during_a_backoff(hass: HomeAssistant, config_en
     assert personal.last_update_success
     await tick(hass, freezer, 90)  # the backoff is over; the mark is still there
     assert len(app_calls(calls, AVAILABILITY)) == 1
+
+
+async def test_status_switches_add_no_lookup(hass: HomeAssistant, config_entry):
+    config_entry.add_to_hass(hass)
+    options = {**ALL_OFF, "status_changes": True, "calendar_edit": True}
+    hass.config_entries.async_update_entry(config_entry, options=options)
+    assert create_personal(hass, config_entry, MagicMock()) is None

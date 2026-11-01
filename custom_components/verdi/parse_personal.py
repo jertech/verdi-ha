@@ -77,6 +77,38 @@ def last_called(text: Any, now: datetime) -> datetime | None:
     return None
 
 
+BLOCKS = (
+    ("stationAvailabilities", "station"),
+    ("stationPlanningGroupAvailabilities", "station_group"),
+    ("planningGroupAvailabilities", "group"),
+)
+
+
+def _text_id(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _blocks(data: dict[str, Any]) -> list[dict[str, Any]]:
+    """Per station / planning group: the IDs and flags back to planning needs. Kept in memory only; the
+    sensor's attributes don't show them."""
+    found: list[dict[str, Any]] = []
+    for key, scope in BLOCKS:
+        for block in data.get(key) or []:
+            if not isinstance(block, dict):
+                continue
+            found.append(
+                {
+                    "scope": scope,
+                    "station_id": _text_id(block.get("stationId")),
+                    "planning_group_id": _text_id(block.get("planningGroupId")),
+                    "availability": clean(block.get("availabilityName")),
+                    "can_return": block.get("canReturnToPlanning") is True,
+                    "end": _moment(block.get("end")),
+                }
+            )
+    return found
+
+
 def my_availability(data: dict[str, Any]) -> dict[str, Any] | None:
     """Your availability now: overall, per station and per planning group."""
     overall = data.get("globalAvailability")
@@ -94,6 +126,7 @@ def my_availability(data: dict[str, Any]) -> dict[str, Any] | None:
         "stations": _by_name(data.get("stationAvailabilities"), "stationName"),
         "planning_groups": _by_name(data.get("planningGroupAvailabilities"), "planningGroupName"),
         "ends": ends,
+        "blocks": _blocks(data),
     }
 
 
@@ -145,12 +178,14 @@ def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
 
 PAGE_KEY = re.compile(r"[A-Za-z]{1,40}")
 PAGE_NESTED = ("station", "crewFunction", "callConfirmation")
-PAGE_KEYS_MAX = 40
+PAGE_LISTS = ("callConfirmations",)
+PAGE_KEYS_MAX = 60  # as timing.KEYS_MAX: a fetch never keeps fewer names than the page record
 
 
 def page_keys(data: dict[str, Any]) -> list[str]:
-    """The key names of your current page, one level deep under its station, crew function and
-    confirmation. Names only, never values: diagnostics show the shape of a real page."""
+    """The key names of your current page, one level deep under its station, crew function,
+    confirmation, and the items of the confirmation choices. Names only, never values:
+    diagnostics show the shape of a real page."""
     page = data.get("currentIntervention")
     if not isinstance(page, dict):
         return []
@@ -161,6 +196,11 @@ def page_keys(data: dict[str, Any]) -> list[str]:
         names.append(key)
         if key in PAGE_NESTED and isinstance(value, dict):
             names += [f"{key}.{sub}" for sub in value if isinstance(sub, str) and PAGE_KEY.fullmatch(sub)]
+        if key in PAGE_LISTS and isinstance(value, list):
+            subs = {sub for item in value if isinstance(item, dict) for sub in item}
+            names += [
+                f"{key}[].{sub}" for sub in sorted(subs) if isinstance(sub, str) and PAGE_KEY.fullmatch(sub)
+            ]
     return sorted(names)[:PAGE_KEYS_MAX]
 
 
@@ -233,6 +273,7 @@ def upcoming_events(data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
                 key,
                 {
                     "id": item.get("guid"),
+                    "kind": str(item.get("type")).lower(),
                     "start": start,
                     "end": end,
                     "summary": summary,

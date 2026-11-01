@@ -1,0 +1,5 @@
+# False positives in the branch history (generic-api-key on keyword arguments of the error helpers in write.py,
+# and on an earlier version of this comment that quoted them). No key was ever involved.
+066577b7f1b1c94b7580cb78b0a7d2115d32d01c:custom_components/verdi/write.py:generic-api-key:34
+066577b7f1b1c94b7580cb78b0a7d2115d32d01c:custom_components/verdi/write.py:generic-api-key:41
+682d8cd768afa397500ee398a8de94357f1e189c:.gitleaksignore:generic-api-key:1

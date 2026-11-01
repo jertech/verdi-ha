@@ -5,16 +5,20 @@ import copy
 import json
 import logging
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 from pytest_homeassistant_custom_component.components.diagnostics import (
     get_diagnostics_for_config_entry,
 )
 
+from custom_components.verdi.api import VerdiApi, VerdiRefused
 from custom_components.verdi.const import CONF_FAST_LANE, CONF_PAGED, CONF_WATCHED_VEHICLES
+from custom_components.verdi.diagnostics import async_get_config_entry_diagnostics
 from tests import responses as r
 from tests.conftest import ALL_OFF, BASE_URL, DATA, VERDI, fake_command, setup_with_token
 
@@ -203,3 +207,28 @@ async def test_diagnostics_show_timing_without_ids_or_page_values(
         "2026-10-24T08:59",
     ):
         assert leaked not in text, leaked
+
+
+async def test_diagnostics_hold_no_feedback_or_ids(hass, config_entry, mock_api):
+    with (
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.RIGHTS_USER),
+        patch.object(
+            VerdiApi, "add_exception", AsyncMock(side_effect=VerdiRefused("p: refused", "Alex Example"))
+        ),
+    ):
+        await setup_with_token(hass, config_entry, options={"status_changes": True})
+        with pytest.raises(HomeAssistantError):
+            await config_entry.runtime_data.writer.add_exception("Urgent", "5m")
+        diag = await async_get_config_entry_diagnostics(hass, config_entry)
+    writes = diag["writes"]
+    assert writes["rights"] == {"status": True, "calendar": True}
+    assert writes["writes"]["add_exception"]["outcome"] == "verdi_refused"
+    assert writes["writes"]["add_exception"]["today"] == 1
+    text = json.dumps(diag, default=str)
+    for secret in ("Alex Example", "me-1", "av-2", "st-1", "cal-gen"):
+        assert secret not in text
+
+
+async def test_diagnostics_without_status_changes(hass, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    assert (await async_get_config_entry_diagnostics(hass, config_entry))["writes"] is None
