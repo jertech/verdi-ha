@@ -87,6 +87,10 @@ export function statusText(language, state) {
   return state.state;
 }
 
+export function statusLabel(language, name) {
+  return name === "unknown" ? label(language, "unknown") : name;
+}
+
 export function vehicleName(friendlyName, title) {
   if (!friendlyName) return "?";
   return friendlyName.startsWith(`${title} `) ? friendlyName.slice(title.length + 1) : friendlyName;
@@ -98,7 +102,7 @@ export function entityIds(section) {
 
 const STYLE = `
   :host { display: block; min-height: 100%; background: var(--primary-background-color); color: var(--primary-text-color); }
-  header { display: flex; align-items: center; gap: 8px; height: var(--header-height, 56px); padding: 0 8px;
+  header { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; gap: 8px; height: var(--header-height, 56px); padding: 0 8px;
     background: var(--app-header-background-color, var(--primary-color)); color: var(--app-header-text-color, #fff); }
   header h1 { margin: 0; font-size: 20px; font-weight: 400; }
   header button { width: 40px; height: 40px; padding: 8px; border: 0; background: none; color: inherit; cursor: pointer; }
@@ -189,7 +193,7 @@ function personnel(state, language) {
   }
   const pills = element("div", "pills");
   for (const { name, color, count } of statusCounts(state.attributes)) {
-    pills.append(pill(`${name}: ${count}`, color));
+    pills.append(pill(`${statusLabel(language, name)}: ${count}`, color));
   }
   block.append(pills, row(label(language, "total"), element("span", "", state.state)));
   if (state.attributes.truncated) block.append(element("div", "muted", label(language, "incomplete")));
@@ -237,7 +241,7 @@ function definePanel() {
     }
 
     set hass(hass) {
-      const reload = hass.entities !== this._hass?.entities;
+      const reload = !this._hass || hass.entities !== this._hass.entities;
       this._hass = hass;
       if (reload) this._load();
       this._render();
@@ -249,7 +253,6 @@ function definePanel() {
         this._sections = sections;
       } catch (err) {
         console.error("verdi/status_page failed", err);
-        this._sections ??= [];
       }
       this._drawn = undefined;
       this._render();
@@ -257,8 +260,9 @@ function definePanel() {
 
     _render() {
       const hass = this._hass;
-      if (!hass || !this._sections) return;
-      const states = this._sections.flatMap(entityIds).map((id) => hass.states[id]);
+      if (!hass) return;
+      const sections = this._sections ?? [];
+      const states = sections.flatMap(entityIds).map((id) => hass.states[id]);
       const drawn = this._drawn;
       if (
         drawn?.language === hass.language &&
@@ -272,9 +276,9 @@ function definePanel() {
       const header = element("header");
       header.append(menuButton(this, language), element("h1", "", "Verdi (unofficial)"));
       const main = element("main");
-      const heading = this._sections.length > 1;
-      for (const data of this._sections) main.append(...section(data, hass.states, language, heading));
-      if (!this._sections.length) main.append(element("div", "muted", label(language, "empty")));
+      const heading = sections.length > 1;
+      for (const data of sections) main.append(...section(data, hass.states, language, heading));
+      if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
       main.append(element("div", "notice", label(language, "notice")));
       const style = element("style", "", STYLE);
       this.shadowRoot.replaceChildren(style, header, main);

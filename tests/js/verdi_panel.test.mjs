@@ -7,6 +7,7 @@ import {
   label,
   normalizeColor,
   statusCounts,
+  statusLabel,
   statusText,
   textColor,
   vehicleName,
@@ -88,4 +89,10 @@ test("a section's entities", () => {
     entityIds({ my_availability: "sensor.a", vehicles: ["sensor.b", "sensor.c"], personnel: null }),
     ["sensor.a", "sensor.b", "sensor.c"],
   );
+});
+
+test("a personnel pill names the status, and says Unknown for the key unknown", () => {
+  assert.equal(statusLabel("en", "unknown"), "Unknown");
+  assert.equal(statusLabel("nl", "unknown"), "Onbekend");
+  assert.equal(statusLabel("nl", "Beschikbaar"), "Beschikbaar");
 });
