@@ -34,7 +34,7 @@ def status_page(hass: HomeAssistant) -> list[dict[str, Any]]:
         loaded = entry.state is ConfigEntryState.LOADED
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
             if entity.domain == "sensor" and entity.translation_key in found and not entity.disabled:
-                # The registry keeps sensors the loaded integration no longer provides; their state is "restored".
+                # The registry keeps sensors this integration no longer provides: restored states.
                 state = hass.states.get(entity.entity_id)
                 if loaded and state is not None and state.attributes.get(ATTR_RESTORED):
                     continue
