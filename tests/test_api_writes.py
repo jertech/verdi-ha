@@ -6,6 +6,7 @@ import pytest
 from custom_components.verdi.api import (
     ALLOWED_ENDPOINTS,
     EVENT_TEMPLATE,
+    WRITE_ENDPOINTS,
     VerdiApi,
     VerdiError,
     VerdiRefused,
@@ -184,3 +185,29 @@ async def test_unavailable_keeps_its_status(status):
     with pytest.raises(VerdiUnavailable) as err:
         await api.return_to_planning("me-1", "st-1", None, "nl")
     assert err.value.status == status and err.value.retry_after == 30
+
+
+async def test_write_answered_200_without_a_body_went_through():
+    api, session = api_with(Response(200, None))
+    assert await api.delete_event(guid(7), "nl") == {}
+    assert len(session.sent) == 1
+
+
+async def test_reads_still_refuse_an_empty_answer():
+    api, _ = api_with(Response(200, None))
+    with pytest.raises(VerdiError, match="unexpected response type"):
+        await api.current_user()
+
+
+async def test_a_write_endpoint_is_refused_outside_the_write_calls():
+    api, session = api_with(Response(200, OK))
+    with pytest.raises(VerdiError, match="write not allowed here"):
+        await api.command(
+            "planning/personcalendar/events/commands",
+            {"command": "PersonAvailabilityEventAddExceptionCommand"},
+        )
+    with pytest.raises(VerdiError, match="write not allowed here"):
+        await api.command("configuration/persons/commands", {"command": "PersonReturnToPlanningCommand"})
+    assert session.sent == []
+    assert WRITE_ENDPOINTS < ALLOWED_ENDPOINTS
+    assert len(WRITE_ENDPOINTS) == 4

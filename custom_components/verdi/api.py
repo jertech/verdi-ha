@@ -45,6 +45,16 @@ CALENDAR_INCLUDE = "recurrenceGroups,crewFunction,station"
 REFUSED_STATUSES = (400, 404, 409, 422)
 FEEDBACK_MAX = 300
 
+# The writes of your own status and planning; only the write calls below (refusals=True) may send them.
+WRITE_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
+    {
+        ("POST", "planning/personcalendar/events/commands", "PersonAvailabilityEventAddExceptionCommand"),
+        ("POST", "configuration/persons/commands", "PersonReturnToPlanningCommand"),
+        ("POST", EVENTS, None),
+        ("DELETE", EVENT_TEMPLATE, None),
+    }
+)
+
 # (method, path, command). Keep in sync with docs/endpoints.md; a test enforces it.
 ALLOWED_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
     {
@@ -62,16 +72,9 @@ ALLOWED_ENDPOINTS: frozenset[tuple[str, str, str | None]] = frozenset(
         ("GET", "security/users/authorize", None),
         ("POST", "domaindata/predefined/eventpriorities/search", None),
         ("POST", "planning/personcalendars/search", None),
-        (
-            "POST",
-            "planning/personcalendar/events/commands",
-            "PersonAvailabilityEventAddExceptionCommand",
-        ),
-        ("POST", "configuration/persons/commands", "PersonReturnToPlanningCommand"),
-        ("POST", EVENTS, None),
-        ("DELETE", EVENT_TEMPLATE, None),
     }
     | {("POST", APP_ROUTE, command) for command in APP_COMMANDS}
+    | WRITE_ENDPOINTS
 )
 
 
@@ -219,8 +222,11 @@ class VerdiApi:
     ) -> dict[str, Any]:
         """refusals: a write; a refusal raises VerdiRefused with Verdi's feedback (outside the message)."""
         command = body.get("command") if body else None
-        if endpoint_key(method, path, command) not in ALLOWED_ENDPOINTS:
+        key = endpoint_key(method, path, command)
+        if key not in ALLOWED_ENDPOINTS:
             raise VerdiError(f"{path}: endpoint not allowed")
+        if key in WRITE_ENDPOINTS and not refusals:
+            raise VerdiError(f"{path}: write not allowed here")
         if not self.token:
             raise VerdiAuthError(f"{path}: no token")
         sent = {"Authorization": f"Bearer {self.token}", "Accept": "application/json", **(headers or {})}
@@ -251,6 +257,8 @@ class VerdiApi:
                 if resp.status == 204:
                     return {}
                 data = await resp.json(content_type=None)
+                if data is None and refusals:
+                    data = {}  # a write answered 200 without a body went through
         except aiohttp.ClientError as err:
             raise VerdiUnavailable(f"{path}: {type(err).__name__}") from err
         except TimeoutError as err:
