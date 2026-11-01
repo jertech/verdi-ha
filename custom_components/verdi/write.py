@@ -32,14 +32,18 @@ _REFRESH = object()  # _availability: refresh now, rather than check a refresh t
 def fail(key: str, **placeholders: str) -> HomeAssistantError:
     """Verdi's side or a check of ours that isn't the user's input."""
     return HomeAssistantError(
-        translation_domain=DOMAIN, translation_key=key, translation_placeholders=placeholders or None
+        translation_domain=DOMAIN,
+        translation_key=key,
+        translation_placeholders=placeholders or None,
     )
 
 
 def invalid(key: str, **placeholders: str) -> ServiceValidationError:
     """Something the caller can fix."""
     return ServiceValidationError(
-        translation_domain=DOMAIN, translation_key=key, translation_placeholders=placeholders or None
+        translation_domain=DOMAIN,
+        translation_key=key,
+        translation_placeholders=placeholders or None,
     )
 
 

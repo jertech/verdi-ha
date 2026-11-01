@@ -1,0 +1,4 @@
+# False positives in the branch history: `translation_key=key, translation_placeholders=placeholders` on one line
+# matched generic-api-key. The arguments are on separate lines since; no key was ever involved.
+066577b7f1b1c94b7580cb78b0a7d2115d32d01c:custom_components/verdi/write.py:generic-api-key:34
+066577b7f1b1c94b7580cb78b0a7d2115d32d01c:custom_components/verdi/write.py:generic-api-key:41
