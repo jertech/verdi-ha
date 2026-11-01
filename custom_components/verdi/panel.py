@@ -11,6 +11,8 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
+from homeassistant.config_entries import ConfigEntryState
+from homeassistant.const import ATTR_RESTORED
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
@@ -29,8 +31,13 @@ def status_page(hass: HomeAssistant) -> list[dict[str, Any]]:
     sections = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         found: dict[str, list[str]] = {"my_availability": [], "vehicles": [], "personnel": []}
+        loaded = entry.state is ConfigEntryState.LOADED
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
             if entity.domain == "sensor" and entity.translation_key in found and not entity.disabled:
+                # The registry keeps sensors the loaded integration no longer provides; their state is "restored".
+                state = hass.states.get(entity.entity_id)
+                if loaded and state is not None and state.attributes.get(ATTR_RESTORED):
+                    continue
                 found[entity.translation_key].append(entity.entity_id)
         if any(found.values()):
             sections.append(

@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The status page: sidebar panel and websocket command."""
 
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
@@ -36,6 +37,7 @@ async def test_panel_once_with_two_entries(hass: HomeAssistant, config_entry, mo
 async def test_panel_stays_through_a_reload(hass: HomeAssistant, config_entry, mock_api):
     await setup_with_token(hass, config_entry)
     shown = panel(hass)
+    assert shown is not None
     assert await hass.config_entries.async_reload(config_entry.entry_id)
     await hass.async_block_till_done()
     assert panel(hass) is shown
@@ -129,3 +131,22 @@ async def test_command_leaves_out_an_empty_entry(hass: HomeAssistant, config_ent
     for entity_id in ("sensor.verdi_p100", "sensor.verdi_my_availability", "sensor.verdi_personnel"):
         registry.async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.USER)
     assert await _sections(hass, await hass_ws_client(hass)) == []
+
+
+async def test_command_forgets_a_sensor_switched_off_by_the_options(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client
+):
+    await setup_with_token(hass, config_entry)
+    assert (await _sections(hass, await hass_ws_client(hass)))[0]["my_availability"] is not None
+    hass.config_entries.async_update_entry(config_entry, options={**config_entry.options, **ALL_OFF})
+    assert await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert (await _sections(hass, await hass_ws_client(hass)))[0]["my_availability"] is None
+
+
+async def test_panel_exists_while_an_entry_waits_for_a_token(hass: HomeAssistant, config_entry, mock_api):
+    config_entry.add_to_hass(hass)
+    await hass.config_entries.async_setup(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert panel(hass) is not None

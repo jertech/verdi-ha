@@ -77,6 +77,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bool:
+    await async_show_panel(hass)  # first, so the page exists while an entry waits for a token
     missing = [key for key in REQUIRED_DATA if not entry.data.get(key)]
     issue_id = f"{ISSUE_MISSING_CONFIG}_{entry.entry_id}"
     if missing:
@@ -136,7 +137,6 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     signals.start()
     entry.runtime_data = coordinator
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
-    await async_show_panel(hass)
     return True
 
 
