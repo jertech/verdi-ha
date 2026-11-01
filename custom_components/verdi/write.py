@@ -67,7 +67,7 @@ class StatusWriter:
         self._language = request_language(hass)
         self.status_changes = enabled(entry.options, CONF_STATUS_CHANGES)
         self.calendar_edit = enabled(entry.options, CONF_CALENDAR_EDIT)
-        # The selects' current choice, read by the "Set status" button.
+        # The selects' current choice, read by the "Add exception" button.
         self.choice: dict[str, str | None] = {"status": None, "duration": write_data.DEFAULT_DURATION}
         self._kind: dict[str, Any] | None = None
         self._calendars: list[dict[str, Any]] | None = None

@@ -3,7 +3,7 @@
     "step": {
       "user": {
         "title": "Verdi (non officiel)",
-        "description": "Non officiel, sans lien avec Cevi ou Verdi, non destiné à un usage opérationnel. L'adresse Verdi ressemble à {example_url}. Consultez le README pour trouver les identifiants (ne partagez jamais de captures d'écran de l'onglet réseau de votre navigateur : votre jeton y apparaît). Les jetons sont fournis par l'application Verdi Token Relay ; le champ jeton sert uniquement aux tests.",
+        "description": "Non officiel, sans lien avec Cevi ou Verdi, non destiné à un usage opérationnel. L'adresse Verdi ressemble à {example_url}. Consultez docs/finding-your-ids.md dans le dépôt de l'intégration pour trouver les identifiants (ne partagez jamais de captures d'écran de l'onglet réseau de votre navigateur : votre jeton y apparaît). Les jetons sont fournis par l'application Verdi Token Relay ; le champ jeton sert uniquement aux tests.",
         "data": {
           "accept_disclaimer": "Je comprends qu'il s'agit d'une intégration non officielle, sans lien avec Cevi ou Verdi, non destinée à un usage opérationnel, et qu'elle utilise mon propre compte Verdi avec toutes ses autorisations, à mes propres risques.",
           "verdi_url": "Adresse Verdi",
@@ -72,21 +72,21 @@
               "scan_interval": "Cycle (secondes, au moins 30)",
               "intervention_interval": "Cycle pendant une intervention (secondes, au moins 15)",
               "watched_vehicles": "Véhicules pris en compte pour les interventions (aucun choisi : tous)",
-              "non_pageable": "Disponibilités non appelables (aucune choisie : déduit du nom)",
+              "non_pageable": "Statuts non appelables (aucun choisi : déduit du nom)",
               "availability_ids": "Statuts pris en compte dans Personnes",
-              "fast_interval": "Tick rapide (secondes, au moins 10)"
+              "fast_interval": "Cycle rapide (secondes, au moins 10)"
             }
           },
           "fast_lane": {
             "name": "Voie rapide",
-            "description": "Interrogé au tick rapide plutôt qu'au tick de la caserne.",
+            "description": "Interrogé au cycle rapide plutôt qu'au cycle du poste. Alarmé est coché par défaut ; si vous le décochez, votre alarme en cours n'est plus vérifiée et le capteur Alarmé n'est plus créé.",
             "data": {
               "fast_lane": "Requêtes sur la voie rapide"
             }
           },
           "own_data": {
             "name": "Vos propres données de l'app Verdi",
-            "description": "Lues avec le même jeton via les commandes de lecture de l'app Verdi. Désactivé : rien n'est lu et les entités ne sont pas créées.",
+            "description": "Lues avec le même jeton via les commandes de lecture de l'app Verdi. Désactivé : rien n'est lu et les entités ne sont pas créées. Les deux derniers interrupteurs modifient votre propre statut dans Verdi ; tous deux sont désactivés par défaut.",
             "data": {
               "my_availability": "Ma disponibilité",
               "pre_alert": "Pré-alerte",
@@ -94,11 +94,11 @@
               "my_events": "Calendriers de mes shifts et de ma disponibilité",
               "statistics": "Statistiques",
               "status_changes": "Modifier mon statut depuis Home Assistant",
-              "calendar_edit": "Ajouter et supprimer des statuts planifiés dans le calendrier de disponibilité"
+              "calendar_edit": "Ajouter et supprimer des événements dans le calendrier de disponibilité"
             },
             "data_description": {
-              "status_changes": "Ajoute des actions, deux listes et deux boutons pour définir votre statut maintenant, y mettre fin (retour au planning), planifier un statut et supprimer un statut planifié. Seuls les administrateurs de Home Assistant (et les automatisations) peuvent les utiliser.",
-              "calendar_edit": "La vue calendrier de Home Assistant ne sait pas qui l'utilise : activé, toute personne pouvant ouvrir le calendrier peut ajouter ou supprimer vos statuts planifiés et mettre fin à un statut en cours. Supprimer un statut en cours met fin à tous les statuts en cours, pas seulement à celui-là. Nécessite « Modifier mon statut » et les calendriers."
+              "status_changes": "Ajoute des actions, deux listes et jusqu'à deux boutons (Retour au planning nécessite Ma disponibilité) pour ajouter une exception, revenir au planning, créer un nouvel événement et supprimer un événement. Seuls les administrateurs de Home Assistant (et les automatisations) peuvent les utiliser.",
+              "calendar_edit": "La vue calendrier de Home Assistant ne sait pas qui l'utilise : activé, toute personne pouvant ouvrir le calendrier peut ajouter ou supprimer vos événements et mettre fin à une exception en cours. Supprimer une exception en cours met fin à toutes les exceptions en cours, pas seulement à celle-là. Nécessite « Modifier mon statut » et les calendriers."
             }
           },
           "safety": {
@@ -122,16 +122,16 @@
       "too_many_calls": "Trop d'appels : ces options soutiendraient environ {rate} appels par minute pendant une intervention ; la limite est de {limit}.",
       "invalid_availability_id": "Un ID de statut collé doit avoir la forme 12345678-abcd-1234-abcd-1234567890ab.",
       "availabilities_not_loaded": "La liste des statuts de Verdi n'est pas encore chargée : un statut ne peut donc pas être retiré pour l'instant. Réessayez dans quelques minutes.",
-      "calendar_edit_needs": "Ajouter et supprimer depuis le calendrier nécessite « Modifier mon statut » et « Calendriers de mes shifts et de ma disponibilité » activés."
+      "calendar_edit_needs": "Ajouter et supprimer des événements depuis le calendrier nécessite « Modifier mon statut » et « Calendriers de mes shifts et de ma disponibilité » activés."
     }
   },
   "entity": {
     "button": {
-      "set_status": { "name": "Définir le statut" },
+      "set_status": { "name": "Ajouter exception" },
       "back_to_planning": { "name": "Retour au planning" }
     },
     "select": {
-      "status_to_set": { "name": "Statut à définir" },
+      "status_to_set": { "name": "Statut" },
       "duration": {
         "name": "Durée",
         "state": {
@@ -253,7 +253,7 @@
       "message": "La modification de votre statut est désactivée dans les options Verdi."
     },
     "calendar_edit_off": {
-      "message": "L'ajout et la suppression depuis le calendrier sont désactivés dans les options Verdi."
+      "message": "L'ajout et la suppression d'événements depuis le calendrier sont désactivés dans les options Verdi."
     },
     "not_admin": {
       "message": "Seuls les administrateurs de Home Assistant peuvent modifier votre statut Verdi."
@@ -274,7 +274,7 @@
       "message": "Pas de réponse claire de Verdi ; vérifiez dans Verdi si la modification a été faite."
     },
     "token_refused": {
-      "message": "Verdi a refusé le jeton ; reconnectez-vous via l'application."
+      "message": "Verdi a refusé le jeton ; rien n'a été envoyé. Réessayez dans un instant ; si cela se reproduit, consultez le journal de l'application Verdi Token Relay."
     },
     "not_ready": {
       "message": "Votre compte Verdi n'a pas encore pu être lu ; réessayez dans un instant."
@@ -289,10 +289,10 @@
       "message": "Cette exception est déjà terminée ; Verdi ne permet pas de la modifier."
     },
     "not_own_event": {
-      "message": "Ce n'est pas un de vos statuts planifiés ; rien n'a été supprimé."
+      "message": "Ce n'est pas un de vos propres événements ; rien n'a été supprimé."
     },
     "needs_events": {
-      "message": "Supprimer un statut planifié nécessite « Calendriers de mes shifts et de ma disponibilité » activé."
+      "message": "Supprimer un événement nécessite « Calendriers de mes shifts et de ma disponibilité » activé."
     },
     "unknown_status": {
       "message": "Statut inconnu « {status} ». Choisissez parmi : {choices}."
@@ -313,7 +313,7 @@
       "message": "Calendrier inconnu « {calendar} ». Choisissez parmi : {choices}."
     },
     "repeat_not_supported": {
-      "message": "Les répétitions ne sont pas prises en charge."
+      "message": "Les événements répétitifs ne sont pas pris en charge."
     },
     "unknown_event": {
       "message": "Cet élément n'est pas dans votre calendrier de disponibilité ou ne peut pas être supprimé."
@@ -348,46 +348,46 @@
     },
     "fast_lane": {
       "options": {
-        "paged": "Appelé",
+        "paged": "Alarmé",
         "vehicles": "Véhicules",
-        "personnel": "Personnel"
+        "personnel": "Personnes"
       }
     }
   },
   "services": {
     "add_exception": {
-      "name": "Définir mon statut maintenant",
-      "description": "Définit votre statut Verdi maintenant pour une durée, comme exception à votre planning. Un planning fixe peut encore la remplacer ; la réponse indique si elle est active (vide si cela n'a pas pu être vérifié).",
+      "name": "Ajouter exception",
+      "description": "Ajoute une exception dans Verdi : un statut qui commence maintenant, pour la durée choisie. Un planning fixe peut encore la remplacer ; la réponse indique si elle est active (vide si cela n'a pas pu être vérifié).",
       "fields": {
         "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." },
-        "status": { "name": "Statut", "description": "Un statut planifiable du poste, par nom." },
+        "status": { "name": "Statut", "description": "Un statut planifiable du poste, par nom (ou ID)." },
         "duration": { "name": "Durée", "description": "Combien de temps ; illimité dure jusqu'au retour au planning." }
       }
     },
     "return_to_planning": {
       "name": "Retour au planning",
-      "description": "Met fin à vos exceptions en cours : votre statut planifié s'applique à nouveau.",
+      "description": "Met fin à vos exceptions en cours : votre planning s'applique à nouveau.",
       "fields": {
         "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." }
       }
     },
     "add_event": {
-      "name": "Planifier un statut",
-      "description": "Planifie un statut pour une plage horaire dans votre calendrier de disponibilité. La réponse contient l'ID du nouvel événement.",
+      "name": "Nouvel événement",
+      "description": "Ajoute un événement à votre calendrier de disponibilité : un statut pour une plage horaire. La réponse contient l'ID du nouvel événement.",
       "fields": {
         "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." },
-        "status": { "name": "Statut", "description": "Un statut planifiable du poste, par nom." },
+        "status": { "name": "Statut", "description": "Un statut planifiable du poste, par nom (ou ID)." },
         "start": { "name": "Début", "description": "Pas dans le passé." },
         "end": { "name": "Fin", "description": "Après le début." },
-        "calendar": { "name": "Calendrier", "description": "Le nom d'un poste pour son calendrier ; vide pour le planning général." }
+        "calendar": { "name": "Calendrier", "description": "Le nom du poste ou de la fonction du calendrier ; vide, « general » ou « Planning général » pour le planning général." }
       }
     },
     "delete_event": {
-      "name": "Supprimer un statut planifié",
-      "description": "Supprime un de vos statuts planifiés, avec l'ID de « Planifier un statut » ou du calendrier de disponibilité.",
+      "name": "Supprimer événement",
+      "description": "Supprime un de vos propres événements, avec l'ID de « Nouvel événement » ou du calendrier de disponibilité.",
       "fields": {
         "config_entry_id": { "name": "Entrée Verdi", "description": "Nécessaire seulement avec plusieurs entrées Verdi." },
-        "event_id": { "name": "ID de l'événement", "description": "L'ID du statut planifié." }
+        "event_id": { "name": "ID de l'événement", "description": "L'ID de l'événement." }
       }
     }
   }
