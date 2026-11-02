@@ -33,7 +33,12 @@ def status_page(hass: HomeAssistant) -> list[dict[str, Any]]:
         found: dict[str, list[str]] = {"my_availability": [], "vehicles": [], "personnel": []}
         loaded = entry.state is ConfigEntryState.LOADED
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
-            if entity.domain == "sensor" and entity.translation_key in found and not entity.disabled:
+            if (
+                entity.domain == "sensor"
+                and entity.translation_key in found
+                and not entity.disabled
+                and not entity.hidden
+            ):
                 # My availability switched off by the options stays restored. Vehicle and personnel sensors
                 # exist only if their lookup answered once, so a failed lookup looks restored: keep them.
                 state = hass.states.get(entity.entity_id)
