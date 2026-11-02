@@ -9,6 +9,7 @@ from unittest.mock import patch
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import VerdiError
 from custom_components.verdi.const import CONF_FAST_LANE
@@ -37,6 +38,24 @@ async def reload(hass: HomeAssistant, entry, data, freezer: FrozenDateTimeFactor
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
     ):
         assert await hass.config_entries.async_reload(entry.entry_id)
+        await hass.async_block_till_done()
+
+
+async def poll(hass: HomeAssistant, entry, data, freezer: FrozenDateTimeFactory, days: float = 0) -> None:
+    """Verdi answers the vehicle lookup while Home Assistant keeps running."""
+    freezer.tick(timedelta(days=days))
+    get_store(hass).tokens[entry.entry_id] = make_token()
+    lane = entry.runtime_data.lane("vehicles")
+    assert lane.mark_due("vehicles", "manual")
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(data)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await lane.async_refresh()
+        await hass.async_block_till_done()
+        freezer.tick(timedelta(hours=1))
+        get_store(hass).tokens[entry.entry_id] = make_token()
+        async_fire_time_changed(hass)
         await hass.async_block_till_done()
 
 
@@ -120,3 +139,81 @@ async def test_a_gone_vehicle_on_the_fast_lane_is_hidden_too(hass, config_entry,
     await reload(hass, config_entry, answers(OTHER), freezer)
     assert registry.async_get(SENSOR).hidden_by is er.RegistryEntryHider.INTEGRATION
     assert registry.async_get("sensor.verdi_p200").hidden_by is None
+
+
+async def test_gone_while_running_is_hidden_at_once(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await poll(hass, config_entry, answers(OTHER), freezer)
+    for entity_id in (SENSOR, BINARY):
+        assert registry.async_get(entity_id).hidden_by is er.RegistryEntryHider.INTEGRATION
+    assert status_page(hass)[0]["vehicles"] == ["sensor.verdi_p200"]
+
+
+async def test_gone_while_running_on_the_fast_lane_is_hidden_too(hass, config_entry, freezer):
+    registry = await start(hass, config_entry, {CONF_FAST_LANE: ["vehicles"]})
+    await poll(hass, config_entry, answers(OTHER), freezer)
+    assert registry.async_get(SENSOR).hidden_by is er.RegistryEntryHider.INTEGRATION
+
+
+async def test_a_gone_vehicle_made_visible_is_hidden_again_at_the_next_start(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await reload(hass, config_entry, answers(OTHER), freezer)
+    missed = registry.async_get(SENSOR).options
+    registry.async_update_entity(SENSOR, hidden_by=None)
+    await reload(hass, config_entry, answers(OTHER), freezer)
+    entity = registry.async_get(SENSOR)
+    assert entity.hidden_by is er.RegistryEntryHider.INTEGRATION
+    assert entity.options == missed  # the week keeps running
+
+
+async def test_a_gone_vehicle_made_visible_is_hidden_again_at_the_next_poll(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await poll(hass, config_entry, answers(OTHER), freezer)
+    registry.async_update_entity(SENSOR, hidden_by=None)
+    await poll(hass, config_entry, answers(OTHER), freezer)
+    assert registry.async_get(SENSOR).hidden_by is er.RegistryEntryHider.INTEGRATION
+
+
+async def test_back_while_running_is_shown_again_with_a_new_week(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await poll(hass, config_entry, answers(OTHER), freezer)
+    await poll(hass, config_entry, answers(r.VEHICLES["data"][0], OTHER), freezer, days=6)
+    assert registry.async_get(SENSOR).hidden_by is None
+    assert hass.states.get(SENSOR).state != "unavailable"
+    await poll(hass, config_entry, answers(OTHER), freezer, days=6)
+    await poll(hass, config_entry, answers(OTHER), freezer, days=6)
+    assert registry.async_get(SENSOR) is not None  # the clock restarted when it came back
+
+
+async def test_back_while_running_after_a_start_without_it_gets_its_sensors(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await reload(hass, config_entry, answers(OTHER), freezer)  # no sensor exists for it now
+    await poll(hass, config_entry, answers(r.VEHICLES["data"][0], OTHER), freezer)
+    assert registry.async_get(SENSOR).hidden_by is None
+    assert hass.states.get(SENSOR).state != "unavailable"
+
+
+async def test_a_week_gone_while_running_removes_it(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await poll(hass, config_entry, answers(OTHER), freezer)
+    await poll(hass, config_entry, answers(OTHER), freezer, days=6.9)
+    assert registry.async_get(SENSOR) is not None
+    await poll(hass, config_entry, answers(OTHER), freezer, days=0.2)
+    assert registry.async_get(SENSOR) is None
+    assert registry.async_get(BINARY) is None
+    assert hass.states.get(SENSOR) is None
+
+
+async def test_a_failed_poll_or_an_empty_list_while_running_changes_nothing(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await poll(hass, config_entry, {**r.all_ok(), PATH: VerdiError("down")}, freezer)
+    await poll(hass, config_entry, answers(), freezer)
+    assert registry.async_get(SENSOR).hidden_by is None
+    assert registry.async_get(SENSOR).options.get("verdi") is None
+
+
+async def test_a_failing_lookup_keeps_a_gone_vehicle_past_its_week(hass, config_entry, freezer):
+    registry = await start(hass, config_entry)
+    await poll(hass, config_entry, answers(OTHER), freezer)
+    await poll(hass, config_entry, {**r.all_ok(), PATH: VerdiError("down")}, freezer, days=8)
+    assert registry.async_get(SENSOR) is not None
