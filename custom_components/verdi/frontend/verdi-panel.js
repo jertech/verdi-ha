@@ -30,6 +30,7 @@ const LABELS = {
     overruled: "Verdi accepted this, but a fixed planning overrules it. Your status stays as shown.",
     unchecked: "Sent to Verdi, but the result couldn't be checked. The status on this page shows what applies.",
     unclear: "No clear answer. Check in Verdi whether the change was made.",
+    sending: "Sending...",
   },
   nl: {
     myStatus: "Mijn status",
@@ -52,6 +53,7 @@ const LABELS = {
     overruled: "Verdi heeft dit aanvaard, maar een vaste planning gaat voor. Je status blijft zoals getoond.",
     unchecked: "Naar Verdi gestuurd, maar het resultaat kon niet gecontroleerd worden. De status op deze pagina toont wat geldt.",
     unclear: "Geen duidelijk antwoord. Kijk in Verdi of de wijziging gebeurd is.",
+    sending: "Bezig met verzenden...",
   },
   fr: {
     myStatus: "Mon statut",
@@ -74,6 +76,7 @@ const LABELS = {
     overruled: "Verdi a accepté, mais un planning fixe l'emporte. Votre statut reste celui affiché.",
     unchecked: "Envoyé à Verdi, mais le résultat n'a pas pu être vérifié. Le statut sur cette page indique ce qui s'applique.",
     unclear: "Pas de réponse claire. Vérifiez dans Verdi si la modification a été faite.",
+    sending: "Envoi en cours...",
   },
 };
 
@@ -306,7 +309,10 @@ function section(data, states, language, heading, open) {
   if (heading) nodes.push(element("h2", "", data.title));
   if (data.my_availability) {
     const change = canChange(data.controls, states) ? () => open(data) : null;
-    nodes.push(myStatus(states[data.my_availability], language, change));
+    const block = myStatus(states[data.my_availability], language, change);
+    const button = block.querySelector("button.pill");
+    if (button) button.dataset.entry = data.controls.entry_id;
+    nodes.push(block);
   }
   if (data.vehicles.length) nodes.push(vehicles(data.vehicles, states, data.title, language));
   if (data.personnel) nodes.push(personnel(states[data.personnel], language));
@@ -371,11 +377,21 @@ function definePanel() {
       this._dialog.addEventListener("cancel", (event) => {
         if (this._sending) event.preventDefault();
       });
+      // The pill the browser would return focus to has been replaced by a redraw, so hand it to the current one.
+      this._dialog.addEventListener("close", () => {
+        this._dialog.replaceChildren();
+        const active = this.shadowRoot.activeElement;
+        if (!active || active === this._dialog) this._pill(this._opened)?.focus();
+      });
       this.shadowRoot.append(element("style", "", STYLE), this._view, this._dialog);
     }
 
     disconnectedCallback() {
       this._dialog.close();
+    }
+
+    _pill(entryId) {
+      return [...this._view.querySelectorAll("button.pill")].find((node) => node.dataset.entry === entryId);
     }
 
     set narrow(value) {
@@ -422,7 +438,9 @@ function definePanel() {
       const open = (data) => this._open(data);
       for (const data of sections) main.append(...section(data, hass.states, language, heading, open));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
+      const focused = this.shadowRoot.activeElement?.dataset?.entry;
       this._view.replaceChildren(header, main);
+      if (focused) this._pill(focused)?.focus();
     }
 
     async _reason(err) {
@@ -443,10 +461,12 @@ function definePanel() {
         // The duration labels fall back to their keys.
       }
       const { controls } = data;
+      this._opened = controls.entry_id;
       const hass = this._hass;
       // Again after the await: a call may be running, a second click may have opened it, or the select may have gone.
-      if (this._sending || this._dialog.open || !canChange(controls, hass.states)) return;
+      if (!this.isConnected || this._sending || this._dialog.open || !canChange(controls, hass.states)) return;
       const language = hass.language;
+      this._dialog.setAttribute("aria-label", label(language, "changeStatus"));
       const statusOptions = hass.states[controls.status].attributes.options.map((name) => ({ value: name, label: name }));
       const status = selectField(
         label(language, "status"),
@@ -475,7 +495,7 @@ function definePanel() {
 
       const send = async (call) => {
         this._sending = true;
-        message.textContent = "";
+        message.textContent = label(language, "sending");
         for (const node of [add, back, close, status.select, duration.select]) node.disabled = true;
         // Disabling them drops focus to body, where the dialog no longer sees Escape or HA's shortcuts get the keys.
         this._dialog.focus();
