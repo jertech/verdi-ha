@@ -8,6 +8,7 @@ import {
   isCustom,
   isWide,
   moveBlock,
+  moveAfter,
   moveBefore,
   PRESETS,
   resolve,
@@ -140,6 +141,15 @@ test("moving a block up and down", () => {
 test("dragging a block before another", () => {
   const set = moveBefore({ preset: "overzicht", changes: {} }, "statistics", "readiness");
   assert.deepEqual(resolve(set).order, ["myStatus", "statistics", "readiness", "vehicles", "personnel"]);
+});
+
+test("dragging a block after another", () => {
+  const base = { preset: "overzicht", changes: {} };
+  const last = moveAfter(base, "readiness", "statistics");
+  assert.deepEqual(resolve(last).order, ["myStatus", "vehicles", "personnel", "statistics", "readiness"]);
+  const oneDown = moveAfter(base, "readiness", "vehicles");
+  assert.deepEqual(resolve(oneDown).order, ["myStatus", "vehicles", "readiness", "personnel", "statistics"]);
+  assert.equal(isCustom(moveAfter(oneDown, "vehicles", "readiness")), false);
 });
 
 test("wide starts at 720 px of content", () => {

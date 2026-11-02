@@ -135,6 +135,12 @@ export function moveBefore(set, name, target) {
   return withOrder(set, order);
 }
 
+export function moveAfter(set, name, target) {
+  const order = resolve(set).order.filter((block) => block !== name);
+  order.splice(order.indexOf(target) + 1, 0, name);
+  return withOrder(set, order);
+}
+
 export function canHide(set, name) {
   const { blocks } = resolve(set);
   return BLOCKS.some((block) => block !== name && blocks[block].shown);
@@ -315,7 +321,7 @@ function blockRow(state, name, index, last) {
       const step = { ArrowUp: -1, ArrowDown: 1 }[event.key];
       if (!step) return;
       event.preventDefault();
-      change(moveBlock(set, name, step), name);
+      change(moveBlock(set, name, step));
     });
     line.draggable = true;
     line.addEventListener("dragstart", (event) => event.dataTransfer.setData("text/plain", name));
@@ -323,7 +329,9 @@ function blockRow(state, name, index, last) {
     line.addEventListener("drop", (event) => {
       event.preventDefault();
       const dragged = event.dataTransfer.getData("text/plain");
-      if (BLOCKS.includes(dragged) && dragged !== name) change(moveBefore(set, dragged, name));
+      if (!BLOCKS.includes(dragged) || dragged === name) return;
+      const { top, height } = line.getBoundingClientRect();
+      change((event.clientY < top + height / 2 ? moveBefore : moveAfter)(set, dragged, name));
     });
     line.append(handle);
   }
@@ -348,11 +356,11 @@ function blockRow(state, name, index, last) {
     );
   }
   if (!fine) {
-    const up = button("↑", "arrow", () => change(moveBlock(set, name, -1), name));
+    const up = button("↑", "arrow", () => change(moveBlock(set, name, -1), `up:${name}`));
     up.dataset.focus = `up:${name}`;
     up.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "moveUp")}`);
     up.disabled = index === 0;
-    const down = button("↓", "arrow", () => change(moveBlock(set, name, 1), name));
+    const down = button("↓", "arrow", () => change(moveBlock(set, name, 1), `down:${name}`));
     down.dataset.focus = `down:${name}`;
     down.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "moveDown")}`);
     down.disabled = index === last;
@@ -374,16 +382,21 @@ export function drawSettings(dialog, options) {
   const draft = { wide: options.draft.wide ?? PRESET_DEFAULT, phone: options.draft.phone ?? PRESET_DEFAULT };
   const edited = new Set();
 
-  // Drawing replaces every control, so the one in use is found again by its key.
-  const redraw = (focusBlock, focusKey = dialog.getRootNode().activeElement?.dataset.focus) => {
+  const enabled = (key) => dialog.querySelector(`[data-focus="${key}"]:not(:disabled)`);
+  // An arrow at the end of the list turns off, so focus crosses to its block's other arrow.
+  const otherArrow = (key) => key.replace(/^(up|down):/, (_, way) => `${way === "up" ? "down" : "up"}:`);
+
+  // Drawing replaces every control, so the one in use is found again by its key. A tap doesn't focus a button on every
+  // browser, so an arrow names itself.
+  const redraw = (focusKey = dialog.getRootNode().activeElement?.dataset.focus) => {
     const set = draft[width];
     const layout = resolve(set);
-    const change = (next, name) => {
+    const change = (next, focus) => {
       draft[width] = next;
       edited.add(width);
       failed = false;
       actions.change({ ...draft }, [...edited]);
-      redraw(name);
+      redraw(focus);
     };
     const sets = ["phone", "wide"].map((value) => ({ value, text: settingsLabel(language, value) }));
     const presets = Object.keys(PRESETS).map((value) => ({ value, text: settingsLabel(language, value) }));
@@ -409,7 +422,7 @@ export function drawSettings(dialog, options) {
       for (const control of dialog.querySelectorAll("button, input, select")) control.disabled = true;
       for (const line of dialog.querySelectorAll(".setting")) line.draggable = false;
       failed = !(await actions.save({ ...draft }, [...edited]));
-      if (failed) redraw(undefined, "save");
+      if (failed) redraw("save");
     });
     save.dataset.focus = "save";
     const heading = node("div", "settings-title");
@@ -447,8 +460,7 @@ export function drawSettings(dialog, options) {
     actionRow.append(reset, node("span", "grow"), cancel, save);
     children.push(actionRow);
     dialog.replaceChildren(...children);
-    if (focusBlock) dialog.querySelector(`[data-block="${focusBlock}"] .handle, [data-block="${focusBlock}"] .arrow:not(:disabled)`)?.focus();
-    else if (focusKey) (dialog.querySelector(`[data-focus="${focusKey}"]:not(:disabled)`) ?? dialog).focus();
+    if (focusKey) (enabled(focusKey) ?? enabled(otherArrow(focusKey)) ?? dialog).focus();
   };
   redraw();
 }
