@@ -2,6 +2,7 @@
 """The status page: sidebar panel and websocket command."""
 
 import copy
+import time
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -369,10 +370,36 @@ async def test_no_problem_while_all_is_well(hass: HomeAssistant, config_entry, m
 async def test_problem_token_without_a_usable_token(hass: HomeAssistant, config_entry, mock_api):
     await setup_with_token(hass, config_entry)
     get_store(hass).tokens.pop(config_entry.entry_id)
+    get_store(hass).started = time.monotonic() - 3600  # the start-up grace is over
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_ERROR
+    assert any(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
+    assert status_page(hass)[0]["problem"] == "token"
+
+
+async def test_no_problem_without_a_token_during_grace(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    get_store(hass).tokens.pop(config_entry.entry_id)
     await hass.config_entries.async_reload(config_entry.entry_id)
     await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
-    assert status_page(hass)[0]["problem"] == "token"
+    assert get_store(hass).in_grace()
+    assert status_page(hass)[0]["problem"] is None
+
+
+async def test_problem_verdi_when_setup_errored(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    assert not any(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
+    config_entry._async_set_state(hass, ConfigEntryState.SETUP_ERROR, None)
+    assert _problem(hass, config_entry) == "verdi"
+    config_entry._async_set_state(hass, ConfigEntryState.LOADED, None)  # so teardown unloads it
+
+
+async def test_problem_paused_when_a_wait_is_asked_for(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    config_entry.runtime_data.guard.wait(120)
+    assert _problem(hass, config_entry) == "paused"
 
 
 async def test_problem_token_during_reauth(hass: HomeAssistant, config_entry, mock_api):

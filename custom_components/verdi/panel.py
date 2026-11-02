@@ -73,12 +73,16 @@ def _sorted(entities: list[er.RegistryEntry], order: dict[str, int]) -> list[str
 
 
 def _problem(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
-    """Why data may be missing. A fixed word, so no server text can reach the page."""
-    reauth = any(entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
-    if get_store(hass).get(entry.entry_id) is None or reauth:
+    """Why data may be missing, as a fixed word. No token counts only after the start-up grace."""
+    store = get_store(hass)
+    if any(entry.async_get_active_flows(hass, {SOURCE_REAUTH})):
         return "token"
+    if store.get(entry.entry_id) is None:
+        return None if store.in_grace() else "token"
     if entry.state is not ConfigEntryState.LOADED:
-        return "verdi" if entry.state is ConfigEntryState.SETUP_RETRY else None
+        return (
+            "verdi" if entry.state in (ConfigEntryState.SETUP_RETRY, ConfigEntryState.SETUP_ERROR) else None
+        )
     coordinator = entry.runtime_data
     # A run the guard blocks counts as a success, so backing off comes first.
     if coordinator.guard.backing_off:

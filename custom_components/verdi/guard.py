@@ -48,9 +48,13 @@ class Guard:
         self.level, self._rejected_since, self.asked_to_wait = 0, None, False
 
     def wait(self, seconds: float | None) -> None:
-        """No calls for this many seconds."""
+        """No calls for this many seconds. Verdi asked for it, so the status page says paused."""
         if seconds:
-            self._wait_until = max(self._wait_until, self._clock() + seconds)
+            self.asked_to_wait = True
+            self._hold(seconds)
+
+    def _hold(self, seconds: float) -> None:
+        self._wait_until = max(self._wait_until, self._clock() + seconds)
 
     def unavailable(self, retry_after: float | None = None, pace: float = BACKOFF_START) -> None:
         """The station's tick failed with 429/5xx or could not reach Verdi; once per failed tick.
@@ -60,7 +64,7 @@ class Guard:
         """
         self.level = min(self.level + 1, 10)
         cap = max(pace, min(pace * 2**self.level, BACKOFF_MAX))
-        self.wait(max(self._rng.uniform(pace, cap), retry_after or 0.0))
+        self._hold(max(self._rng.uniform(pace, cap), retry_after or 0.0))
 
     def rejected(self) -> bool:
         """A 401/403. True once they have lasted REJECTED_WINDOW seconds without a success."""
