@@ -415,7 +415,8 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
     def _vehicles(self) -> list[SelectOptionDict]:
         """The station's vehicles from the last poll, plus watched ones no longer listed."""
         coordinator = getattr(self.config_entry, "runtime_data", None)
-        vehicles = ((coordinator.data or {}).get("vehicles") or []) if coordinator else []
+        lane = coordinator.lane("vehicles") if coordinator else None
+        vehicles = ((lane.data or {}).get("vehicles") or []) if lane else []
         seen = {v["id"]: v["name"] or v["id"] for v in vehicles if v.get("id")}
         for vehicle_id in self.config_entry.options.get(CONF_WATCHED_VEHICLES) or []:
             seen.setdefault(vehicle_id, vehicle_id)

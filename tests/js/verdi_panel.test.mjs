@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  byName,
   entityIds,
   label,
   normalizeColor,
@@ -95,4 +96,9 @@ test("a personnel pill names the status, and says Unknown for the key unknown", 
   assert.equal(statusLabel("en", "unknown"), "Unknown");
   assert.equal(statusLabel("nl", "unknown"), "Onbekend");
   assert.equal(statusLabel("nl", "Beschikbaar"), "Beschikbaar");
+});
+
+test("vehicles sort by name with numbers in order", () => {
+  const names = ["P100", "A9", "P20", "A10"].map((name) => ({ name }));
+  assert.deepEqual(names.sort(byName).map((row) => row.name), ["A9", "A10", "P20", "P100"]);
 });

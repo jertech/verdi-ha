@@ -10,7 +10,10 @@ app shared version numbers; from then on the app has its own (see `verdi_token_r
 ### Integration
 - A vehicle Verdi no longer lists for your station is hidden at the next start or reload, and removed a week later if
   it hasn't come back. A vehicle that returns is shown again. An empty list or a failed lookup changes nothing.
-- The Verdi (unofficial) page leaves out hidden entities, and no longer repeats the disclaimer line under its sections.
+- The Verdi (unofficial) page leaves out hidden entities, no longer repeats the disclaimer line under its sections, and
+  sorts vehicles with numbers in order (P20 before P100).
+- Fixed: vehicles or personnel on the fast lane lost their sensors, and the watched vehicles list in the options stayed
+  empty.
 
 ## [0.11.0] - 2026-11-02
 

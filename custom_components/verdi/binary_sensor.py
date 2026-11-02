@@ -13,7 +13,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import VerdiConfigEntry
-from .coordinator import LookupCoordinator, VerdiCoordinator
+from .coordinator import LookupCoordinator
 from .entity import VerdiEntity, device_info, find
 
 PARALLEL_UPDATES = 0
@@ -47,10 +47,11 @@ async def async_setup_entry(
                 {"train": t["title"] or "?"},
             )
         )
-    for v in data.get("vehicles") or []:
+    units = c.lane("vehicles")
+    for v in (units.data or {}).get("vehicles") or []:
         entities.append(
             VerdiListBinarySensor(
-                c,
+                units,
                 "vehicles",
                 v["id"],
                 lambda i: i["on_intervention"],
@@ -78,11 +79,11 @@ async def async_setup_entry(
 
 
 class VerdiListBinarySensor(VerdiEntity, BinarySensorEntity):
-    coordinator: VerdiCoordinator
+    coordinator: LookupCoordinator
 
     def __init__(
         self,
-        coordinator: VerdiCoordinator,
+        coordinator: LookupCoordinator,
         section: str,
         item_id: str,
         value: Callable[[dict[str, Any]], bool],

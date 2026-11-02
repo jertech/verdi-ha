@@ -93,6 +93,10 @@ export function vehicleName(friendlyName, title) {
   return friendlyName.startsWith(`${title} `) ? friendlyName.slice(title.length + 1) : friendlyName;
 }
 
+export function byName(a, b) {
+  return a.name.localeCompare(b.name, undefined, { numeric: true });
+}
+
 export function entityIds(section) {
   return [section.my_availability, ...section.vehicles, section.personnel].filter(Boolean);
 }
@@ -171,7 +175,7 @@ function vehicles(ids, states, title, language) {
   const block = element("div", "block");
   block.append(element("h3", "", label(language, "vehicles")));
   const rows = ids.map((id) => ({ state: states[id], name: vehicleName(states[id]?.attributes.friendly_name, title) }));
-  rows.sort((a, b) => a.name.localeCompare(b.name));
+  rows.sort(byName);
   for (const { state, name } of rows) {
     block.append(row(name, pill(statusText(language, state), live(state) ? state.attributes.color : null)));
   }

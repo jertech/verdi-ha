@@ -137,7 +137,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     coordinator.timing, coordinator.timing_store = timing, store
     signals.start()
     entry.runtime_data = coordinator
-    async_tidy_vehicles(hass, entry, (coordinator.data or {}).get("vehicles"))
+    async_tidy_vehicles(hass, entry, (coordinator.lane("vehicles").data or {}).get("vehicles"))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     return True
 

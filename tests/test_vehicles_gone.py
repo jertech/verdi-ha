@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.verdi.api import VerdiError
+from custom_components.verdi.const import CONF_FAST_LANE
 from custom_components.verdi.panel import status_page
 from custom_components.verdi.token import get_store
 
@@ -39,7 +40,7 @@ async def reload(hass: HomeAssistant, entry, data, freezer: FrozenDateTimeFactor
         await hass.async_block_till_done()
 
 
-async def start(hass: HomeAssistant, entry) -> er.EntityRegistry:
+async def start(hass: HomeAssistant, entry, options: dict | None = None) -> er.EntityRegistry:
     with (
         patch(
             "custom_components.verdi.api.VerdiApi.command",
@@ -47,7 +48,7 @@ async def start(hass: HomeAssistant, entry) -> er.EntityRegistry:
         ),
         patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
     ):
-        await setup_with_token(hass, entry)
+        await setup_with_token(hass, entry, options=options)
     registry = er.async_get(hass)
     assert registry.async_get(SENSOR).hidden_by is None
     return registry
@@ -112,3 +113,10 @@ async def test_a_failed_lookup_or_an_empty_list_changes_nothing(hass, config_ent
     await reload(hass, config_entry, answers(), freezer, days=8)
     for entity_id in (SENSOR, "sensor.verdi_p200"):
         assert registry.async_get(entity_id).hidden_by is None
+
+
+async def test_a_gone_vehicle_on_the_fast_lane_is_hidden_too(hass, config_entry, freezer):
+    registry = await start(hass, config_entry, {CONF_FAST_LANE: ["vehicles"]})
+    await reload(hass, config_entry, answers(OTHER), freezer)
+    assert registry.async_get(SENSOR).hidden_by is er.RegistryEntryHider.INTEGRATION
+    assert registry.async_get("sensor.verdi_p200").hidden_by is None

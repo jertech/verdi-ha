@@ -551,6 +551,10 @@ class VerdiCoordinator(LookupCoordinator):
         self.timing: TimingLog | None = None
         self.timing_store: Store[dict[str, Any]] | None = None
 
+    def lane(self, key: str) -> LookupCoordinator:
+        """The coordinator that fetches this lookup: the fast lane may have taken it over."""
+        return self.fast if self.fast is not None and key in self.fast.lookups else self
+
     def _parse_roster(self, data: Any) -> list[dict[str, Any]]:
         self._roster_raw = data
         return parse.roster(data, names=self.show_names, me=self.person.value)

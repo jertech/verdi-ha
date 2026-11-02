@@ -97,3 +97,30 @@ async def test_pausing_keeps_vehicles_on_the_fast_lane(hass: HomeAssistant, conf
     await fast.async_refresh()
     assert paths(calls) == [VEHICLES]
     assert fast.update_interval == timedelta(seconds=15)
+
+
+async def test_vehicles_and_personnel_on_the_fast_lane_keep_their_entities(
+    hass: HomeAssistant, config_entry, api
+):
+    responses, _ = api
+    responses[VEHICLES] = copy.deepcopy(r.VEHICLES)
+    await setup_with_token(hass, config_entry, options={CONF_FAST_LANE: ["vehicles", "personnel"]})
+    station = config_entry.runtime_data
+    assert station.lane("vehicles") is station.fast
+    assert station.lane("readiness") is station
+    assert hass.states.get("sensor.verdi_p100").state == "Available"
+    assert hass.states.get("sensor.verdi_personnel").state.isdigit()
+    assert hass.states.get("binary_sensor.verdi_p100_on_intervention").state == "off"
+
+    responses[VEHICLES]["data"][0]["isOnIntervention"] = True
+    await station.fast.async_refresh_lookup("vehicles")
+    await hass.async_block_till_done()
+    assert hass.states.get("binary_sensor.verdi_p100_on_intervention").state == "on"
+
+
+async def test_options_list_the_vehicles_on_the_fast_lane(hass: HomeAssistant, config_entry, api):
+    await setup_with_token(hass, config_entry, options={CONF_FAST_LANE: ["vehicles"]})
+    result = await hass.config_entries.options.async_init(config_entry.entry_id)
+    station = next(v for k, v in result["data_schema"].schema.items() if str(k) == "station").schema.schema
+    selector = next(v for k, v in station.items() if str(k) == "watched_vehicles")
+    assert [o["value"] for o in selector.config["options"]] == ["v1"]
