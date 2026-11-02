@@ -107,6 +107,8 @@ async def test_command_lists_the_entities(hass: HomeAssistant, config_entry, moc
     assert await _sections(hass, await hass_ws_client(hass)) == [
         {
             "title": "Verdi",
+            "entry_id": config_entry.entry_id,
+            "settings": {},
             "my_availability": "sensor.verdi_my_availability",
             "pre_alert": "binary_sensor.verdi_pre_alert",
             "garrison": "binary_sensor.verdi_garrison",
@@ -606,3 +608,21 @@ async def test_stale_clears_after_a_recovery(hass: HomeAssistant, config_entry, 
     await personal.async_refresh_lookup("availability")
     assert personal.failing == frozenset()
     assert _problem(hass, config_entry) is None
+
+
+async def test_settings_stay_with_their_station(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
+    second = second_entry()
+    await setup_with_token(hass, config_entry)
+    await setup_with_token(hass, second)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id(
+        {
+            "type": "verdi/save_page_settings",
+            "entry_id": second.entry_id,
+            "wide": {"preset": "lijst", "changes": {}},
+        }
+    )
+    assert (await client.receive_json())["success"]
+    found = {s["entry_id"]: s["settings"] for s in await _sections(hass, client)}
+    assert found[config_entry.entry_id] == {}
+    assert found[second.entry_id] == {"wide": {"preset": "lijst", "changes": {}}}
