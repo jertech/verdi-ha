@@ -480,12 +480,17 @@ const STYLE = `
   .positions li.no { color: var(--error-color, #db4437); font-weight: 500; }
   .positions li.no::before { content: "✕ "; color: var(--error-color, #db4437); }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
-  .tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 88px; box-sizing: border-box;
-    padding: 9px; border-radius: 10px; box-shadow: 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
+  .tile { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; min-width: 0; min-height: 88px;
+    box-sizing: border-box; padding: 9px; border: 0; border-radius: 10px; font: inherit; text-align: left; cursor: pointer;
+    box-shadow: 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .tile.on { box-shadow: inset 0 0 0 3px currentColor, 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .tile ha-icon { --mdc-icon-size: 24px; }
   .tile strong { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
   .tile span { font-size: 12px; overflow-wrap: anywhere; }
+  .tile:hover { filter: brightness(0.95); }
+  .tile:focus-visible, .history-link:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
+  .history-link { margin: -4px 0 8px 18px; padding: 0; border: 0; background: none; color: var(--primary-color, #03a9f4);
+    font: inherit; font-size: 13px; text-decoration: underline; cursor: pointer; }
   .stack { display: flex; height: 14px; overflow: hidden; border-radius: 7px; }
   .stack span { box-shadow: inset 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
@@ -507,6 +512,30 @@ const STYLE = `
   dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
   dialog:focus { outline: none; }
   dialog h2 { margin: 0 0 16px; }
+  .history-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .history-head h2 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+  .pill .dot { display: inline-block; margin-right: 6px; }
+  .days { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+  .days span { flex: 1; text-align: center; }
+  .days button { min-width: 40px; padding: 4px 12px; font: inherit; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+    border-radius: 8px; background: none; color: inherit; cursor: pointer; }
+  .days button:disabled { opacity: 0.5; cursor: default; }
+  .history-bar { position: relative; height: 14px; overflow: hidden; border-radius: 7px;
+    background: var(--secondary-background-color, #e5e5e5); }
+  .history-bar span { position: absolute; top: 0; bottom: 0; min-width: 2px;
+    box-shadow: inset 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
+  .history-bar .ok { background: var(--success-color, #4caf50); }
+  .history-bar .short { background: var(--error-color, #db4437); }
+  .history-bar .none { background: ${FALLBACK_COLOR}; }
+  .ticks { position: relative; height: 16px; margin-bottom: 12px; color: var(--secondary-text-color, #727272); font-size: 11px; }
+  .ticks span { position: absolute; transform: translateX(-50%); }
+  .ticks span:first-child { transform: none; }
+  .ticks span:last-child { transform: translateX(-100%); }
+  .changes { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; margin: 0 0 12px; padding: 0; overflow-y: auto;
+    list-style: none; }
+  .changes li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+  .changes time { flex: none; width: 96px; color: var(--secondary-text-color, #727272); font-size: 12px; }
+  .changes .short-line { flex-basis: 100%; margin: 0; }
   .field { display: block; margin-bottom: 12px; }
   .field select { display: block; box-sizing: border-box; width: 100%; margin-top: 4px; padding: 8px; font: inherit;
     border: 1px solid var(--divider-color); border-radius: 8px; background: var(--card-background-color); color: inherit; }
@@ -599,7 +628,7 @@ function myStatus({ data, states, language, open }) {
   return block;
 }
 
-function train(id, name, state, language, opened, toggle) {
+function train(id, name, state, language, opened, toggle, history) {
   const known = live(state);
   const attributes = known ? state.attributes : {};
   const positions = Object.entries(attributes.positions ?? {});
@@ -624,20 +653,26 @@ function train(id, name, state, language, opened, toggle) {
     const list = element("ul", "positions");
     for (const [name, met] of positions) list.append(element("li", met ? "" : "no", name));
     node.append(list);
+    const more = element("button", "history-link", label(language, "history"));
+    more.type = "button";
+    more.dataset.history = id;
+    more.setAttribute("aria-haspopup", "dialog");
+    more.addEventListener("click", () => history(id, name, true));
+    node.append(more);
   } else if (missing.length) {
     node.append(element("div", "short-line", `${label(language, "missing")}: ${missing.join(", ")}`));
   }
   return node;
 }
 
-function readiness({ data, states, language, opened, toggle }) {
+function readiness({ data, states, language, opened, toggle, history }) {
   if (!data.readiness?.length) return null;
   const block = element("div", "block");
   const list = element("div", "trains");
   for (const id of data.readiness) {
     const attributes = states[id]?.attributes ?? {};
     const name = attributes.title ?? vehicleName(attributes.friendly_name, data.title);
-    list.append(train(id, name, states[id], language, opened.has(id), toggle));
+    list.append(train(id, name, states[id], language, opened.has(id), toggle, history));
   }
   block.append(heading(language, "readiness"), list);
   return block;
@@ -650,27 +685,34 @@ function vehicleIcon(icon) {
   return node;
 }
 
-function vehicleTile(state, title, language) {
+function vehicleTile(id, state, title, language, history) {
   const known = live(state);
   const attributes = state?.attributes ?? {};
   const background = normalizeColor(known ? attributes.color : null);
-  const node = element("div", known && attributes.on_intervention ? "tile on" : "tile");
+  const node = element("button", known && attributes.on_intervention ? "tile on" : "tile");
+  node.type = "button";
+  node.dataset.vehicle = id;
+  node.setAttribute("aria-haspopup", "dialog");
   node.style.background = background;
   node.style.color = textColor(background);
+  const name = vehicleName(attributes.friendly_name, title);
+  const status = statusText(language, state);
+  node.setAttribute("aria-label", `${name}, ${status}, ${label(language, "open_history")}`);
+  node.addEventListener("click", () => history(id, name, false));
   const icon = vehicleIcon(attributes.icon);
   if (icon) node.append(icon);
-  node.append(element("strong", "", vehicleName(attributes.friendly_name, title)));
-  node.append(element("span", "", statusText(language, state)));
+  node.append(element("strong", "", name));
+  node.append(element("span", "", status));
   const since = known ? moment(attributes.availability_since, language) : null;
   if (since) node.append(element("span", "", `${label(language, "since")} ${since}`));
   return node;
 }
 
-function vehicles({ data, states, language }) {
+function vehicles({ data, states, language, history }) {
   if (!data.vehicles.length) return null;
   const block = element("div", "block");
   const tiles = element("div", "tiles");
-  for (const id of data.vehicles) tiles.append(vehicleTile(states[id], data.title, language));
+  for (const id of data.vehicles) tiles.append(vehicleTile(id, states[id], data.title, language, history));
   block.append(heading(language, "vehicles"), tiles);
   return block;
 }
@@ -795,6 +837,53 @@ function actionButton(language, key) {
   return node;
 }
 
+function tonePill(text, tone) {
+  const node = element("span", "pill");
+  node.append(element("span", `dot ${tone}`), element("span", "", text));
+  return node;
+}
+
+function periodPill(period) {
+  return period.tone ? tonePill(period.status, period.tone) : pill(period.status, period.color);
+}
+
+function currentPill(state, language, train) {
+  if (!live(state)) return pill(statusText(language, state), null);
+  if (train) return periodPill(trainRow(language)({ s: state.state }));
+  return pill(state.state, state.attributes.color);
+}
+
+function historyBody(periods, day, end, today, language) {
+  const list = historyList(periods);
+  if (!list.length) return [element("div", "message", label(language, "history_empty"))];
+  const bar = element("div", "history-bar");
+  bar.setAttribute("aria-hidden", "true"); // the list says the same
+  for (const { left, width, color, tone } of barParts(periods, day)) {
+    const part = element("span", tone ?? (color ? "" : "none"));
+    part.style.left = `${left}%`;
+    part.style.width = `${width}%`;
+    if (color) part.style.background = color;
+    bar.append(part);
+  }
+  const ticks = element("div", "ticks");
+  ticks.setAttribute("aria-hidden", "true");
+  for (const { text, left } of dayTicks(day)) {
+    const tick = element("span", "", text);
+    tick.style.left = `${left}%`;
+    ticks.append(tick);
+  }
+  const changes = element("ul", "changes");
+  for (const period of list) {
+    const item = element("li");
+    item.append(element("time", "", periodTimes(period, day, end, today, language)), periodPill(period));
+    if (period.missing.length) {
+      item.append(element("div", "short-line", `${label(language, "missing")}: ${period.missing.join(", ")}`));
+    }
+    changes.append(item);
+  }
+  return [bar, ticks, changes];
+}
+
 function definePanel() {
   class VerdiPanel extends HTMLElement {
     constructor() {
@@ -808,6 +897,8 @@ function definePanel() {
       this._unavailable = "";
       this._loadedAt = 0;
       this._timer = undefined;
+      this._historyCall = 0;
+      this._historyTarget = undefined;
       // `ha-icon` may arrive after the first drawing.
       customElements.whenDefined("ha-icon").then(() => {
         this._drawn = undefined;
@@ -826,11 +917,15 @@ function definePanel() {
       this._dialog.addEventListener("cancel", (event) => {
         if (this._sending) event.preventDefault();
       });
-      // The pill the browser would return focus to has been replaced by a redraw, so hand it to the current one.
+      // The pill or tile the browser would return focus to has been replaced by a redraw, so hand it to the current one.
       this._dialog.addEventListener("close", () => {
+        this._historyCall += 1; // an answer still on its way has nowhere to go
         this._dialog.replaceChildren();
+        const target = this._historyTarget;
+        this._historyTarget = undefined;
         const active = this.shadowRoot.activeElement;
-        if (!active || active === this._dialog) this._pill(this._opened)?.focus();
+        if (active && active !== this._dialog) return;
+        (target ? this._historyButton(target) : this._pill(this._opened))?.focus();
       });
       this.shadowRoot.append(element("style", "", STYLE), this._view, this._dialog);
     }
@@ -921,17 +1016,110 @@ function definePanel() {
       const withHeading = sections.length > 1;
       const open = (data) => this._open(data);
       const toggle = (id) => this._toggle(id);
-      const shared = { states: hass.states, language, open, opened: this._openTrains, toggle };
+      const history = (id, name, train) => this._openHistory(id, name, train);
+      const shared = { states: hass.states, language, open, opened: this._openTrains, toggle, history };
       for (const data of sections) main.append(...section({ ...shared, data }, withHeading));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
       const active = this.shadowRoot.activeElement?.dataset ?? {};
       this._view.replaceChildren(header, main);
       if (active.entry) this._pill(active.entry)?.focus({ preventScroll: true });
       if (active.train) this._trainButton(active.train)?.focus({ preventScroll: true });
+      const target = active.vehicle ?? active.history;
+      if (target) this._historyButton(target)?.focus({ preventScroll: true });
     }
 
     _trainButton(id) {
       return [...this._view.querySelectorAll("button.line")].find((node) => node.dataset.train === id);
+    }
+
+    _historyButton(id) {
+      return [...this._view.querySelectorAll("[data-vehicle], [data-history]")].find(
+        (node) => node.dataset.vehicle === id || node.dataset.history === id,
+      );
+    }
+
+    _openHistory(id, name, train) {
+      if (!this.isConnected || this._sending || this._dialog.open) return;
+      const hass = this._hass;
+      const language = hass.language;
+      this._historyTarget = id;
+      this._dialog.setAttribute("aria-label", `${name}: ${label(language, "history")}`);
+      const head = element("div", "history-head");
+      head.append(element("h2", "", name), currentPill(hass.states[id], language, train));
+      const arrow = (text, key) => {
+        const node = element("button", "", text);
+        node.type = "button";
+        node.setAttribute("aria-label", label(language, key));
+        return node;
+      };
+      const back = arrow("‹", "previous_day");
+      const next = arrow("›", "next_day");
+      const line = element("span");
+      const days = element("div", "days");
+      days.append(back, line, next);
+      const body = element("div");
+      const close = actionButton(language, "close");
+      close.addEventListener("click", () => this._dialog.close());
+      const actions = element("div", "actions");
+      actions.append(close);
+      const view = { id, train, language, day: dayStart(new Date()), oldest: null, back, next, line, body };
+      const step = (count) => {
+        view.day = dayStart(view.day, count);
+        this._historyDay(view);
+      };
+      back.addEventListener("click", () => step(-1));
+      next.addEventListener("click", () => step(1));
+      this._dialog.replaceChildren(head, days, body, actions);
+      this._dialog.showModal();
+      this._historyDay(view);
+    }
+
+    // An arrow that turns off loses focus to body, where the dialog no longer sees Escape. The other arrow takes it.
+    _historyArrows({ back, next, day, oldest }) {
+      const active = this.shadowRoot.activeElement;
+      back.disabled = oldest !== null && day.getTime() <= oldest;
+      next.disabled = day.getTime() >= dayStart(new Date()).getTime();
+      if (active !== back && active !== next) return;
+      if (!active.disabled) return;
+      const other = active === back ? next : back;
+      (other.disabled ? this._dialog : other).focus();
+    }
+
+    // One local call, no Verdi call. Only the newest request may fill the dialog.
+    async _historyDay(view) {
+      this._historyCall += 1;
+      const call = this._historyCall;
+      const now = new Date();
+      const { id, train, language, day, body } = view;
+      const today = day.getTime() === dayStart(now).getTime();
+      const end = today ? now : dayStart(day, 1);
+      view.line.textContent = dayLine(day, language, now);
+      this._historyArrows(view);
+      body.replaceChildren(element("div", "message", label(language, "loading")));
+      let rows;
+      try {
+        const answer = await this._hass.callWS({
+          type: "history/history_during_period",
+          start_time: day.toISOString(),
+          end_time: end.toISOString(),
+          entity_ids: [id],
+          include_start_time_state: true,
+          significant_changes_only: !train, // which position is missing is only in a train's attributes
+          minimal_response: false,
+          no_attributes: false,
+        });
+        rows = answer[id] ?? [];
+      } catch {
+        if (call === this._historyCall) body.replaceChildren(element("div", "message", label(language, "history_failed")));
+        return;
+      }
+      if (call !== this._historyCall) return;
+      if (!rows.length) {
+        view.oldest = day.getTime(); // HA has nothing older either
+        this._historyArrows(view);
+      }
+      const periods = historyPeriods(rows, day.getTime(), end.getTime(), train ? trainRow(language) : vehicleRow);
+      body.replaceChildren(...historyBody(periods, day, end.getTime(), today, language));
     }
 
     async _reason(err) {
