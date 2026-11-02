@@ -144,3 +144,8 @@ async def test_second_press_while_busy_is_refused_not_queued(
         await second
     assert err.value.translation_key == "busy"
     assert add.await_count == 1
+
+
+async def test_readiness_sensor_has_the_plain_train_name(hass, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    assert hass.states.get("binary_sensor.verdi_readiness_pump_1").attributes["title"] == "Pump 1"

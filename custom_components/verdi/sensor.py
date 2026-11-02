@@ -24,6 +24,7 @@ from . import VerdiConfigEntry
 from .api import token_expiry
 from .coordinator import LookupCoordinator, VerdiCoordinator
 from .entity import VerdiEntity, device_info, find
+from .parse_personal import next_status
 from .personal import statistics_store
 
 PARALLEL_UPDATES = 0
@@ -299,7 +300,7 @@ class MyAvailabilitySensor(VerdiEntity, SensorEntity):
 
     lookup = "availability"
     _attr_translation_key = "my_availability"
-    _unrecorded_attributes = frozenset({"availability_colors"})
+    _unrecorded_attributes = frozenset({"availability_colors", "next_status"})
 
     def __init__(self, coordinator: LookupCoordinator) -> None:
         super().__init__(coordinator)
@@ -320,7 +321,11 @@ class MyAvailabilitySensor(VerdiEntity, SensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
-        return {k: self._mine[k] for k in MY_AVAILABILITY_ATTRS} if self._mine else None
+        if not self._mine:
+            return None
+        attrs = {k: self._mine[k] for k in MY_AVAILABILITY_ATTRS}
+        events = (self.coordinator.data or {}).get("events")
+        return {**attrs, "next_status": next_status(self._mine["end"], events)}
 
 
 class StatisticSensor(VerdiEntity, RestoreSensor):
@@ -331,13 +336,15 @@ class StatisticSensor(VerdiEntity, RestoreSensor):
     def __init__(self, coordinator: LookupCoordinator, kind: str, item: dict[str, Any]) -> None:
         super().__init__(coordinator)
         self.kind, self.item_id = kind, item["id"]
+        self._names = {"station": item["station"]}
+        if kind == TIMES_CALLED:
+            self._names["service"] = item["service"]
         self._attr_translation_key = kind
-        self._attr_translation_placeholders = {"station": item["station"]}
+        self._attr_translation_placeholders = dict(self._names)
         if kind == AVAILABILITY_YEAR:
             self._attr_native_unit_of_measurement = PERCENTAGE
             self._attr_state_class = SensorStateClass.MEASUREMENT
         else:
-            self._attr_translation_placeholders["service"] = item["service"]
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{kind}_{item['id']}"
         self._attr_device_info = device_info(coordinator.config_entry)
@@ -364,9 +371,9 @@ class StatisticSensor(VerdiEntity, RestoreSensor):
         return self._item["percentage"] if self.kind == AVAILABILITY_YEAR else self._item["value"]
 
     @property
-    def extra_state_attributes(self) -> dict[str, Any] | None:
+    def extra_state_attributes(self) -> dict[str, Any]:
         if not self._item:
-            return None
+            return self._names  # a restored sensor: the page still needs its names
         if self.kind == AVAILABILITY_YEAR:
-            return {"years": self._item["years"]}
-        return {"last_called": self._item["last_called"]}
+            return {**self._names, "years": self._item["years"]}
+        return {**self._names, "last_called": self._item["last_called"]}

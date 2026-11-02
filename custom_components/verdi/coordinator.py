@@ -318,6 +318,11 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.on_fetched: FetchHook | None = None
         self.on_run: RunHook | None = None
 
+    @property
+    def failing(self) -> frozenset[str]:
+        """The lookups whose latest try failed; each keeps its previous value until it works again."""
+        return frozenset(self._failing)
+
     def mark_due(self, key: str, reason: str, at: datetime | None = None, *, replace: bool = False) -> bool:
         """Mark a lookup due now or at `at`. False if this coordinator doesn't have it."""
         if (lookup := self.lookups.get(key)) is None:
@@ -437,6 +442,8 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 fetched.append(key)
                 self._fetched(key, value, old)
         self._failing = (self._failing - set(fetched)) | set(failed)
+        if trouble is not None:
+            self.guard.asked_to_wait = trouble.status == 429 or trouble.retry_after is not None
         if back_off and trouble is not None:
             # A tick that got nothing back: the whole entry waits. Any other failing lookup
             # has its own retry and must not slow the station down.
