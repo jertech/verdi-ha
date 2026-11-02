@@ -504,6 +504,19 @@ const STYLE = `
   .tile ha-icon { --mdc-icon-size: 24px; }
   .tile strong { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
   .tile span { font-size: 12px; overflow-wrap: anywhere; }
+  .tile.border { border: 3px solid; outline: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); outline-offset: -1px;
+    background: var(--secondary-background-color, #e5e5e5); color: var(--primary-text-color, #212121); }
+  .vehicle-rows, .stat-rows { display: flex; flex-direction: column; }
+  .vehicle-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 0; border: 0; background: none;
+    color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .vehicle-row .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .vehicle-row .dot { box-shadow: 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 4px 12px; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); border-radius: 16px;
+    background: none; color: inherit; font: inherit; overflow-wrap: anywhere; }
+  button.chip { cursor: pointer; }
+  .chip.ok { border-color: #2e7d32; background: #2e7d32; color: #fff; }
+  .chip.short { border-color: #c62828; background: #c62828; color: #fff; }
   .tile:hover { filter: brightness(0.95); }
   .tile:focus-visible, .history-link:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
   .history-link { margin: -4px 0 8px 18px; padding: 0; border: 0; background: none; color: var(--primary-color, #03a9f4);
@@ -648,6 +661,39 @@ function myStatus({ data, states, language, open }) {
   return block;
 }
 
+function trainDetail(id, name, state, language, opened, history) {
+  const known = live(state);
+  const attributes = known ? state.attributes : {};
+  const positions = Object.entries(attributes.positions ?? {});
+  if (opened && positions.length) {
+    const list = element("ul", "positions");
+    for (const [position, met] of positions) list.append(element("li", met ? "" : "no", position));
+    const more = element("button", "history-link", label(language, "history"));
+    more.type = "button";
+    more.dataset.history = id;
+    more.setAttribute("aria-haspopup", "dialog");
+    more.addEventListener("click", () => history(id, name, true));
+    return [list, more];
+  }
+  const missing = known && state.state !== "on" ? missingPositions(attributes.positions) : [];
+  if (!missing.length) return [];
+  return [element("div", "short-line", `${label(language, "missing")}: ${missing.join(", ")}`)];
+}
+
+function trainChip(id, name, state, opened, toggle) {
+  const known = live(state);
+  const positions = Object.keys(known ? (state.attributes.positions ?? {}) : {});
+  const tone = known ? (state.state === "on" ? "ok" : "short") : "";
+  const chip = element(positions.length ? "button" : "span", `chip ${tone}`, name);
+  if (positions.length) {
+    chip.type = "button";
+    chip.dataset.train = id;
+    chip.setAttribute("aria-expanded", String(opened));
+    chip.addEventListener("click", () => toggle(id));
+  }
+  return chip;
+}
+
 function train(id, name, state, language, opened, toggle, history) {
   const known = live(state);
   const attributes = known ? state.attributes : {};
@@ -667,34 +713,30 @@ function train(id, name, state, language, opened, toggle, history) {
     element("span", "time", responseTime(attributes) ?? ""),
   );
   if (positions.length) line.append(element("span", "chevron"));
-  node.append(line);
-  const missing = known && !complete ? missingPositions(attributes.positions) : [];
-  if (opened && positions.length) {
-    const list = element("ul", "positions");
-    for (const [name, met] of positions) list.append(element("li", met ? "" : "no", name));
-    node.append(list);
-    const more = element("button", "history-link", label(language, "history"));
-    more.type = "button";
-    more.dataset.history = id;
-    more.setAttribute("aria-haspopup", "dialog");
-    more.addEventListener("click", () => history(id, name, true));
-    node.append(more);
-  } else if (missing.length) {
-    node.append(element("div", "short-line", `${label(language, "missing")}: ${missing.join(", ")}`));
-  }
+  node.append(line, ...trainDetail(id, name, state, language, opened, history));
   return node;
 }
 
-function readiness({ data, states, language, opened, toggle, history }) {
+function readiness({ data, states, language, opened, toggle, history, view }) {
   if (!data.readiness?.length) return null;
   const block = element("div", "block");
-  const list = element("div", "trains");
-  for (const id of data.readiness) {
+  const named = data.readiness.map((id) => {
     const attributes = states[id]?.attributes ?? {};
-    const name = attributes.title ?? vehicleName(attributes.friendly_name, data.title);
-    list.append(train(id, name, states[id], language, opened.has(id), toggle, history));
+    return { id, name: attributes.title ?? vehicleName(attributes.friendly_name, data.title) };
+  });
+  block.append(heading(language, "readiness"));
+  if (view === "chips") {
+    const chips = element("div", "chips");
+    for (const { id, name } of named) chips.append(trainChip(id, name, states[id], opened.has(id), toggle));
+    block.append(chips);
+    for (const { id, name } of named) {
+      if (opened.has(id)) block.append(element("strong", "", name), ...trainDetail(id, name, states[id], language, true, history));
+    }
+    return block;
   }
-  block.append(heading(language, "readiness"), list);
+  const list = element("div", "trains");
+  for (const { id, name } of named) list.append(train(id, name, states[id], language, opened.has(id), toggle, history));
+  block.append(list);
   return block;
 }
 
@@ -705,16 +747,20 @@ function vehicleIcon(icon) {
   return node;
 }
 
-function vehicleTile(id, state, title, language, history) {
+function vehicleTile(id, state, title, language, history, view) {
   const known = live(state);
   const attributes = state?.attributes ?? {};
-  const background = normalizeColor(known ? attributes.color : null);
-  const node = element("button", known && attributes.on_intervention ? "tile on" : "tile");
+  const color = normalizeColor(known ? attributes.color : null);
+  const node = element("button", `tile${view === "border" ? " border" : ""}${known && attributes.on_intervention ? " on" : ""}`);
   node.type = "button";
   node.dataset.vehicle = id;
   node.setAttribute("aria-haspopup", "dialog");
-  node.style.background = background;
-  node.style.color = textColor(background);
+  if (view === "border") {
+    node.style.borderColor = color;
+  } else {
+    node.style.background = color;
+    node.style.color = textColor(color);
+  }
   const name = vehicleName(attributes.friendly_name, title);
   const status = statusText(language, state);
   node.setAttribute("aria-label", `${name}, ${status}, ${label(language, "open_history")}`);
@@ -728,16 +774,36 @@ function vehicleTile(id, state, title, language, history) {
   return node;
 }
 
-function vehicles({ data, states, language, history }) {
+function vehicleListRow(id, state, title, language, history) {
+  const known = live(state);
+  const attributes = state?.attributes ?? {};
+  const node = element("button", "vehicle-row");
+  node.type = "button";
+  node.dataset.vehicle = id;
+  node.setAttribute("aria-haspopup", "dialog");
+  const name = vehicleName(attributes.friendly_name, title);
+  const status = statusText(language, state);
+  node.setAttribute("aria-label", `${name}, ${status}, ${label(language, "open_history")}`);
+  node.addEventListener("click", () => history(id, name, false));
+  const dot = element("span", "dot");
+  dot.style.background = normalizeColor(known ? attributes.color : null);
+  node.append(dot, element("span", "name", name), element("span", "muted", status));
+  return node;
+}
+
+function vehicles({ data, states, language, history, view }) {
   if (!data.vehicles.length) return null;
   const block = element("div", "block");
-  const tiles = element("div", "tiles");
-  for (const id of data.vehicles) tiles.append(vehicleTile(id, states[id], data.title, language, history));
-  block.append(heading(language, "vehicles"), tiles);
+  const list = element("div", view === "list" ? "vehicle-rows" : "tiles");
+  for (const id of data.vehicles) {
+    const draw = view === "list" ? vehicleListRow : vehicleTile;
+    list.append(draw(id, states[id], data.title, language, history, view));
+  }
+  block.append(heading(language, "vehicles"), list);
   return block;
 }
 
-function personnel({ data, states, language }) {
+function personnel({ data, states, language, view }) {
   if (!data.personnel) return null;
   const state = states[data.personnel];
   const block = element("div", "block");
@@ -754,36 +820,46 @@ function personnel({ data, states, language }) {
     text: `${statusLabel(language, name)} ${count}`,
     color: normalizeColor(color),
   }));
-  const bar = element("div", "stack");
-  bar.setAttribute("role", "img");
-  bar.setAttribute("aria-label", counts.map(({ text }) => text).join(", "));
-  for (const { color, count } of barSegments(state.attributes)) {
-    const segment = element("span");
-    segment.style.flex = String(count);
-    segment.style.background = normalizeColor(color);
-    bar.append(segment);
+  if (view === "pills") {
+    const pills = element("div", "pills");
+    for (const { text, color } of counts) pills.append(pill(text, color));
+    block.append(title, pills);
+  } else {
+    const bar = element("div", "stack");
+    bar.setAttribute("role", "img");
+    bar.setAttribute("aria-label", counts.map(({ text }) => text).join(", "));
+    for (const { color, count } of barSegments(state.attributes)) {
+      const segment = element("span");
+      segment.style.flex = String(count);
+      segment.style.background = normalizeColor(color);
+      bar.append(segment);
+    }
+    const legend = element("div", "legend");
+    for (const { text, color } of counts) {
+      const item = element("span");
+      const square = element("i");
+      square.style.background = color;
+      item.append(square, text);
+      legend.append(item);
+    }
+    block.append(title, bar, legend);
   }
-  const legend = element("div", "legend");
-  for (const { text, color } of counts) {
-    const item = element("span");
-    const square = element("i");
-    square.style.background = color;
-    item.append(square, text);
-    legend.append(item);
-  }
-  block.append(title, bar, legend);
   if (state.attributes.truncated) block.append(element("div", "muted", label(language, "incomplete")));
   return block;
 }
 
-function statistics({ data, states, language }) {
+function statistics({ data, states, language, view }) {
   const ids = data.statistics ?? [];
   const availability = ids.filter((id) => states[id]?.attributes.service === undefined);
   const tiles = ids.map((id) => statisticTile(states[id], language, availability.length > 1)).filter(Boolean);
   if (!tiles.length) return null;
   const block = element("div", "block");
-  const numbers = element("div", "numbers");
+  const numbers = element("div", view === "rows" ? "stat-rows" : "numbers");
   for (const { value, title, detail } of tiles) {
+    if (view === "rows") {
+      numbers.append(row(detail ? `${title} (${detail})` : title, element("strong", "", value)));
+      continue;
+    }
     const node = element("div", "number");
     node.append(element("strong", "", value), element("span", "", title));
     if (detail) node.append(element("span", "muted", detail));
@@ -1086,7 +1162,7 @@ function definePanel() {
     }
 
     _trainButton(id) {
-      return [...this._view.querySelectorAll("button.line")].find((node) => node.dataset.train === id);
+      return [...this._view.querySelectorAll("[data-train]")].find((node) => node.dataset.train === id);
     }
 
     _historyButton(id) {
