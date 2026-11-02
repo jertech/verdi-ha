@@ -20,6 +20,16 @@ const LABELS = {
     empty: "No Verdi data found.",
     incomplete: "List incomplete",
     menu: "Menu",
+    changeStatus: "Change status",
+    chooseStatus: "Choose a status",
+    status: "Status",
+    duration: "Duration",
+    addException: "Add exception",
+    returnToPlanning: "Return to planning",
+    close: "Close",
+    overruled: "Verdi accepted this, but a fixed planning overrules it. Your status stays as shown.",
+    unchecked: "Sent to Verdi, but the result couldn't be checked. The status on this page shows what applies.",
+    unclear: "No clear answer. Check in Verdi whether the change was made.",
   },
   nl: {
     myStatus: "Mijn status",
@@ -32,6 +42,16 @@ const LABELS = {
     empty: "Geen Verdi-gegevens gevonden.",
     incomplete: "Lijst onvolledig",
     menu: "Menu",
+    changeStatus: "Status wijzigen",
+    chooseStatus: "Kies een status",
+    status: "Status",
+    duration: "Duur",
+    addException: "Uitzondering toevoegen",
+    returnToPlanning: "Terug naar planning",
+    close: "Sluiten",
+    overruled: "Verdi heeft dit aanvaard, maar een vaste planning gaat voor. Je status blijft zoals getoond.",
+    unchecked: "Naar Verdi gestuurd, maar het resultaat kon niet gecontroleerd worden. De status op deze pagina toont wat geldt.",
+    unclear: "Geen duidelijk antwoord. Kijk in Verdi of de wijziging gebeurd is.",
   },
   fr: {
     myStatus: "Mon statut",
@@ -44,6 +64,16 @@ const LABELS = {
     empty: "Aucune donnée Verdi trouvée.",
     incomplete: "Liste incomplète",
     menu: "Menu",
+    changeStatus: "Changer le statut",
+    chooseStatus: "Choisissez un statut",
+    status: "Statut",
+    duration: "Durée",
+    addException: "Ajouter exception",
+    returnToPlanning: "Retour au planning",
+    close: "Fermer",
+    overruled: "Verdi a accepté, mais un planning fixe l'emporte. Votre statut reste celui affiché.",
+    unchecked: "Envoyé à Verdi, mais le résultat n'a pas pu être vérifié. Le statut sur cette page indique ce qui s'applique.",
+    unclear: "Pas de réponse claire. Vérifiez dans Verdi si la modification a été faite.",
   },
 };
 
@@ -98,7 +128,51 @@ export function byName(a, b) {
 }
 
 export function entityIds(section) {
-  return [section.my_availability, ...section.vehicles, section.personnel].filter(Boolean);
+  const { controls } = section;
+  return [
+    section.my_availability,
+    ...section.vehicles,
+    section.personnel,
+    controls?.status,
+    controls?.duration,
+    controls?.back_to_planning,
+  ].filter(Boolean);
+}
+
+// "unknown" is fine: the Status select has that state whenever nothing is chosen.
+export function canChange(controls, states) {
+  if (!controls) return false;
+  return [states[controls.status], states[controls.duration]].every(
+    (state) => state && state.state !== "unavailable" && state.attributes.options?.length > 0,
+  );
+}
+
+export function canReturn(controls, states) {
+  const state = states[controls.back_to_planning];
+  return Boolean(state) && state.state !== "unavailable";
+}
+
+export function startingDuration(state) {
+  const { options } = state.attributes;
+  return options.includes(state.state) ? state.state : options[0];
+}
+
+export function sendResult(answer) {
+  const active = answer?.response?.active;
+  if (active === true) return { close: true };
+  return { close: false, label: active === false ? "overruled" : "unchecked", canRetry: false };
+}
+
+// These two may have changed something, so the dialog doesn't offer the same change again.
+const MAYBE_SENT = ["outcome_unknown", "partly_ended"];
+
+// A lost connection arrives as { error: { code, message } } and anything not Verdi's has no reason to translate.
+export function sendError(err) {
+  if (err?.translation_domain !== "verdi" || !err.translation_key) {
+    return { close: false, label: "unclear", canRetry: false };
+  }
+  const exception = err.translation_key;
+  return { close: false, exception, canRetry: !MAYBE_SENT.includes(exception) };
 }
 
 const STYLE = `
