@@ -31,6 +31,18 @@ const LABELS = {
     unchecked: "Sent to Verdi, but the result couldn't be checked. The status on this page shows what applies.",
     unclear: "No clear answer. Check in Verdi whether the change was made.",
     sending: "Sending...",
+    readiness: "Readiness",
+    statistics: "Statistics",
+    since: "since",
+    next: "Next",
+    missing: "Missing",
+    last: "last",
+    available: "Available",
+    preAlert: "Pre-alert",
+    garrison: "Garrison",
+    problem_token: "Verdi login expired. Check the Verdi Token Relay.",
+    problem_paused: "Verdi asked to slow down. It will retry by itself.",
+    problem_verdi: "Verdi can't be reached. It will retry by itself.",
   },
   nl: {
     myStatus: "Mijn status",
@@ -54,6 +66,18 @@ const LABELS = {
     unchecked: "Naar Verdi gestuurd, maar het resultaat kon niet gecontroleerd worden. De status op deze pagina toont wat geldt.",
     unclear: "Geen duidelijk antwoord. Kijk in Verdi of de wijziging gebeurd is.",
     sending: "Bezig met verzenden...",
+    readiness: "Paraatheid",
+    statistics: "Statistieken",
+    since: "sinds",
+    next: "Volgende",
+    missing: "Ontbreekt",
+    last: "laatst",
+    available: "Beschikbaar",
+    preAlert: "Vooralarm",
+    garrison: "Herbestaffing",
+    problem_token: "Verdi-login verlopen. Controleer de Verdi Token Relay.",
+    problem_paused: "Verdi vroeg om trager te gaan. Er wordt automatisch opnieuw geprobeerd.",
+    problem_verdi: "Verdi is niet bereikbaar. Er wordt automatisch opnieuw geprobeerd.",
   },
   fr: {
     myStatus: "Mon statut",
@@ -77,6 +101,18 @@ const LABELS = {
     unchecked: "Envoyé à Verdi, mais le résultat n'a pas pu être vérifié. Le statut sur cette page indique ce qui s'applique.",
     unclear: "Pas de réponse claire. Vérifiez dans Verdi si la modification a été faite.",
     sending: "Envoi en cours...",
+    readiness: "Disponibilité de départs",
+    statistics: "Statistiques",
+    since: "depuis",
+    next: "Ensuite",
+    missing: "Manquant",
+    last: "dernier",
+    available: "Disponible",
+    preAlert: "Pré-alerte",
+    garrison: "Effectif en caserne",
+    problem_token: "Connexion Verdi expirée. Vérifiez Verdi Token Relay.",
+    problem_paused: "Verdi a demandé de ralentir. Nouvel essai automatique.",
+    problem_verdi: "Verdi est injoignable. Nouvel essai automatique.",
   },
 };
 
@@ -121,21 +157,93 @@ export function statusLabel(language, name) {
   return name === "unknown" ? label(language, "unknown") : name;
 }
 
+function minutes(time) {
+  const found = /^(\d+):(\d{2}):(\d{2})$/.exec(time ?? "");
+  if (!found) return null;
+  return Math.round(Number(found[1]) * 60 + Number(found[2]) + Number(found[3]) / 60);
+}
+
+export function responseTime(attributes) {
+  const fast = minutes(attributes?.fastest_response_time);
+  const slow = minutes(attributes?.slowest_response_time);
+  if (fast === null && slow === null) return null;
+  if (fast === null || slow === null || fast === slow) return `${fast ?? slow} min`;
+  return `${fast}–${slow} min`;
+}
+
+export function missingPositions(positions) {
+  return Object.entries(positions ?? {})
+    .filter(([, met]) => !met)
+    .map(([name]) => name);
+}
+
+function validDate(value) {
+  const date = new Date(value);
+  return !value || Number.isNaN(date.getTime()) ? null : date;
+}
+
+export function moment(value, language, now = new Date()) {
+  const date = validDate(value);
+  if (!date) return null;
+  const clock = { hour: "2-digit", minute: "2-digit" };
+  if (date.toDateString() === now.toDateString()) return date.toLocaleTimeString(language, clock);
+  return date.toLocaleString(language, { day: "numeric", month: "numeric", ...clock });
+}
+
+export function dayMonth(value, language) {
+  return validDate(value)?.toLocaleDateString(language, { day: "numeric", month: "numeric" }) ?? null;
+}
+
+function percent(value, language) {
+  const text = Number(value).toLocaleString(language, { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  return `${text} %`;
+}
+
+function availabilityTile(state, language, nameStation) {
+  const { station, years = {} } = state.attributes;
+  const [newest, previous] = Object.keys(years).sort().reverse();
+  const title = [label(language, "available"), newest, nameStation ? station : null].filter(Boolean).join(" ");
+  const detail = previous ? `${previous}: ${percent(years[previous], language)}` : null;
+  return { value: percent(state.state, language), title, detail };
+}
+
+export function statisticTile(state, language, nameStation) {
+  if (!state || state.state === "unavailable" || state.state === "unknown") return null;
+  const { service, last_called: called } = state.attributes;
+  if (service === undefined) return availabilityTile(state, language, nameStation);
+  const date = dayMonth(called, language);
+  return { value: state.state, title: service, detail: date ? `${label(language, "last")} ${date}` : null };
+}
+
+export function barSegments(attributes) {
+  return statusCounts(attributes).filter(({ count }) => count > 0);
+}
+
+export function unavailableIds(ids, states) {
+  return ids.filter((id) => !states[id] || states[id].state === "unavailable");
+}
+
+export const REFRESH_GAP = 60000;
+
+export function refreshDelay(last, now) {
+  return Math.max(0, last + REFRESH_GAP - now);
+}
+
 export function vehicleName(friendlyName, title) {
   if (!friendlyName) return "?";
   return friendlyName.startsWith(`${title} `) ? friendlyName.slice(title.length + 1) : friendlyName;
-}
-
-export function byName(a, b) {
-  return a.name.localeCompare(b.name, undefined, { numeric: true });
 }
 
 export function entityIds(section) {
   const { controls } = section;
   return [
     section.my_availability,
+    section.pre_alert,
+    section.garrison,
+    ...(section.readiness ?? []),
     ...section.vehicles,
     section.personnel,
+    ...(section.statistics ?? []),
     controls?.status,
     controls?.duration,
     controls?.back_to_planning,
@@ -279,7 +387,6 @@ function vehicles(ids, states, title, language) {
   const block = element("div", "block");
   block.append(element("h3", "", label(language, "vehicles")));
   const rows = ids.map((id) => ({ state: states[id], name: vehicleName(states[id]?.attributes.friendly_name, title) }));
-  rows.sort(byName);
   for (const { state, name } of rows) {
     block.append(row(name, pill(statusText(language, state), live(state) ? state.attributes.color : null)));
   }

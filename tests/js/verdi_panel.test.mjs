@@ -3,19 +3,26 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
-  byName,
+  barSegments,
   canChange,
   canReturn,
+  dayMonth,
   entityIds,
   label,
+  missingPositions,
+  moment,
   normalizeColor,
+  refreshDelay,
+  responseTime,
   sendError,
   sendResult,
   startingDuration,
+  statisticTile,
   statusCounts,
   statusLabel,
   statusText,
   textColor,
+  unavailableIds,
   vehicleName,
 } from "../../custom_components/verdi/frontend/verdi-panel.js";
 
@@ -80,6 +87,8 @@ test("every language has every label", () => {
   for (const key of [
     "myStatus", "vehicles", "personnel", "until", "total", "noData", "unknown", "empty", "incomplete", "menu",
     "changeStatus", "chooseStatus", "status", "duration", "addException", "returnToPlanning", "close", "overruled", "unchecked", "unclear", "sending",
+    "readiness", "statistics", "since", "next", "missing", "last", "available", "preAlert", "garrison",
+    "problem_token", "problem_paused", "problem_verdi",
   ]) {
     for (const language of ["en", "nl", "fr"]) {
       assert.ok(label(language, key), `${language} ${key}`);
@@ -104,11 +113,6 @@ test("a personnel pill names the status, and says Unknown for the key unknown", 
   assert.equal(statusLabel("en", "unknown"), "Unknown");
   assert.equal(statusLabel("nl", "unknown"), "Onbekend");
   assert.equal(statusLabel("nl", "Beschikbaar"), "Beschikbaar");
-});
-
-test("vehicles sort by name with numbers in order", () => {
-  const names = ["P100", "A9", "P20", "A10"].map((name) => ({ name }));
-  assert.deepEqual(names.sort(byName).map((row) => row.name), ["A9", "A10", "P20", "P100"]);
 });
 
 const CONTROLS = {
@@ -185,4 +189,104 @@ test("an error that isn't Verdi's is unclear, and needs no server to say so", ()
   assert.deepEqual(sendError({ code: "unauthorized", message: "Unauthorized" }), unclear);
   assert.deepEqual(sendError({ code: "x", translation_domain: "homeassistant", translation_key: "y" }), unclear);
   assert.deepEqual(sendError(undefined), unclear);
+});
+
+test("response time in whole minutes, a range when they differ", () => {
+  const time = (fastest_response_time, slowest_response_time) => ({ fastest_response_time, slowest_response_time });
+  assert.equal(responseTime(time("00:05:00", "00:05:00")), "5 min");
+  assert.equal(responseTime(time("00:05:00", "00:08:00")), "5–8 min");
+  assert.equal(responseTime(time("01:02:00", "01:02:00")), "62 min");
+  assert.equal(responseTime(time("00:05:00", null)), "5 min");
+  assert.equal(responseTime(time(null, "00:08:00")), "8 min");
+  assert.equal(responseTime(time(null, undefined)), null);
+  assert.equal(responseTime(time("soon", "later")), null);
+  assert.equal(responseTime(undefined), null);
+});
+
+test("missing positions keep Verdi's order", () => {
+  assert.deepEqual(missingPositions({ Driver: true, Crew: false, Aide: false }), ["Crew", "Aide"]);
+  assert.deepEqual(missingPositions({ Driver: true }), []);
+  assert.deepEqual(missingPositions(undefined), []);
+});
+
+test("a moment is a time today, and a date and time on another day", () => {
+  const now = new Date(2026, 5, 15, 20, 0);
+  assert.equal(moment(new Date(2026, 5, 15, 9, 5).toISOString(), "nl", now), "09:05");
+  assert.match(moment(new Date(2026, 5, 14, 9, 5).toISOString(), "nl", now), /14.*6.*09:05/);
+  assert.equal(moment(null, "nl", now), null);
+  assert.equal(moment("not a date", "nl", now), null);
+});
+
+test("a day and a month, or nothing", () => {
+  assert.match(dayMonth(new Date(2026, 9, 21, 17, 31).toISOString(), "nl"), /21.*10/);
+  assert.equal(dayMonth(null, "nl"), null);
+  assert.equal(dayMonth("not a date", "nl"), null);
+});
+
+test("an availability tile has the newest year, and the year before", () => {
+  const state = { state: "34.7", attributes: { station: "North", years: { 2025: 44.1, 2026: 34.7 } } };
+  assert.deepEqual(statisticTile(state, "nl", false), {
+    value: "34,7 %",
+    title: "Beschikbaar 2026",
+    detail: "2025: 44,1 %",
+  });
+  assert.equal(statisticTile(state, "en", false).value, "34.7 %");
+  assert.equal(statisticTile(state, "nl", true).title, "Beschikbaar 2026 North");
+});
+
+test("an availability tile copes with one year or none yet", () => {
+  const one = { state: "34.7", attributes: { station: "North", years: { 2026: 34.7 } } };
+  assert.equal(statisticTile(one, "nl", false).detail, null);
+  const restored = { state: "34.7", attributes: { station: "North" } };
+  assert.deepEqual(statisticTile(restored, "nl", false), { value: "34,7 %", title: "Beschikbaar", detail: null });
+});
+
+test("a counter tile has a plain number, the service and the last call", () => {
+  const state = { state: "24", attributes: { service: "Fire", last_called: new Date(2026, 9, 21).toISOString() } };
+  const tile = statisticTile(state, "nl", false);
+  assert.equal(tile.value, "24");
+  assert.equal(tile.title, "Fire");
+  assert.match(tile.detail, /^laatst 21.*10/);
+  assert.equal(statisticTile({ state: "24", attributes: { service: "Fire" } }, "nl", false).detail, null);
+});
+
+test("no tile without a value", () => {
+  assert.equal(statisticTile(undefined, "nl", false), null);
+  assert.equal(statisticTile({ state: "unavailable", attributes: {} }, "nl", false), null);
+  assert.equal(statisticTile({ state: "unknown", attributes: {} }, "nl", false), null);
+});
+
+test("the bar leaves out statuses nobody has", () => {
+  const colors = { A: "#111111", B: "#222222", C: null };
+  const segments = barSegments({ availability_colors: colors, A: 3, B: 0, C: 1 });
+  assert.deepEqual(segments, [
+    { name: "A", color: "#111111", count: 3 },
+    { name: "C", color: null, count: 1 },
+  ]);
+});
+
+test("a section's entities include the new blocks, and sections may lack them", () => {
+  assert.deepEqual(
+    entityIds({
+      my_availability: "sensor.a",
+      pre_alert: "binary_sensor.p",
+      garrison: "binary_sensor.g",
+      readiness: ["binary_sensor.r"],
+      vehicles: ["sensor.b"],
+      personnel: null,
+      statistics: ["sensor.s"],
+    }),
+    ["sensor.a", "binary_sensor.p", "binary_sensor.g", "binary_sensor.r", "sensor.b", "sensor.s"],
+  );
+});
+
+test("unavailable means missing or unavailable, not unknown", () => {
+  const states = { "sensor.a": { state: "unavailable" }, "sensor.b": { state: "unknown" }, "sensor.c": { state: "x" } };
+  assert.deepEqual(unavailableIds(["sensor.a", "sensor.b", "sensor.c", "sensor.d"], states), ["sensor.a", "sensor.d"]);
+});
+
+test("the page asks at most once a minute", () => {
+  assert.equal(refreshDelay(0, 60000), 0);
+  assert.equal(refreshDelay(0, 90000), 0);
+  assert.equal(refreshDelay(0, 15000), 45000);
 });
