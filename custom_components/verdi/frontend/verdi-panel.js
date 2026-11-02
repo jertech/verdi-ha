@@ -307,7 +307,7 @@ const STYLE = `
   h2 { margin: 24px 0 8px; font-size: 18px; font-weight: 500; }
   h3 { margin: 16px 0 8px; font-size: 16px; font-weight: 500; }
   .block { display: flex; flex-direction: column; gap: 8px; min-width: 0; box-sizing: border-box; padding: 16px;
-    border-radius: 12px; background: var(--card-background-color); }
+    border-radius: 12px; background: var(--card-background-color, #fff); }
   .block h3 { margin: 0; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
   .pills { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -315,14 +315,14 @@ const STYLE = `
   .pill.large { padding: 8px 16px; font-size: 18px; }
   .muted { color: var(--secondary-text-color); }
   h3.split { display: flex; justify-content: space-between; gap: 8px; }
-  h3.split small { color: var(--secondary-text-color); font-size: 13px; font-weight: 400; }
+  h3.split small { color: var(--secondary-text-color, #727272); font-size: 13px; font-weight: 400; }
   .until { flex: none; white-space: nowrap; }
   .tags { display: flex; align-items: center; gap: 6px; height: 24px; }
-  .tag { flex: none; padding: 2px 8px; border: 1px solid var(--primary-color); border-radius: 10px;
-    color: var(--primary-color); font-size: 12px; white-space: nowrap; }
+  .tag { flex: none; padding: 2px 8px; border: 1px solid var(--primary-color, #03a9f4); border-radius: 10px;
+    color: var(--primary-color, #03a9f4); font-size: 12px; white-space: nowrap; }
   .next { min-height: 19px; font-size: 13px; }
   .trains { display: flex; flex-direction: column; }
-  .train + .train { border-top: 1px solid var(--divider-color); }
+  .train + .train { border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .line { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 0; border: 0; background: none;
     color: inherit; font: inherit; text-align: left; }
   button.line { cursor: pointer; }
@@ -330,9 +330,9 @@ const STYLE = `
   .dot.ok { background: var(--success-color, #4caf50); }
   .dot.short { background: var(--error-color, #db4437); }
   .line .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-  .line .time { flex: none; color: var(--secondary-text-color); font-size: 13px; }
-  .chevron { flex: none; width: 8px; height: 8px; margin: 0 3px 3px; border-right: 2px solid var(--secondary-text-color);
-    border-bottom: 2px solid var(--secondary-text-color); transform: rotate(45deg); }
+  .line .time { flex: none; color: var(--secondary-text-color, #727272); font-size: 13px; }
+  .chevron { flex: none; width: 8px; height: 8px; margin: 0 3px 3px; border-right: 2px solid var(--secondary-text-color, #727272);
+    border-bottom: 2px solid var(--secondary-text-color, #727272); transform: rotate(45deg); }
   [aria-expanded="true"] .chevron { margin: 3px 3px 0; transform: rotate(-135deg); }
   .short-line { margin: -4px 0 8px 18px; color: var(--error-color, #db4437); font-size: 13px; overflow-wrap: anywhere; }
   .positions { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 2px 12px;
@@ -342,23 +342,23 @@ const STYLE = `
   .positions li.no::before { content: "✕ "; color: var(--error-color, #db4437); }
   .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
   .tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 88px; box-sizing: border-box;
-    padding: 9px; border-radius: 10px; box-shadow: 0 0 0 1px var(--divider-color); }
-  .tile.on { box-shadow: inset 0 0 0 3px currentColor, 0 0 0 1px var(--divider-color); }
+    padding: 9px; border-radius: 10px; box-shadow: 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
+  .tile.on { box-shadow: inset 0 0 0 3px currentColor, 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .tile ha-icon { --mdc-icon-size: 24px; }
   .tile strong { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
   .tile span { font-size: 12px; overflow-wrap: anywhere; }
   .stack { display: flex; height: 14px; overflow: hidden; border-radius: 7px; }
-  .stack span { box-shadow: inset 0 0 0 1px var(--divider-color); }
+  .stack span { box-shadow: inset 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
   .legend span { display: inline-flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
-  .legend i { flex: none; width: 10px; height: 10px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--divider-color); }
-  .number { min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--secondary-background-color); }
+  .legend i { flex: none; width: 10px; height: 10px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
+  .number { min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--secondary-background-color, #e5e5e5); }
   .number strong { display: block; font-size: 22px; font-weight: 500; }
   .number span { display: block; font-size: 12px; overflow-wrap: anywhere; }
-  .number span.muted { color: var(--secondary-text-color); }
+  .number span.muted { color: var(--secondary-text-color, #727272); }
   .problem { padding: 10px 12px; border: 1px solid var(--error-color, #db4437); border-radius: 12px;
-    background: var(--card-background-color);
-    background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color));
+    background: var(--card-background-color, #fff);
+    background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color, #fff));
     color: var(--error-color, #db4437); font-weight: 500; overflow-wrap: anywhere; }
   .view { display: contents; }
   button.pill { font: inherit; cursor: pointer; }
@@ -772,8 +772,8 @@ function definePanel() {
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
       const active = this.shadowRoot.activeElement?.dataset ?? {};
       this._view.replaceChildren(header, main);
-      if (active.entry) this._pill(active.entry)?.focus();
-      if (active.train) this._trainButton(active.train)?.focus();
+      if (active.entry) this._pill(active.entry)?.focus({ preventScroll: true });
+      if (active.train) this._trainButton(active.train)?.focus({ preventScroll: true });
     }
 
     _trainButton(id) {
