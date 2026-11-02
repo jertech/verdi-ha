@@ -34,9 +34,15 @@ def status_page(hass: HomeAssistant) -> list[dict[str, Any]]:
         loaded = entry.state is ConfigEntryState.LOADED
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
             if entity.domain == "sensor" and entity.translation_key in found and not entity.disabled:
-                # The registry keeps sensors this integration no longer provides: restored states.
+                # My availability switched off by the options stays restored. Vehicle and personnel sensors
+                # exist only if their lookup answered once, so a failed lookup looks restored: keep them.
                 state = hass.states.get(entity.entity_id)
-                if loaded and state is not None and state.attributes.get(ATTR_RESTORED):
+                if (
+                    loaded
+                    and entity.translation_key == "my_availability"
+                    and state is not None
+                    and state.attributes.get(ATTR_RESTORED)
+                ):
                     continue
                 found[entity.translation_key].append(entity.entity_id)
         if any(found.values()):

@@ -1,13 +1,20 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The status page: sidebar panel and websocket command."""
 
+from unittest.mock import patch
+
+import pytest
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry
 
+from custom_components.verdi.api import VerdiError
 from custom_components.verdi.const import DOMAIN
-from tests.conftest import ALL_OFF, DATA, setup_with_token
+from custom_components.verdi.panel import status_page
+from custom_components.verdi.token import get_store
+from tests import responses as r
+from tests.conftest import ALL_OFF, DATA, fake_command, setup_with_token
 
 
 def second_entry() -> MockConfigEntry:
@@ -150,3 +157,40 @@ async def test_panel_exists_while_an_entry_waits_for_a_token(hass: HomeAssistant
     await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
     assert panel(hass) is not None
+
+
+@pytest.mark.parametrize(
+    ("path", "key"),
+    [
+        ("configuration/vehicles/commands", "vehicles"),
+        ("configuration/persons/commands", "personnel"),
+    ],
+)
+async def test_rows_stay_when_a_lookup_failed_on_reload(hass: HomeAssistant, config_entry, path, key):
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(r.all_ok())),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+        before = status_page(hass)
+    assert before[0][key]
+    with (
+        patch(
+            "custom_components.verdi.api.VerdiApi.command",
+            fake_command({**r.all_ok(), path: VerdiError("down")}),
+        ),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        assert await hass.config_entries.async_reload(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert status_page(hass) == before
+
+
+async def test_a_waiting_entry_keeps_its_rows(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    before = status_page(hass)
+    get_store(hass).tokens.pop(config_entry.entry_id)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert status_page(hass) == before
