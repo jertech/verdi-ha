@@ -7,6 +7,7 @@
 export const FALLBACK_COLOR = "#D3D3D3";
 
 const MENU_ICON = "M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z";
+const VEHICLE_ICON = "mdi:fire-truck";
 
 const LABELS = {
   en: {
@@ -293,17 +294,72 @@ const STYLE = `
   header h1 { margin: 0; font-size: 20px; font-weight: 400; }
   header button { width: 40px; height: 40px; padding: 8px; border: 0; background: none; color: inherit; cursor: pointer; }
   header svg { width: 24px; height: 24px; fill: currentColor; }
-  main { max-width: 760px; margin: 0 auto; padding: 16px; }
+  main { container-type: inline-size; box-sizing: border-box; display: flex; flex-direction: column; gap: 12px;
+    max-width: 1040px; margin: 0 auto; padding: 16px; }
   :host([narrow]) main { padding: 8px; }
+  .numbers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  .columns, .column { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  @container (min-width: 720px) {
+    .columns { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); align-items: start; }
+    .columns:has(> :only-child) { grid-template-columns: minmax(0, 1fr); }
+    .numbers { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  }
   h2 { margin: 24px 0 8px; font-size: 18px; font-weight: 500; }
   h3 { margin: 16px 0 8px; font-size: 16px; font-weight: 500; }
-  .block { margin-bottom: 16px; padding: 16px; border-radius: 12px; background: var(--card-background-color); }
-  .block h3:first-child { margin-top: 0; }
+  .block { display: flex; flex-direction: column; gap: 8px; min-width: 0; box-sizing: border-box; padding: 16px;
+    border-radius: 12px; background: var(--card-background-color); }
+  .block h3 { margin: 0; }
   .row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; }
   .pills { display: flex; flex-wrap: wrap; gap: 8px; }
   .pill { display: inline-block; padding: 4px 12px; border: 1px solid var(--divider-color); border-radius: 16px; overflow-wrap: anywhere; }
   .pill.large { padding: 8px 16px; font-size: 18px; }
   .muted { color: var(--secondary-text-color); }
+  h3.split { display: flex; justify-content: space-between; gap: 8px; }
+  h3.split small { color: var(--secondary-text-color); font-size: 13px; font-weight: 400; }
+  .until { flex: none; white-space: nowrap; }
+  .tags { display: flex; align-items: center; gap: 6px; height: 24px; }
+  .tag { flex: none; padding: 2px 8px; border: 1px solid var(--primary-color); border-radius: 10px;
+    color: var(--primary-color); font-size: 12px; white-space: nowrap; }
+  .next { min-height: 19px; font-size: 13px; }
+  .trains { display: flex; flex-direction: column; }
+  .train + .train { border-top: 1px solid var(--divider-color); }
+  .line { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 0; border: 0; background: none;
+    color: inherit; font: inherit; text-align: left; }
+  button.line { cursor: pointer; }
+  .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: ${FALLBACK_COLOR}; }
+  .dot.ok { background: var(--success-color, #4caf50); }
+  .dot.short { background: var(--error-color, #db4437); }
+  .line .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .line .time { flex: none; color: var(--secondary-text-color); font-size: 13px; }
+  .chevron { flex: none; width: 8px; height: 8px; margin: 0 3px 3px; border-right: 2px solid var(--secondary-text-color);
+    border-bottom: 2px solid var(--secondary-text-color); transform: rotate(45deg); }
+  [aria-expanded="true"] .chevron { margin: 3px 3px 0; transform: rotate(-135deg); }
+  .short-line { margin: -4px 0 8px 18px; color: var(--error-color, #db4437); font-size: 13px; overflow-wrap: anywhere; }
+  .positions { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 2px 12px;
+    margin: -2px 0 8px 18px; padding: 0; font-size: 13px; list-style: none; overflow-wrap: anywhere; }
+  .positions li::before { content: "✓ "; color: var(--success-color, #4caf50); }
+  .positions li.no { color: var(--error-color, #db4437); font-weight: 500; }
+  .positions li.no::before { content: "✕ "; color: var(--error-color, #db4437); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 6px; }
+  .tile { display: flex; flex-direction: column; gap: 2px; min-width: 0; min-height: 88px; box-sizing: border-box;
+    padding: 9px; border-radius: 10px; box-shadow: 0 0 0 1px var(--divider-color); }
+  .tile.on { box-shadow: inset 0 0 0 3px currentColor, 0 0 0 1px var(--divider-color); }
+  .tile ha-icon { --mdc-icon-size: 24px; }
+  .tile strong { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
+  .tile span { font-size: 12px; overflow-wrap: anywhere; }
+  .stack { display: flex; height: 14px; overflow: hidden; border-radius: 7px; }
+  .stack span { box-shadow: inset 0 0 0 1px var(--divider-color); }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }
+  .legend span { display: inline-flex; align-items: center; gap: 5px; overflow-wrap: anywhere; }
+  .legend i { flex: none; width: 10px; height: 10px; border-radius: 3px; box-shadow: inset 0 0 0 1px var(--divider-color); }
+  .number { min-width: 0; padding: 8px 10px; border-radius: 10px; background: var(--secondary-background-color); }
+  .number strong { display: block; font-size: 22px; font-weight: 500; }
+  .number span { display: block; font-size: 12px; overflow-wrap: anywhere; }
+  .number span.muted { color: var(--secondary-text-color); }
+  .problem { padding: 10px 12px; border: 1px solid var(--error-color, #db4437); border-radius: 12px;
+    background: var(--card-background-color);
+    background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color));
+    color: var(--error-color, #db4437); font-weight: 500; overflow-wrap: anywhere; }
   .view { display: contents; }
   button.pill { font: inherit; cursor: pointer; }
   dialog { box-sizing: border-box; width: min(420px, calc(100vw - 32px)); padding: 16px; border: 0; border-radius: 12px;
@@ -363,18 +419,40 @@ function live(state) {
   return Boolean(state) && state.state !== "unavailable" && state.state !== "unknown";
 }
 
-function myStatus(state, language, change) {
+function heading(language, key) {
+  return element("h3", "", label(language, key));
+}
+
+function tagsRow(data, states, language) {
+  const row = element("div", "tags");
+  for (const [key, text] of [["pre_alert", "preAlert"], ["garrison", "garrison"]]) {
+    if (states[data[key]]?.state === "on") row.append(element("span", "tag", label(language, text)));
+  }
+  return row;
+}
+
+function myStatus({ data, states, language, open }) {
+  if (!data.my_availability) return null;
+  const state = states[data.my_availability];
+  const change = canChange(data.controls, states) ? () => open(data) : null;
   const block = element("div", "block");
-  block.append(element("h3", "", label(language, "myStatus")));
+  block.append(heading(language, "myStatus"));
   const attributes = state?.attributes ?? {};
   const colors = attributes.availability_colors ?? {};
   const main = element("div", "row");
   const text = statusText(language, state);
   const color = live(state) ? attributes.color : null;
-  main.append(change ? changePill(text, color, language, change) : pill(text, color, true));
+  const status = change ? changePill(text, color, language, change) : pill(text, color, true);
+  if (change) status.dataset.entry = data.controls.entry_id;
+  main.append(status);
   const end = until(attributes.end, language);
-  if (end) main.append(element("span", "muted", end));
-  block.append(main);
+  if (end) main.append(element("span", "muted until", end));
+  const following = live(state) && attributes.next_status;
+  block.append(
+    main,
+    tagsRow(data, states, language),
+    element("div", "muted next", following ? `${label(language, "next")}: ${following}` : ""),
+  );
   for (const group of [attributes.stations, attributes.planning_groups]) {
     for (const [name, status] of Object.entries(group ?? {})) {
       block.append(row(name, pill(status ?? label(language, "unknown"), colors[status])));
@@ -383,46 +461,163 @@ function myStatus(state, language, change) {
   return block;
 }
 
-function vehicles(ids, states, title, language) {
-  const block = element("div", "block");
-  block.append(element("h3", "", label(language, "vehicles")));
-  const rows = ids.map((id) => ({ state: states[id], name: vehicleName(states[id]?.attributes.friendly_name, title) }));
-  for (const { state, name } of rows) {
-    block.append(row(name, pill(statusText(language, state), live(state) ? state.attributes.color : null)));
+function train(id, name, state, language, opened, toggle) {
+  const known = live(state);
+  const attributes = known ? state.attributes : {};
+  const positions = Object.entries(attributes.positions ?? {});
+  const node = element("div", "train");
+  const line = element(positions.length ? "button" : "div", "line");
+  if (positions.length) {
+    line.type = "button";
+    line.dataset.train = id;
+    line.setAttribute("aria-expanded", String(opened));
+    line.addEventListener("click", () => toggle(id));
   }
+  const complete = state?.state === "on";
+  line.append(
+    element("span", known ? `dot ${complete ? "ok" : "short"}` : "dot"),
+    element("span", "name", name),
+    element("span", "time", responseTime(attributes) ?? ""),
+  );
+  if (positions.length) line.append(element("span", "chevron"));
+  node.append(line);
+  const missing = known && !complete ? missingPositions(attributes.positions) : [];
+  if (opened && positions.length) {
+    const list = element("ul", "positions");
+    for (const [name, met] of positions) list.append(element("li", met ? "" : "no", name));
+    node.append(list);
+  } else if (missing.length) {
+    node.append(element("div", "short-line", `${label(language, "missing")}: ${missing.join(", ")}`));
+  }
+  return node;
+}
+
+function readiness({ data, states, language, opened, toggle }) {
+  if (!data.readiness?.length) return null;
+  const block = element("div", "block");
+  const list = element("div", "trains");
+  for (const id of data.readiness) {
+    const attributes = states[id]?.attributes ?? {};
+    const name = attributes.title ?? vehicleName(attributes.friendly_name, data.title);
+    list.append(train(id, name, states[id], language, opened.has(id), toggle));
+  }
+  block.append(heading(language, "readiness"), list);
   return block;
 }
 
-function personnel(state, language) {
+function vehicleIcon(icon) {
+  if (!globalThis.customElements?.get("ha-icon")) return null;
+  const node = document.createElement("ha-icon");
+  node.setAttribute("icon", icon ?? VEHICLE_ICON);
+  return node;
+}
+
+function vehicleTile(state, title, language) {
+  const known = live(state);
+  const attributes = state?.attributes ?? {};
+  const background = normalizeColor(known ? attributes.color : null);
+  const node = element("div", known && attributes.on_intervention ? "tile on" : "tile");
+  node.style.background = background;
+  node.style.color = textColor(background);
+  const icon = vehicleIcon(attributes.icon);
+  if (icon) node.append(icon);
+  node.append(element("strong", "", vehicleName(attributes.friendly_name, title)));
+  node.append(element("span", "", statusText(language, state)));
+  const since = known ? moment(attributes.availability_since, language) : null;
+  if (since) node.append(element("span", "", `${label(language, "since")} ${since}`));
+  return node;
+}
+
+function vehicles({ data, states, language }) {
+  if (!data.vehicles.length) return null;
   const block = element("div", "block");
-  block.append(element("h3", "", label(language, "personnel")));
+  const tiles = element("div", "tiles");
+  for (const id of data.vehicles) tiles.append(vehicleTile(states[id], data.title, language));
+  block.append(heading(language, "vehicles"), tiles);
+  return block;
+}
+
+function personnel({ data, states, language }) {
+  if (!data.personnel) return null;
+  const state = states[data.personnel];
+  const block = element("div", "block");
   if (!live(state)) {
     const pills = element("div", "pills");
     pills.append(pill(statusText(language, state), null));
-    block.append(pills);
+    block.append(heading(language, "personnel"), pills);
     return block;
   }
-  const pills = element("div", "pills");
-  for (const { name, color, count } of statusCounts(state.attributes)) {
-    pills.append(pill(`${statusLabel(language, name)}: ${count}`, color));
+  const title = element("h3", "split");
+  const total = `${state.state} ${label(language, "total").toLowerCase()}`;
+  title.append(element("span", "", label(language, "personnel")), element("small", "", total));
+  const counts = statusCounts(state.attributes).map(({ name, color, count }) => ({
+    text: `${statusLabel(language, name)} ${count}`,
+    color: normalizeColor(color),
+  }));
+  const bar = element("div", "stack");
+  bar.setAttribute("role", "img");
+  bar.setAttribute("aria-label", counts.map(({ text }) => text).join(", "));
+  for (const { color, count } of barSegments(state.attributes)) {
+    const segment = element("span");
+    segment.style.flex = String(count);
+    segment.style.background = normalizeColor(color);
+    bar.append(segment);
   }
-  block.append(pills, row(label(language, "total"), element("span", "", state.state)));
+  const legend = element("div", "legend");
+  for (const { text, color } of counts) {
+    const item = element("span");
+    const square = element("i");
+    square.style.background = color;
+    item.append(square, text);
+    legend.append(item);
+  }
+  block.append(title, bar, legend);
   if (state.attributes.truncated) block.append(element("div", "muted", label(language, "incomplete")));
   return block;
 }
 
-function section(data, states, language, heading, open) {
-  const nodes = [];
-  if (heading) nodes.push(element("h2", "", data.title));
-  if (data.my_availability) {
-    const change = canChange(data.controls, states) ? () => open(data) : null;
-    const block = myStatus(states[data.my_availability], language, change);
-    const button = block.querySelector("button.pill");
-    if (button) button.dataset.entry = data.controls.entry_id;
-    nodes.push(block);
+function statistics({ data, states, language }) {
+  const ids = data.statistics ?? [];
+  const availability = ids.filter((id) => states[id]?.attributes.service === undefined);
+  const tiles = ids.map((id) => statisticTile(states[id], language, availability.length > 1)).filter(Boolean);
+  if (!tiles.length) return null;
+  const block = element("div", "block");
+  const numbers = element("div", "numbers");
+  for (const { value, title, detail } of tiles) {
+    const node = element("div", "number");
+    node.append(element("strong", "", value), element("span", "", title));
+    if (detail) node.append(element("span", "muted", detail));
+    numbers.append(node);
   }
-  if (data.vehicles.length) nodes.push(vehicles(data.vehicles, states, data.title, language));
-  if (data.personnel) nodes.push(personnel(states[data.personnel], language));
+  block.append(heading(language, "statistics"), numbers);
+  return block;
+}
+
+// The later settings reorder, hide and restyle blocks here.
+const BLOCKS = { myStatus, readiness, vehicles, personnel, statistics };
+const COLUMNS = [
+  ["myStatus", "readiness"],
+  ["vehicles", "personnel"],
+];
+const FULL_WIDTH = ["statistics"];
+
+function section(context, withHeading) {
+  const { data, language } = context;
+  const nodes = [];
+  if (withHeading) nodes.push(element("h2", "", data.title));
+  if (data.problem) {
+    const line = element("div", "problem", label(language, `problem_${data.problem}`));
+    line.setAttribute("role", "alert");
+    nodes.push(line);
+  }
+  const columns = element("div", "columns");
+  for (const names of COLUMNS) {
+    const column = element("div", "column");
+    column.append(...names.map((name) => BLOCKS[name](context)).filter(Boolean));
+    if (column.childElementCount) columns.append(column);
+  }
+  if (columns.childElementCount) nodes.push(columns);
+  nodes.push(...FULL_WIDTH.map((name) => BLOCKS[name](context)).filter(Boolean));
   return nodes;
 }
 
@@ -471,6 +666,15 @@ function definePanel() {
       this._sections = undefined;
       this._drawn = undefined;
       this._sending = false;
+      this._openTrains = new Set();
+      this._unavailable = "";
+      this._loadedAt = 0;
+      this._timer = undefined;
+      // `ha-icon` may arrive after the first drawing.
+      customElements.whenDefined("ha-icon").then(() => {
+        this._drawn = undefined;
+        this._render();
+      });
       // Outside what _render replaces: taking a modal dialog out of the page closes it.
       this._view = element("div", "view");
       this._dialog = element("dialog");
@@ -494,11 +698,27 @@ function definePanel() {
     }
 
     disconnectedCallback() {
+      clearTimeout(this._timer);
       this._dialog.close();
     }
 
     _pill(entryId) {
       return [...this._view.querySelectorAll("button.pill")].find((node) => node.dataset.entry === entryId);
+    }
+
+    _toggle(id) {
+      if (!this._openTrains.delete(id)) this._openTrains.add(id);
+      this._drawn = undefined;
+      this._render();
+    }
+
+    // Why data is missing comes from the server, so ask again when what's missing changes.
+    _check(ids) {
+      const key = unavailableIds(ids, this._hass.states).join(",");
+      if (key === this._unavailable) return;
+      this._unavailable = key;
+      clearTimeout(this._timer);
+      this._timer = setTimeout(() => this._load(), refreshDelay(this._loadedAt, Date.now()));
     }
 
     set narrow(value) {
@@ -513,6 +733,7 @@ function definePanel() {
     }
 
     async _load() {
+      this._loadedAt = Date.now();
       try {
         const { sections } = await this._hass.callWS({ type: "verdi/status_page" });
         this._sections = sections;
@@ -527,7 +748,9 @@ function definePanel() {
       const hass = this._hass;
       if (!hass) return;
       const sections = this._sections ?? [];
-      const states = sections.flatMap(entityIds).map((id) => hass.states[id]);
+      const ids = sections.flatMap(entityIds);
+      this._check(ids);
+      const states = ids.map((id) => hass.states[id]);
       const drawn = this._drawn;
       if (
         drawn?.language === hass.language &&
@@ -541,13 +764,20 @@ function definePanel() {
       const header = element("header");
       header.append(menuButton(this, language), element("h1", "", "Verdi (unofficial)"));
       const main = element("main");
-      const heading = sections.length > 1;
+      const withHeading = sections.length > 1;
       const open = (data) => this._open(data);
-      for (const data of sections) main.append(...section(data, hass.states, language, heading, open));
+      const toggle = (id) => this._toggle(id);
+      const shared = { states: hass.states, language, open, opened: this._openTrains, toggle };
+      for (const data of sections) main.append(...section({ ...shared, data }, withHeading));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
-      const focused = this.shadowRoot.activeElement?.dataset?.entry;
+      const active = this.shadowRoot.activeElement?.dataset ?? {};
       this._view.replaceChildren(header, main);
-      if (focused) this._pill(focused)?.focus();
+      if (active.entry) this._pill(active.entry)?.focus();
+      if (active.train) this._trainButton(active.train)?.focus();
+    }
+
+    _trainButton(id) {
+      return [...this._view.querySelectorAll("button.line")].find((node) => node.dataset.train === id);
     }
 
     async _reason(err) {
