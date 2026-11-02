@@ -198,6 +198,7 @@ const STYLE = `
   dialog { box-sizing: border-box; width: min(420px, calc(100vw - 32px)); padding: 16px; border: 0; border-radius: 12px;
     background: var(--card-background-color); color: var(--primary-text-color); }
   dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+  dialog:focus { outline: none; }
   dialog h2 { margin: 0 0 16px; }
   .field { display: block; margin-bottom: 12px; }
   .field select { display: block; box-sizing: border-box; width: 100%; margin-top: 4px; padding: 8px; font: inherit;
@@ -360,6 +361,7 @@ function definePanel() {
       // Outside what _render replaces: taking a modal dialog out of the page closes it.
       this._view = element("div", "view");
       this._dialog = element("dialog");
+      this._dialog.tabIndex = -1;
       // HA's keyboard shortcuts listen on the window; typing in a select isn't for them. Escape is the browser's,
       // except while a call runs.
       this._dialog.addEventListener("keydown", (event) => {
@@ -475,6 +477,8 @@ function definePanel() {
         this._sending = true;
         message.textContent = "";
         for (const node of [add, back, close, status.select, duration.select]) node.disabled = true;
+        // Disabling them drops focus to body, where the dialog no longer sees Escape or HA's shortcuts get the keys.
+        this._dialog.focus();
         let outcome;
         let reason;
         try {
