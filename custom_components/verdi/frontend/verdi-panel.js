@@ -19,7 +19,6 @@ const LABELS = {
     unknown: "Unknown",
     empty: "No Verdi data found.",
     incomplete: "List incomplete",
-    notice: "Unofficial, not affiliated with Cevi or Verdi, not for operational use.",
     menu: "Menu",
   },
   nl: {
@@ -32,7 +31,6 @@ const LABELS = {
     unknown: "Onbekend",
     empty: "Geen Verdi-gegevens gevonden.",
     incomplete: "Lijst onvolledig",
-    notice: "Onofficieel, niet verbonden aan Cevi of Verdi, niet voor operationeel gebruik.",
     menu: "Menu",
   },
   fr: {
@@ -45,7 +43,6 @@ const LABELS = {
     unknown: "Inconnu",
     empty: "Aucune donnée Verdi trouvée.",
     incomplete: "Liste incomplète",
-    notice: "Non officiel, non affilié à Cevi ou Verdi, pas pour un usage opérationnel.",
     menu: "Menu",
   },
 };
@@ -96,6 +93,10 @@ export function vehicleName(friendlyName, title) {
   return friendlyName.startsWith(`${title} `) ? friendlyName.slice(title.length + 1) : friendlyName;
 }
 
+export function byName(a, b) {
+  return a.name.localeCompare(b.name, undefined, { numeric: true });
+}
+
 export function entityIds(section) {
   return [section.my_availability, ...section.vehicles, section.personnel].filter(Boolean);
 }
@@ -117,8 +118,7 @@ const STYLE = `
   .pills { display: flex; flex-wrap: wrap; gap: 8px; }
   .pill { display: inline-block; padding: 4px 12px; border: 1px solid var(--divider-color); border-radius: 16px; overflow-wrap: anywhere; }
   .pill.large { padding: 8px 16px; font-size: 18px; }
-  .muted, .notice { color: var(--secondary-text-color); }
-  .notice { margin-top: 16px; font-size: 12px; }
+  .muted { color: var(--secondary-text-color); }
 `;
 
 function element(tag, className, text) {
@@ -175,7 +175,7 @@ function vehicles(ids, states, title, language) {
   const block = element("div", "block");
   block.append(element("h3", "", label(language, "vehicles")));
   const rows = ids.map((id) => ({ state: states[id], name: vehicleName(states[id]?.attributes.friendly_name, title) }));
-  rows.sort((a, b) => a.name.localeCompare(b.name));
+  rows.sort(byName);
   for (const { state, name } of rows) {
     block.append(row(name, pill(statusText(language, state), live(state) ? state.attributes.color : null)));
   }
@@ -279,7 +279,6 @@ function definePanel() {
       const heading = sections.length > 1;
       for (const data of sections) main.append(...section(data, hass.states, language, heading));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
-      main.append(element("div", "notice", label(language, "notice")));
       const style = element("style", "", STYLE);
       this.shadowRoot.replaceChildren(style, header, main);
     }

@@ -75,12 +75,13 @@ async def async_setup_entry(
     c = entry.runtime_data
     data = c.data or {}
     entities: list[SensorEntity] = [TokenExpirySensor(c), PaceSensor(c)]
-    if data.get("personnel") is not None:
-        entities.append(PersonnelSensor(c))
-    for v in data.get("vehicles") or []:
+    people, units = c.lane("personnel"), c.lane("vehicles")
+    if (people.data or {}).get("personnel") is not None:
+        entities.append(PersonnelSensor(people))
+    for v in (units.data or {}).get("vehicles") or []:
         entities.append(
             VerdiListSensor(
-                c,
+                units,
                 "vehicles",
                 v["id"],
                 lambda i: i["availability"],
@@ -174,11 +175,11 @@ async def _add_statistics_sensors(
 class VerdiListSensor(VerdiEntity, SensorEntity):
     """One sensor per item of a list lookup (vehicle, team, crew function)."""
 
-    coordinator: VerdiCoordinator
+    coordinator: LookupCoordinator
 
     def __init__(
         self,
-        coordinator: VerdiCoordinator,
+        coordinator: LookupCoordinator,
         section: str,
         item_id: str,
         value: Callable[[dict[str, Any]], Any],
@@ -222,13 +223,13 @@ class VerdiListSensor(VerdiEntity, SensorEntity):
 
 
 class PersonnelSensor(VerdiEntity, SensorEntity):
-    coordinator: VerdiCoordinator
+    coordinator: LookupCoordinator
     lookup = "personnel"
     _attr_translation_key = "personnel"
     _attr_native_unit_of_measurement = "persons"
     _unrecorded_attributes = frozenset({"availability_colors"})
 
-    def __init__(self, coordinator: VerdiCoordinator) -> None:
+    def __init__(self, coordinator: LookupCoordinator) -> None:
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_personnel"
         self._attr_device_info = device_info(coordinator.config_entry)
