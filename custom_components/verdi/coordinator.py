@@ -318,6 +318,11 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.on_fetched: FetchHook | None = None
         self.on_run: RunHook | None = None
 
+    @property
+    def failing(self) -> frozenset[str]:
+        """The lookups whose latest try failed; each keeps its previous value until it works again."""
+        return frozenset(self._failing)
+
     def mark_due(self, key: str, reason: str, at: datetime | None = None, *, replace: bool = False) -> bool:
         """Mark a lookup due now or at `at`. False if this coordinator doesn't have it."""
         if (lookup := self.lookups.get(key)) is None:

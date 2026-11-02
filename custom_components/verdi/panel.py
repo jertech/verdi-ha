@@ -45,6 +45,8 @@ SHOWN = {
 }
 # Your own data: a lookup switched off by the options leaves these restored.
 PERSONAL = ("my_availability", "pre_alert", "garrison", "statistics")
+# The lookups whose value the page shows as live. Statistics and events are hours old anyway.
+LIVE = frozenset({"vehicles", "personnel", "readiness", "availability", "pre_alerts", "garrison"})
 
 
 def _verdi_order(entry: ConfigEntry) -> dict[str, int]:
@@ -87,7 +89,12 @@ def _problem(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
     # A run the guard blocks counts as a success, so backing off comes first.
     if coordinator.guard.backing_off:
         return "paused" if coordinator.guard.asked_to_wait else "verdi"
-    return None if coordinator.last_update_success else "verdi"
+    if not coordinator.last_update_success:
+        return "verdi"
+    # Not the other lanes' success: an outage already shows above, and a fast or personal lane can report a
+    # failed update for its one lookup, or for one outside LIVE, while the rest of Verdi answers.
+    lanes = (lane for lane in (coordinator, coordinator.fast, coordinator.personal) if lane is not None)
+    return "stale" if any(lane.failing & LIVE for lane in lanes) else None
 
 
 def status_page(hass: HomeAssistant, admin: bool = False) -> list[dict[str, Any]]:

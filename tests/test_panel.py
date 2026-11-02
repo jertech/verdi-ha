@@ -12,7 +12,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
-from custom_components.verdi.api import VerdiError, VerdiUnavailable
+from custom_components.verdi.api import APP_ROUTE, VerdiError, VerdiUnavailable
 from custom_components.verdi.const import DOMAIN
 from custom_components.verdi.panel import _problem, status_page
 from custom_components.verdi.token import get_store
@@ -20,6 +20,15 @@ from tests import responses as r
 from tests.conftest import ALL_OFF, DATA, fake_command, make_token, setup_with_token
 
 ON = {"status_changes": True}
+PERSONNEL = "configuration/persons/commands"
+VEHICLES = "configuration/vehicles/commands"
+READINESS = "configuration/readinesses/commands"
+AVAILABILITY = "GetPersonCurrentAvailabilityCarouselInformationCommand"
+PRE_ALERTS = "GetPersonCurrentPreAlertInformationCommand"
+GARRISON = "GetPersonCurrentGarrisonInformationCommand"
+PAGED = "GetPersonCurrentInterventionInformationCommand"
+STATISTICS = "AppGetPersonStatisticsCommand"
+EVENTS = "AppGetUpcomingEventsCommand"
 CONTROLS = {
     "status": "select.verdi_status",
     "duration": "select.verdi_duration",
@@ -462,4 +471,138 @@ async def test_problem_clears_after_a_success(hass: HomeAssistant, config_entry,
     guard.level, guard.asked_to_wait = 1, True
     guard.succeeded()
     assert guard.asked_to_wait is False
+    assert _problem(hass, config_entry) is None
+
+
+@pytest.fixture
+def verdi():
+    """Verdi's answers, changeable during a test: an Exception as a value is raised for that lookup."""
+    answers = r.all_ok()
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(answers)),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        yield answers
+
+
+async def tick(hass: HomeAssistant, freezer, seconds: float = 120) -> None:
+    freezer.tick(timedelta(seconds=seconds))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+
+
+@pytest.mark.parametrize(
+    "trouble", [VerdiError("down"), VerdiUnavailable("down", status=503), VerdiUnavailable("down")]
+)
+async def test_stale_when_one_station_lookup_fails(
+    hass: HomeAssistant, config_entry, verdi, freezer, trouble
+):
+    await setup_with_token(hass, config_entry)
+    verdi[VEHICLES] = trouble
+    await tick(hass, freezer)
+    station = config_entry.runtime_data
+    assert station.failing == {"vehicles"}
+    assert station.last_update_success
+    assert not station.guard.backing_off
+    assert status_page(hass)[0]["problem"] == "stale"
+
+
+async def test_stale_when_readiness_fails(hass: HomeAssistant, config_entry, verdi, freezer):
+    await setup_with_token(hass, config_entry)
+    verdi[READINESS] = VerdiError("down")
+    config_entry.runtime_data.mark_due("readiness", "test")
+    await tick(hass, freezer)
+    assert config_entry.runtime_data.failing == {"readiness"}
+    assert _problem(hass, config_entry) == "stale"
+
+
+@pytest.mark.parametrize(
+    ("key", "command"), [("availability", AVAILABILITY), ("pre_alerts", PRE_ALERTS), ("garrison", GARRISON)]
+)
+async def test_stale_when_one_personal_lookup_fails(hass: HomeAssistant, config_entry, verdi, key, command):
+    await setup_with_token(hass, config_entry, options={"pre_alert": True, "garrison": True})
+    verdi[APP_ROUTE] = {**verdi[APP_ROUTE], command: VerdiError("down")}
+    personal = config_entry.runtime_data.personal
+    await personal.async_refresh_lookup(key)
+    assert personal.failing == {key}
+    assert _problem(hass, config_entry) == "stale"
+
+
+async def test_stale_on_the_fast_lane(hass: HomeAssistant, config_entry, verdi, freezer):
+    await setup_with_token(hass, config_entry, options={"fast_lane": ["vehicles"]})
+    verdi[VEHICLES] = VerdiError("down")
+    await tick(hass, freezer, 30)
+    fast = config_entry.runtime_data.fast
+    assert fast.failing == {"vehicles"}
+    # Its only lookup failed, so the lane reports a failed update, yet the rest of Verdi answers.
+    assert not fast.last_update_success
+    assert config_entry.runtime_data.last_update_success
+    assert _problem(hass, config_entry) == "stale"
+
+
+@pytest.mark.parametrize(("key", "command"), [("statistics", STATISTICS), ("events", EVENTS)])
+async def test_slow_personal_lookups_say_nothing(hass: HomeAssistant, config_entry, verdi, key, command):
+    await setup_with_token(hass, config_entry)
+    verdi[APP_ROUTE] = {**verdi[APP_ROUTE], command: VerdiError("down")}
+    personal = config_entry.runtime_data.personal
+    await personal.async_refresh_lookup(key)
+    assert personal.failing == {key}
+    assert _problem(hass, config_entry) is None
+
+
+async def test_a_lookup_outside_the_list_says_nothing_on_a_failed_lane(
+    hass: HomeAssistant, config_entry, verdi, freezer
+):
+    await setup_with_token(hass, config_entry)  # the default fast lane holds only paged
+    verdi[APP_ROUTE] = {**verdi[APP_ROUTE], PAGED: VerdiError("down")}
+    await tick(hass, freezer, 30)
+    fast = config_entry.runtime_data.fast
+    assert fast.failing == {"paged"}
+    assert not fast.last_update_success
+    assert _problem(hass, config_entry) is None
+
+
+@pytest.mark.parametrize(
+    ("trouble", "expected"),
+    [(VerdiUnavailable("down", status=503), "verdi"), (VerdiUnavailable("busy", status=429), "paused")],
+)
+async def test_verdi_and_paused_outrank_stale(
+    hass: HomeAssistant, config_entry, verdi, freezer, trouble, expected
+):
+    await setup_with_token(hass, config_entry)
+    verdi[VEHICLES] = VerdiError("down")
+    await tick(hass, freezer)
+    assert _problem(hass, config_entry) == "stale"
+    verdi[PERSONNEL] = trouble  # the tick's first lookup: nothing came back, so the entry backs off
+    await tick(hass, freezer)
+    assert "vehicles" in config_entry.runtime_data.failing
+    assert _problem(hass, config_entry) == expected
+
+
+async def test_token_outranks_stale(hass: HomeAssistant, config_entry, verdi, freezer):
+    await setup_with_token(hass, config_entry)
+    verdi[VEHICLES] = VerdiError("down")
+    await tick(hass, freezer)
+    assert _problem(hass, config_entry) == "stale"
+    config_entry.async_start_reauth(hass)
+    await hass.async_block_till_done()
+    assert _problem(hass, config_entry) == "token"
+
+
+async def test_stale_clears_after_a_recovery(hass: HomeAssistant, config_entry, verdi, freezer):
+    await setup_with_token(hass, config_entry)
+    good_vehicles, good_app = verdi[VEHICLES], verdi[APP_ROUTE]
+    verdi[VEHICLES] = VerdiError("down")
+    verdi[APP_ROUTE] = {**good_app, AVAILABILITY: VerdiError("down")}
+    await tick(hass, freezer)
+    personal = config_entry.runtime_data.personal
+    await personal.async_refresh_lookup("availability")
+    assert _problem(hass, config_entry) == "stale"
+    verdi[VEHICLES] = good_vehicles
+    await tick(hass, freezer)
+    assert config_entry.runtime_data.failing == frozenset()
+    assert _problem(hass, config_entry) == "stale"  # your own lookup still fails
+    verdi[APP_ROUTE] = good_app
+    await personal.async_refresh_lookup("availability")
+    assert personal.failing == frozenset()
     assert _problem(hass, config_entry) is None

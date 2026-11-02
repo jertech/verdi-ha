@@ -14,7 +14,8 @@ app shared version numbers; from then on the app has its own (see `verdi_token_r
 - Vehicles are tiles in Verdi's colours, with the time since their status changed and the icon you set for the entity in
   Home Assistant. Vehicles and trains now follow Verdi's own order.
 - Personnel is a bar with a legend.
-- When data is missing, the page says why: login expired, Verdi asked to slow down, or Verdi can't be reached.
+- When data is missing, the page says why: login expired, Verdi asked to slow down, Verdi can't be reached, or some data
+  may be out of date.
 - New attributes: `title` on Readiness, `next_status` on My availability, `station` and `service` on the statistics sensors.
 
 ## [0.12.0] - 2026-11-02

@@ -54,8 +54,15 @@ Tap a train to see its positions. To give a vehicle its own icon, set one for it
 services** > **Entities**. Names of statuses, vehicles and trains come from your Verdi zone, in the language it's set up
 in. The rest of the page follows your Home Assistant language.
 
+The pre-alert and garrison tags under your status need the **Pre-alert** and **Garrison** options, which are off by
+default.
+
 Your next status shows only when your planning has one for the moment the current one ends. A status from a recurring
 planning doesn't show there.
+
+When data is missing or may be out of date, a line at the top of the page says why: the login expired, Verdi asked to
+slow down, Verdi can't be reached, or some data may be out of date because one lookup failed. The page checks this once
+a minute while it's open. Failed lookups retry by themselves.
 
 With **Change my status** on, administrators can click the large status pill to add an exception or return to planning.
 The dialog keeps showing what Verdi answered if the change was overruled, couldn't be checked or was refused. For anyone

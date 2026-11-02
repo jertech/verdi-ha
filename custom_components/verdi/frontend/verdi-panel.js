@@ -44,6 +44,7 @@ const LABELS = {
     problem_token: "Verdi login expired. Check the Verdi Token Relay.",
     problem_paused: "Verdi asked to slow down. It will retry by itself.",
     problem_verdi: "Verdi can't be reached. It will retry by itself.",
+    problem_stale: "Some data may be out of date. It will retry by itself.",
   },
   nl: {
     myStatus: "Mijn status",
@@ -79,6 +80,7 @@ const LABELS = {
     problem_token: "Verdi-login verlopen. Controleer de Verdi Token Relay.",
     problem_paused: "Verdi vroeg om trager te gaan. Er wordt automatisch opnieuw geprobeerd.",
     problem_verdi: "Verdi is niet bereikbaar. Er wordt automatisch opnieuw geprobeerd.",
+    problem_stale: "Sommige gegevens zijn mogelijk niet actueel. Er wordt automatisch opnieuw geprobeerd.",
   },
   fr: {
     myStatus: "Mon statut",
@@ -114,6 +116,7 @@ const LABELS = {
     problem_token: "Connexion Verdi expirée. Vérifiez Verdi Token Relay.",
     problem_paused: "Verdi a demandé de ralentir. Nouvel essai automatique.",
     problem_verdi: "Verdi est injoignable. Nouvel essai automatique.",
+    problem_stale: "Certaines données peuvent ne pas être à jour. Nouvel essai automatique.",
   },
 };
 
@@ -356,10 +359,11 @@ const STYLE = `
   .number strong { display: block; font-size: 22px; font-weight: 500; }
   .number span { display: block; font-size: 12px; overflow-wrap: anywhere; }
   .number span.muted { color: var(--secondary-text-color, #727272); }
-  .problem { padding: 10px 12px; border: 1px solid var(--error-color, #db4437); border-radius: 12px;
-    background: var(--card-background-color, #fff);
-    background: color-mix(in srgb, var(--error-color, #db4437) 12%, var(--card-background-color, #fff));
-    color: var(--error-color, #db4437); font-weight: 500; overflow-wrap: anywhere; }
+  .problem { --problem-color: var(--error-color, #db4437); padding: 10px 12px; border: 1px solid var(--problem-color);
+    border-radius: 12px; background: var(--card-background-color, #fff);
+    background: color-mix(in srgb, var(--problem-color) 12%, var(--card-background-color, #fff));
+    color: var(--problem-color); font-weight: 500; overflow-wrap: anywhere; }
+  .problem.stale { --problem-color: var(--warning-color, #ffa600); }
   .view { display: contents; }
   button.pill { font: inherit; cursor: pointer; }
   dialog { box-sizing: border-box; width: min(420px, calc(100vw - 32px)); padding: 16px; border: 0; border-radius: 12px;
@@ -604,7 +608,7 @@ function section(context, withHeading) {
   const nodes = [];
   if (withHeading) nodes.push(element("h2", "", data.title));
   if (data.problem) {
-    const line = element("div", "problem", label(language, `problem_${data.problem}`));
+    const line = element("div", `problem ${data.problem}`, label(language, `problem_${data.problem}`));
     line.setAttribute("role", "alert");
     nodes.push(line);
   }
@@ -695,6 +699,10 @@ function definePanel() {
       this.shadowRoot.append(element("style", "", STYLE), this._view, this._dialog);
     }
 
+    connectedCallback() {
+      if (this._hass) this._arm();
+    }
+
     disconnectedCallback() {
       clearTimeout(this._timer);
       this._dialog.close();
@@ -710,13 +718,18 @@ function definePanel() {
       this._render();
     }
 
+    // The next ask, at most once a minute. One timer only: this replaces any earlier one. A detached page has none.
+    _arm() {
+      clearTimeout(this._timer);
+      if (this.isConnected) this._timer = setTimeout(() => this._load(), refreshDelay(this._loadedAt, Date.now()));
+    }
+
     // Why data is missing comes from the server, so ask again when what's missing changes.
     _check(ids) {
       const key = unavailableIds(ids, this._hass.states).join(",");
       if (key === this._unavailable) return;
       this._unavailable = key;
-      clearTimeout(this._timer);
-      this._timer = setTimeout(() => this._load(), refreshDelay(this._loadedAt, Date.now()));
+      this._arm();
     }
 
     set narrow(value) {
@@ -730,15 +743,20 @@ function definePanel() {
       this._render();
     }
 
+    // One local call, no Verdi call. Asked every minute, because why data is missing can change without an entity
+    // changing. _render still runs each time, so the page notices a new day.
     async _load() {
       this._loadedAt = Date.now();
       try {
         const { sections } = await this._hass.callWS({ type: "verdi/status_page" });
+        // A redraw replaces the buttons, so one every minute would lose a press that spans it.
+        if (JSON.stringify(sections) !== JSON.stringify(this._sections)) this._drawn = undefined;
         this._sections = sections;
       } catch (err) {
         console.error("verdi/status_page failed", err);
+      } finally {
+        this._arm();
       }
-      this._drawn = undefined;
       this._render();
     }
 
@@ -750,14 +768,16 @@ function definePanel() {
       this._check(ids);
       const states = ids.map((id) => hass.states[id]);
       const drawn = this._drawn;
+      const day = new Date().toDateString(); // "sinds 23:10" needs its date after midnight
       if (
         drawn?.language === hass.language &&
+        drawn.day === day &&
         drawn.states.length === states.length &&
         states.every((state, i) => state === drawn.states[i])
       ) {
         return;
       }
-      this._drawn = { language: hass.language, states };
+      this._drawn = { language: hass.language, day, states };
       const language = hass.language;
       const header = element("header");
       header.append(menuButton(this, language), element("h1", "", "Verdi (unofficial)"));

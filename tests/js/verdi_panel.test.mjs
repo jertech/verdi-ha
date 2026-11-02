@@ -89,7 +89,7 @@ test("every language has every label", () => {
     "myStatus", "vehicles", "personnel", "until", "total", "noData", "unknown", "empty", "incomplete", "menu",
     "changeStatus", "chooseStatus", "status", "duration", "addException", "returnToPlanning", "close", "overruled", "unchecked", "unclear", "sending",
     "readiness", "statistics", "since", "next", "missing", "last", "available", "preAlert", "garrison",
-    "problem_token", "problem_paused", "problem_verdi",
+    "problem_token", "problem_paused", "problem_verdi", "problem_stale",
   ]) {
     for (const language of ["en", "nl", "fr"]) {
       assert.ok(label(language, key), `${language} ${key}`);
