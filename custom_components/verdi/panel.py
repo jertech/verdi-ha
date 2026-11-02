@@ -23,16 +23,27 @@ PANEL_PATH = "verdi"
 STATIC_URL = "/verdi_static"
 # hass.data key. A panel can't be registered twice, and HA 2026.4.0 has no async_panel_exists.
 PANEL_SHOWN = f"{DOMAIN}_panel_shown"
+# What the page's dialog needs, by entity domain and translation key.
+CONTROLS = {
+    ("select", "status_to_set"): "status",
+    ("select", "duration"): "duration",
+    ("button", "back_to_planning"): "back_to_planning",
+}
 
 
-def status_page(hass: HomeAssistant) -> list[dict[str, Any]]:
-    """The sensors of each entry, by translation key: the availability calendar shares one of the keys."""
+def status_page(hass: HomeAssistant, admin: bool = False) -> list[dict[str, Any]]:
+    """The sensors of each entry, by translation key: the availability calendar shares one of the keys. An
+    admin also gets what changing the status needs; the actions refuse anyone else."""
     registry = er.async_get(hass)
     sections = []
     for entry in hass.config_entries.async_entries(DOMAIN):
         found: dict[str, list[str]] = {"my_availability": [], "vehicles": [], "personnel": []}
+        controls: dict[str, str] = {}
         loaded = entry.state is ConfigEntryState.LOADED
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
+            control = CONTROLS.get((entity.domain, entity.translation_key))
+            if control and not entity.disabled:
+                controls[control] = entity.entity_id  # hidden is fine: hiding is about dashboards
             if (
                 entity.domain == "sensor"
                 and entity.translation_key in found
@@ -57,15 +68,27 @@ def status_page(hass: HomeAssistant) -> list[dict[str, Any]]:
                     "my_availability": next(iter(found["my_availability"]), None),
                     "vehicles": sorted(found["vehicles"]),
                     "personnel": next(iter(found["personnel"]), None),
+                    "controls": _controls(entry.entry_id, controls) if admin else None,
                 }
             )
     return sections
 
 
+def _controls(entry_id: str, found: dict[str, str]) -> dict[str, str | None] | None:
+    if "status" not in found or "duration" not in found:
+        return None
+    return {
+        "entry_id": entry_id,
+        "status": found["status"],
+        "duration": found["duration"],
+        "back_to_planning": found.get("back_to_planning"),
+    }
+
+
 @websocket_api.websocket_command({vol.Required("type"): "verdi/status_page"})
 @callback
 def ws_status_page(hass: HomeAssistant, connection: Any, msg: dict[str, Any]) -> None:
-    connection.send_result(msg["id"], {"sections": status_page(hass)})
+    connection.send_result(msg["id"], {"sections": status_page(hass, connection.user.is_admin)})
 
 
 async def async_setup_panel(hass: HomeAssistant) -> None:
