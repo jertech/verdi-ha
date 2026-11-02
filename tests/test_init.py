@@ -15,6 +15,7 @@ from pytest_homeassistant_custom_component.common import MockConfigEntry, async_
 from custom_components.verdi.api import VerdiAuthError
 from custom_components.verdi.const import CONF_STATION_ID, DOMAIN, TOKEN_GRACE_SECONDS
 from custom_components.verdi.guard import get_guard
+from custom_components.verdi.sensor import MyAvailabilitySensor, PersonnelSensor
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import DATA, MidRandom, fake_command, make_token, setup_with_token
@@ -32,6 +33,18 @@ async def test_setup_creates_entities(hass: HomeAssistant, config_entry, mock_ap
     assert hass.states.get("sensor.verdi_on_duty_driver").state == "open"
     assert hass.states.get("sensor.verdi_token_expires").state != "unknown"
     assert hass.states.get("calendar.verdi_roster") is not None
+
+
+async def test_personnel_sensor_has_the_status_colours(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    state = hass.states.get("sensor.verdi_personnel")
+    assert state.attributes["availability_colors"] == {"Available": "#fff", "Urgent": "#f00"}
+    assert state.attributes["Available"] == 1
+
+
+def test_status_colours_are_not_recorded():
+    assert "availability_colors" in PersonnelSensor._unrecorded_attributes
+    assert "availability_colors" in MyAvailabilitySensor._unrecorded_attributes
 
 
 async def test_waits_for_token_during_grace(hass: HomeAssistant, config_entry, mock_api):

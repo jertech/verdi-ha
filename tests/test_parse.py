@@ -31,6 +31,34 @@ def test_personnel_summary_never_has_names():
     )
 
 
+def test_personnel_colors_come_from_the_answer():
+    assert parse.personnel_summary(r.PERSONNEL)["availability_colors"] == {
+        "Available": "#fff",
+        "Urgent": "#f00",
+    }
+
+
+def test_personnel_colors_follow_a_recolour():
+    data = copy.deepcopy(r.PERSONNEL)
+    data["personGroups"][0]["persons"][0]["currentAvailability"]["backgroundColor"] = "#123456"
+    assert parse.personnel_summary(data)["availability_colors"]["Available"] == "#123456"
+
+
+def test_every_counted_status_has_a_colour_entry():
+    data = copy.deepcopy(r.PERSONNEL)
+    persons = data["personGroups"][0]["persons"]
+    del persons[0]["currentAvailability"]["backgroundColor"]
+    persons[1]["currentAvailability"] = None
+    summary = parse.personnel_summary(data)
+    assert summary["availability_colors"] == {"Available": None, "unknown": None}
+    assert set(summary["availability_colors"]) == set(summary["by_availability"])
+
+
+def test_excluded_statuses_have_no_colour_entry():
+    summary = parse.personnel_summary(r.PERSONNEL, frozenset({"Urgent"}))
+    assert summary["availability_colors"] == {"Available": "#fff"}
+
+
 def test_roster_without_names():
     rows = parse.roster(r.ROSTER)
     assert rows[0]["current"] == {

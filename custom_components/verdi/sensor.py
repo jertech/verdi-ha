@@ -30,7 +30,14 @@ PARALLEL_UPDATES = 0
 
 FILLED, OPEN = "filled", "open"
 AVAILABILITY_YEAR, TIMES_CALLED = "availability_year", "times_called"
-MY_AVAILABILITY_ATTRS = ("end", "color", "garrison_crew", "stations", "planning_groups")
+MY_AVAILABILITY_ATTRS = (
+    "end",
+    "color",
+    "availability_colors",
+    "garrison_crew",
+    "stations",
+    "planning_groups",
+)
 
 VEHICLE_ATTRS = ("station", "availability_since", "color", "on_intervention", "at_outpost")
 
@@ -219,6 +226,7 @@ class PersonnelSensor(VerdiEntity, SensorEntity):
     lookup = "personnel"
     _attr_translation_key = "personnel"
     _attr_native_unit_of_measurement = "persons"
+    _unrecorded_attributes = frozenset({"availability_colors"})
 
     def __init__(self, coordinator: VerdiCoordinator) -> None:
         super().__init__(coordinator)
@@ -239,7 +247,7 @@ class PersonnelSensor(VerdiEntity, SensorEntity):
         if not s:
             return None
         counts = {k: s[k] for k in ("on_intervention", "on_pre_alert", "present", "truncated")}
-        return {**s["by_availability"], **counts}
+        return {**s["by_availability"], **counts, "availability_colors": s["availability_colors"]}
 
 
 class TokenExpirySensor(VerdiEntity, SensorEntity):
@@ -290,6 +298,7 @@ class MyAvailabilitySensor(VerdiEntity, SensorEntity):
 
     lookup = "availability"
     _attr_translation_key = "my_availability"
+    _unrecorded_attributes = frozenset({"availability_colors"})
 
     def __init__(self, coordinator: LookupCoordinator) -> None:
         super().__init__(coordinator)

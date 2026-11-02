@@ -41,6 +41,7 @@ from .const import (
 )
 from .coordinator import VerdiCoordinator, create_fast, enabled
 from .guard import drop_guard
+from .panel import async_hide_panel, async_setup_panel, async_show_panel
 from .personal import create_personal, statistics_store
 from .services import async_setup_services
 from .signals import Signals, load_timing, timing_store
@@ -71,10 +72,12 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 
     async_call_later(hass, max(store.grace_left(), 0) + 1, HassJob(grace_over, cancel_on_shutdown=True))
     async_setup_services(hass)
+    await async_setup_panel(hass)
     return True
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bool:
+    await async_show_panel(hass)  # first, so the page exists while an entry waits for a token
     missing = [key for key in REQUIRED_DATA if not entry.data.get(key)]
     issue_id = f"{ISSUE_MISSING_CONFIG}_{entry.entry_id}"
     if missing:
@@ -154,6 +157,8 @@ async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> No
     await statistics_store(hass, entry.entry_id).async_remove()
     await timing_store(hass, entry.entry_id).async_remove()
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_MISSING_CONFIG}_{entry.entry_id}")
+    if not hass.config_entries.async_entries(DOMAIN):
+        async_hide_panel(hass)
 
 
 async def async_migrate_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> bool:

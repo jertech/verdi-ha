@@ -13,10 +13,10 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `binary_sensor.<name>_readiness_<train>` | Whether a vehicle train is complete, with positions as attributes |
 | `sensor.<name>_<vehicle>` | Vehicle availability |
 | `binary_sensor.<name>_<vehicle>_on_intervention` | Whether the vehicle is on an intervention |
-| `sensor.<name>_personnel` | Head count of the configured availabilities (the statuses Verdi sets when someone is called always count too), with counts per availability as attributes |
+| `sensor.<name>_personnel` | Head count of the configured availabilities (the statuses Verdi sets when someone is called always count too), with counts per availability and their colours (`availability_colors`) as attributes |
 | `sensor.<name>_team_on_duty_<group>` | Current team, next team and rotation time |
 | `sensor.<name>_on_duty_<function>` | Whether a crew function is filled now (or who, see privacy) |
-| `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group (with its switch under "Your own data from the Verdi app" on) |
+| `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group, and the colours of the availabilities (`availability_colors`) as attributes (with its switch under "Your own data from the Verdi app" on) |
 | `binary_sensor.<name>_pre_alert` | Whether you have a pre-alert (off by default; switch on in the options) |
 | `binary_sensor.<name>_garrison` | Whether you're on garrison (off by default; switch on in the options) |
 | `binary_sensor.<name>_paged` | Whether you're paged right now (on by default; off when you untick Paged in the Fast lane), with the page's station, crew function, vehicle, alarm time, incident and your confirmation as attributes |
@@ -39,6 +39,17 @@ shift change, the end of your availability), or after a safety interval. While y
 page is checked on a separate fast tick (15 seconds by default) unless you untick Paged in the Fast lane; when
 your availability says you can't be paged, that check pauses. While Verdi has trouble, polling slows down; it
 never makes more than 30 calls a minute per Verdi entry.
+
+## Status page
+
+The integration adds a **Verdi (unofficial)** page to the sidebar, with nothing to set up. It shows your own status,
+your vehicles and the personnel counts in the colours Verdi uses for each status. The colours come from Verdi's answers,
+so another zone's colours work by themselves, and a colour changed in Verdi shows up with the next update.
+
+Every Home Assistant user can open the page. It shows the statuses you chose in the integration's options, and no
+colleagues' names.
+
+Home Assistant's own history bars keep Home Assistant's colours: it has no setting for colours per status on sensors.
 
 ## Optional: Remote Calendar subscription
 
