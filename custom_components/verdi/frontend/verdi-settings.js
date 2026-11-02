@@ -257,3 +257,211 @@ export function settingsLabel(language, key) {
   const base = String(language ?? "").split("-")[0];
   return (SETTINGS_LABELS[base] ?? SETTINGS_LABELS.en)[key];
 }
+
+function node(tag, className = "", text = "") {
+  const item = document.createElement(tag);
+  if (className) item.className = className;
+  if (text) item.textContent = text;
+  return item;
+}
+
+function button(text, className, onClick) {
+  const item = node("button", className, text);
+  item.type = "button";
+  item.addEventListener("click", onClick);
+  return item;
+}
+
+function segmented(title, choices, current, onPick) {
+  const group = node("div", "segments");
+  group.setAttribute("role", "group");
+  group.setAttribute("aria-label", title);
+  for (const { value, text, disabled } of choices) {
+    const item = button(text, "segment", () => onPick(value));
+    item.disabled = Boolean(disabled);
+    item.setAttribute("aria-pressed", String(value === current));
+    group.append(item);
+  }
+  return group;
+}
+
+const capitalised = (text) => text[0].toUpperCase() + text.slice(1);
+
+function viewSelect(language, title, name, value, onPick) {
+  const select = node("select");
+  select.setAttribute("aria-label", title);
+  for (const view of VIEWS[name]) {
+    const option = node("option", "", settingsLabel(language, `view${capitalised(view)}`));
+    option.value = view;
+    select.append(option);
+  }
+  select.value = value;
+  select.addEventListener("change", () => onPick(select.value));
+  return select;
+}
+
+function blockRow(state, name, index, last) {
+  const { language, names, set, layout, change, fine, width } = state;
+  const block = layout.blocks[name];
+  const line = node("div", "setting");
+  line.dataset.block = name;
+  if (fine) {
+    const handle = button("⋮⋮", "handle", () => {});
+    handle.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "dragHint")}`);
+    handle.addEventListener("keydown", (event) => {
+      const step = { ArrowUp: -1, ArrowDown: 1 }[event.key];
+      if (!step) return;
+      event.preventDefault();
+      change(moveBlock(set, name, step), name);
+    });
+    line.draggable = true;
+    line.addEventListener("dragstart", (event) => event.dataTransfer.setData("text/plain", name));
+    line.addEventListener("dragover", (event) => event.preventDefault());
+    line.addEventListener("drop", (event) => {
+      event.preventDefault();
+      const dragged = event.dataTransfer.getData("text/plain");
+      if (BLOCKS.includes(dragged) && dragged !== name) change(moveBefore(set, dragged, name));
+    });
+    line.append(handle);
+  }
+  const shown = node("input");
+  shown.type = "checkbox";
+  shown.checked = block.shown;
+  shown.disabled = block.shown && !canHide(set, name);
+  shown.setAttribute("aria-label", `${settingsLabel(language, "show")}: ${names[name]}`);
+  shown.addEventListener("change", () => change(setOption(set, name, "shown", shown.checked)));
+  line.append(shown, node("span", "block-name", names[name]));
+  if (VIEWS[name]) {
+    line.append(viewSelect(language, names[name], name, block.view, (view) => change(setOption(set, name, "view", view))));
+  }
+  if (width === "wide") {
+    const places = PLACES.map((value) => ({
+      value,
+      text: settingsLabel(language, `place${capitalised(value)}`),
+    }));
+    line.append(
+      segmented(names[name], places, block.place, (value) => change(setOption(set, name, "place", value))),
+    );
+  }
+  if (!fine) {
+    const up = button("↑", "arrow", () => change(moveBlock(set, name, -1), name));
+    up.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "moveUp")}`);
+    up.disabled = index === 0;
+    const down = button("↓", "arrow", () => change(moveBlock(set, name, 1), name));
+    down.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "moveDown")}`);
+    down.disabled = index === last;
+    line.append(up, down);
+  }
+  return line;
+}
+
+const PRESET_DEFAULT = { preset: "overzicht", changes: {} };
+
+/**
+ * Fills the page's dialog. `actions` are `change(draft)`, `save(draft)` and `cancel()`; `save` returns a promise.
+ * The dialog owns nothing but what's on screen: the page keeps the draft, so a redraw of the page can't touch it.
+ */
+export function drawSettings(dialog, options) {
+  const { language, title, names, current, fine, actions } = options;
+  let width = current;
+  let failed = false;
+  const draft = { wide: options.draft.wide ?? PRESET_DEFAULT, phone: options.draft.phone ?? PRESET_DEFAULT };
+  const edited = new Set();
+
+  const redraw = (focusBlock) => {
+    const set = draft[width];
+    const layout = resolve(set);
+    const change = (next, name) => {
+      draft[width] = next;
+      edited.add(width);
+      failed = false;
+      actions.change({ ...draft }, [...edited]);
+      redraw(name);
+    };
+    const sets = ["phone", "wide"].map((value) => ({ value, text: settingsLabel(language, value) }));
+    const presets = Object.keys(PRESETS).map((value) => ({ value, text: settingsLabel(language, value) }));
+    const custom = isCustom(set);
+    presets.push({ value: "aangepast", text: settingsLabel(language, "aangepast"), disabled: true });
+    const list = node("div", "settings-blocks");
+    layout.order.forEach((name, index) => {
+      const state = { language, names, set, layout, change, fine, width };
+      list.append(blockRow(state, name, index, layout.order.length - 1));
+    });
+    const reset = button(
+      settingsLabel(language, "resetTo").replace("{preset}", settingsLabel(language, layout.preset)),
+      "",
+      () => change(setPreset(set, layout.preset)),
+    );
+    reset.disabled = !custom;
+    const cancel = button(settingsLabel(language, "cancel"), "", () => actions.cancel());
+    const save = button(settingsLabel(language, "save"), "primary", async () => {
+      save.disabled = cancel.disabled = true;
+      failed = !(await actions.save({ ...draft }, [...edited]));
+      if (failed) redraw();
+    });
+    const heading = node("div", "settings-title");
+    const close = button("✕", "close", () => actions.cancel());
+    close.setAttribute("aria-label", settingsLabel(language, "cancel"));
+    heading.append(node("h2", "", `${settingsLabel(language, "settings")}: ${title}`), close);
+    const children = [
+      heading,
+      node("div", "settings-label", settingsLabel(language, "settingsFor")),
+      segmented(settingsLabel(language, "settingsFor"), sets, width, (value) => {
+        width = value;
+        redraw();
+      }),
+      node("div", "settings-label", settingsLabel(language, "preset")),
+      segmented(settingsLabel(language, "preset"), presets, custom ? "aangepast" : layout.preset, (value) =>
+        change(setPreset(set, value)),
+      ),
+    ];
+    if (width !== current) children.push(node("div", "muted", settingsLabel(language, "otherWidth")));
+    children.push(
+      node("div", "settings-label", settingsLabel(language, "blocks")),
+      node("div", "muted", settingsLabel(language, fine ? "dragHint" : "arrowHint")),
+      list,
+    );
+    if (layout.order.filter((name) => layout.blocks[name].shown).length === 1) {
+      children.push(node("div", "muted", settingsLabel(language, "lastBlock")));
+    }
+    if (failed) {
+      const line = node("div", "message", settingsLabel(language, "saveFailed"));
+      line.setAttribute("role", "alert");
+      children.push(line);
+    }
+    const actionRow = node("div", "settings-actions");
+    actionRow.append(reset, node("span", "grow"), cancel, save);
+    children.push(actionRow);
+    dialog.replaceChildren(...children);
+    if (focusBlock) dialog.querySelector(`[data-block="${focusBlock}"] .handle, [data-block="${focusBlock}"] .arrow:not(:disabled)`)?.focus();
+  };
+  redraw();
+}
+
+export const SETTINGS_STYLE = `
+  dialog.settings { width: min(640px, 100%); max-width: 100%; }
+  dialog.settings .settings-label { margin-top: 12px; color: var(--secondary-text-color, #727272); font-size: 13px; }
+  .segments { display: flex; flex-wrap: wrap; overflow: hidden; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+    border-radius: 8px; }
+  .segment { flex: 1 1 auto; padding: 6px 10px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+  .segment[aria-pressed="true"] { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
+  .segment:disabled { cursor: default; }
+  .segment:disabled:not([aria-pressed="true"]) { color: var(--secondary-text-color, #727272); }
+  .settings-blocks { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+  .setting { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px;
+    border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); border-radius: 8px; }
+  .setting .block-name { flex: 1; min-width: 96px; }
+  .setting .segments { flex: none; }
+  .handle { padding: 4px; border: 0; background: none; color: inherit; cursor: grab; }
+  .arrow { min-width: 40px; min-height: 40px; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); border-radius: 8px;
+    background: none; color: inherit; font: inherit; cursor: pointer; }
+  .settings-title { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .settings-title h2 { margin: 0; }
+  .settings-title .close { flex: none; width: 40px; height: 40px; border: 0; background: none; color: inherit; font: inherit;
+    cursor: pointer; }
+  .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+  .settings-actions .grow { flex: 1; }
+  @media (max-width: 480px) {
+    dialog.settings { width: 100%; height: 100%; max-height: 100%; margin: 0; border-radius: 0; }
+  }
+`;
