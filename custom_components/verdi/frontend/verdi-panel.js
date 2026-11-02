@@ -363,7 +363,7 @@ const STYLE = `
     border-radius: 12px; background: var(--card-background-color, #fff);
     background: color-mix(in srgb, var(--problem-color) 12%, var(--card-background-color, #fff));
     color: var(--problem-color); font-weight: 500; overflow-wrap: anywhere; }
-  .problem.stale { --problem-color: var(--warning-color, #ffa600); }
+  .problem.stale { --problem-color: var(--warning-color, #ffa600); color: var(--primary-text-color, #212121); }
   .view { display: contents; }
   button.pill { font: inherit; cursor: pointer; }
   dialog { box-sizing: border-box; width: min(420px, calc(100vw - 32px)); padding: 16px; border: 0; border-radius: 12px;
