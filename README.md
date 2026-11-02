@@ -69,6 +69,8 @@ The dialog keeps showing what Verdi answered if the change was overruled, couldn
 else the pill is just a pill.
 
 Home Assistant's own history bars keep Home Assistant's colours: it has no setting for colours per status on sensors.
+On the Verdi (unofficial) page, tap a vehicle, or **History** under an opened train, to see a day's changes in a timeline.
+It shows what Home Assistant kept, 10 days by default, and a train's times are when Home Assistant saw the change.
 
 ## Optional: Remote Calendar subscription
 

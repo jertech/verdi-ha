@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.14.0] - 2026-11-02
+
+### Integration
+- The **Verdi (unofficial)** page has history: tap a vehicle, or **History** under an opened train, for a day's timeline
+  and its changes. Arrows step through the days Home Assistant kept. Vehicles show Verdi's colours; a train shows when it
+  was complete and what was missing.
+- History comes from Home Assistant, so it needs the History integration, which is on by default, and it adds no Verdi calls.
+
 ## [0.13.0] - 2026-11-02
 
 ### Integration
