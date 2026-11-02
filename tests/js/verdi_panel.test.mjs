@@ -3,15 +3,24 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 
 import {
+  barParts,
   barSegments,
   canChange,
   canReturn,
+  clockTime,
+  dayLine,
   dayMonth,
+  dayStart,
+  dayTicks,
   entityIds,
+  FALLBACK_COLOR,
+  historyList,
+  historyPeriods,
   label,
   missingPositions,
   moment,
   normalizeColor,
+  periodTimes,
   refreshDelay,
   responseTime,
   sendError,
@@ -22,9 +31,11 @@ import {
   statusLabel,
   statusText,
   textColor,
+  trainRow,
   unavailableIds,
   until,
   vehicleName,
+  vehicleRow,
 } from "../../custom_components/verdi/frontend/verdi-panel.js";
 
 test("keeps Verdi's colours as they are", () => {
@@ -90,6 +101,8 @@ test("every language has every label", () => {
     "changeStatus", "chooseStatus", "status", "duration", "addException", "returnToPlanning", "close", "overruled", "unchecked", "unclear", "sending",
     "readiness", "statistics", "since", "next", "missing", "last", "available", "preAlert", "garrison",
     "problem_token", "problem_paused", "problem_verdi", "problem_stale",
+    "now", "loading", "open_history", "history", "train_complete", "train_incomplete", "today", "yesterday", "previous_day",
+    "next_day", "history_empty", "history_failed",
   ]) {
     for (const language of ["en", "nl", "fr"]) {
       assert.ok(label(language, key), `${language} ${key}`);
@@ -298,4 +311,130 @@ test("the page asks at most once a minute", () => {
   assert.equal(refreshDelay(0, 60000), 0);
   assert.equal(refreshDelay(0, 90000), 0);
   assert.equal(refreshDelay(0, 15000), 45000);
+});
+
+const at = (hour, minute = 0, date = 2) => new Date(2026, 10, date, hour, minute).getTime();
+const history = (...list) => list.map(([s, time, a]) => ({ s, lu: time / 1000, a }));
+const period = (start, end, status, color = FALLBACK_COLOR) => ({ start, end, status, color, tone: null, missing: [] });
+const grey = (start, end) => ({ start, end, status: null, color: null, tone: null, missing: [] });
+
+test("no rows, no periods", () => {
+  assert.deepEqual(historyPeriods([], at(0), at(12), vehicleRow), []);
+  assert.deepEqual(historyPeriods(undefined, at(0), at(12), vehicleRow), []);
+});
+
+test("a status from before midnight starts the day", () => {
+  const since = new Date(2026, 10, 1, 20).toISOString();
+  const rows = history(["Free", at(0), { color: "#0f0", availability_since: since }]);
+  assert.deepEqual(historyPeriods(rows, at(0), at(12), vehicleRow), [period(at(0), at(12), "Free", "#0f0")]);
+});
+
+test("a vehicle's change uses Verdi's own time", () => {
+  const rows = history(
+    ["Free", at(0), { color: "#0f0" }],
+    ["Drill", at(8, 1), { color: "#00f", availability_since: new Date(at(8)).toISOString() }],
+  );
+  assert.deepEqual(historyPeriods(rows, at(0), at(12), vehicleRow), [
+    period(at(0), at(8), "Free", "#0f0"),
+    period(at(8), at(12), "Drill", "#00f"),
+  ]);
+});
+
+test("Verdi's time is ignored when invalid, later than the row, or before the previous row", () => {
+  for (const since of ["nonsense", new Date(at(9)).toISOString(), new Date(at(7)).toISOString()]) {
+    const rows = history(
+      ["Free", at(0), {}],
+      ["Rest", at(7, 30), {}],
+      ["Drill", at(8), { availability_since: since }],
+    );
+    assert.equal(historyPeriods(rows, at(0), at(12), vehicleRow).at(-1).start, at(8), since);
+  }
+});
+
+test("the time before the first row is grey", () => {
+  assert.deepEqual(historyPeriods(history(["Free", at(9), {}]), at(0), at(12), vehicleRow), [
+    grey(at(0), at(9)),
+    period(at(9), at(12), "Free"),
+  ]);
+});
+
+test("a restart is grey in the bar, and one row in the list", () => {
+  const rows = history(["Free", at(0), {}], ["unavailable", at(8), {}], ["unknown", at(8, 1), {}], ["Free", at(8, 5), {}]);
+  const periods = historyPeriods(rows, at(0), at(12), vehicleRow);
+  assert.deepEqual(periods, [period(at(0), at(8), "Free"), grey(at(8), at(8, 5)), period(at(8, 5), at(12), "Free")]);
+  assert.deepEqual(historyList(periods), [period(at(0), at(12), "Free")]);
+});
+
+test("the list leaves out grey, newest first", () => {
+  const periods = historyPeriods(history(["Free", at(9), {}], ["Drill", at(10), {}]), at(0), at(12), vehicleRow);
+  assert.deepEqual(historyList(periods).map(({ status }) => status), ["Drill", "Free"]);
+});
+
+test("a bad colour becomes the fallback", () => {
+  assert.equal(historyPeriods(history(["Free", at(0), { color: "url(x)" }]), at(0), at(1), vehicleRow)[0].color, FALLBACK_COLOR);
+});
+
+test("an earlier day ends at midnight, and nothing runs past the end", () => {
+  const periods = historyPeriods(history(["Free", at(0), {}], ["Late", at(13), {}]), at(0), at(12), vehicleRow);
+  assert.deepEqual(periods, [period(at(0), at(12), "Free")]);
+});
+
+test("a train: what's missing makes a new row, a response time doesn't", () => {
+  const read = trainRow("en");
+  const rows = history(
+    ["on", at(0), { positions: { Driver: true, Crew: true }, fastest_response_time: "00:05:00" }],
+    ["on", at(1), { positions: { Driver: true, Crew: true }, fastest_response_time: "00:03:00" }],
+    ["off", at(2), { positions: { Driver: true, Crew: false } }],
+    ["off", at(3), { positions: { Driver: false, Crew: true } }],
+  );
+  const shown = historyPeriods(rows, at(0), at(4), read).map(({ start, status, tone, missing }) => [start, status, tone, missing]);
+  assert.deepEqual(shown, [
+    [at(0), "Complete", "ok", []],
+    [at(2), "Incomplete", "short", ["Crew"]],
+    [at(3), "Incomplete", "short", ["Driver"]],
+  ]);
+});
+
+test("a train copes with a row without positions", () => {
+  assert.deepEqual(historyPeriods(history(["off", at(0), undefined]), at(0), at(1), trainRow("nl"))[0].missing, []);
+});
+
+test("the day line says today, yesterday, or a date", () => {
+  const now = new Date(2026, 10, 2, 12);
+  for (const [language, today, yesterday] of [["en", "Today", "Yesterday"], ["nl", "Vandaag", "Gisteren"], ["fr", "Aujourd'hui", "Hier"]]) {
+    assert.equal(dayLine(dayStart(now), language, now), today);
+    assert.equal(dayLine(dayStart(now, -1), language, now), yesterday);
+    assert.equal(dayLine(dayStart(now, -2), language, now), new Date(2026, 9, 31).toLocaleDateString(language, { weekday: "long", day: "numeric", month: "numeric" }));
+  }
+});
+
+test("a period's times end in now, in 24:00, or in a time", () => {
+  const free = period(at(7, 42), at(12), "Free");
+  assert.equal(periodTimes(free, new Date(2026, 10, 2), at(12), true, "nl"), "07:42–nu");
+  assert.equal(periodTimes(period(at(7), at(0, 0, 3), "Free"), new Date(2026, 10, 2), at(0, 0, 3), false, "en"), "07:00–24:00");
+  assert.equal(periodTimes(period(at(7), at(9, 15), "Free"), new Date(2026, 10, 2), at(12), true, "en"), "07:00–09:15");
+});
+
+test("the clock has 24 hours in every language", () => {
+  assert.equal(clockTime(at(19, 5), "en"), "19:05");
+});
+
+test("the bar places periods by real time", () => {
+  const [part] = barParts([period(at(6), at(12), "Free", "#0f0")], new Date(2026, 10, 2));
+  assert.deepEqual(part, { left: 25, width: 25, color: "#0f0", tone: null });
+});
+
+test("ticks follow the real day, also with a clock change", () => {
+  const zone = process.env.TZ;
+  process.env.TZ = "Europe/Brussels";
+  try {
+    const left = (date) => dayTicks(date).map((tick) => Math.round(tick.left * 10) / 10);
+    assert.deepEqual(dayTicks(new Date(2026, 10, 2)).map(({ text }) => text), ["00:00", "06:00", "12:00", "18:00", "24:00"]);
+    assert.deepEqual(left(new Date(2026, 10, 2)), [0, 25, 50, 75, 100]);
+    assert.deepEqual(left(new Date(2026, 2, 29)), [0, 21.7, 47.8, 73.9, 100]); // 23 hours
+    assert.deepEqual(left(new Date(2026, 9, 25)), [0, 28, 52, 76, 100]); // 25 hours
+  } finally {
+    process.env.TZ = zone;
+    if (zone === undefined) delete process.env.TZ;
+  }
 });

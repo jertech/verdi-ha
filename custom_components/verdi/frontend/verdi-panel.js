@@ -38,6 +38,18 @@ const LABELS = {
     next: "Next",
     missing: "Missing",
     last: "last",
+    now: "now",
+    loading: "Loading...",
+    open_history: "open history",
+    history: "History",
+    train_complete: "Complete",
+    train_incomplete: "Incomplete",
+    today: "Today",
+    yesterday: "Yesterday",
+    previous_day: "Previous day",
+    next_day: "Next day",
+    history_empty: "No history for this day.",
+    history_failed: "History isn't available.",
     available: "Available",
     preAlert: "Pre-alert",
     garrison: "Garrison",
@@ -74,6 +86,18 @@ const LABELS = {
     next: "Volgende",
     missing: "Ontbreekt",
     last: "laatst",
+    now: "nu",
+    loading: "Laden...",
+    open_history: "geschiedenis openen",
+    history: "Geschiedenis",
+    train_complete: "Volledig",
+    train_incomplete: "Onvolledig",
+    today: "Vandaag",
+    yesterday: "Gisteren",
+    previous_day: "Vorige dag",
+    next_day: "Volgende dag",
+    history_empty: "Geen geschiedenis voor deze dag.",
+    history_failed: "Geschiedenis is niet beschikbaar.",
     available: "Beschikbaar",
     preAlert: "Vooralarm",
     garrison: "Herbestaffing",
@@ -110,6 +134,18 @@ const LABELS = {
     next: "Ensuite",
     missing: "Manquant",
     last: "dernier",
+    now: "maintenant",
+    loading: "Chargement...",
+    open_history: "ouvrir l'historique",
+    history: "Historique",
+    train_complete: "Complet",
+    train_incomplete: "Incomplet",
+    today: "Aujourd'hui",
+    yesterday: "Hier",
+    previous_day: "Jour précédent",
+    next_day: "Jour suivant",
+    history_empty: "Pas d'historique pour ce jour.",
+    history_failed: "L'historique n'est pas disponible.",
     available: "Disponible",
     preAlert: "Pré-alerte",
     garrison: "Effectif en caserne",
@@ -236,6 +272,106 @@ export function refreshDelay(last, now) {
 export function vehicleName(friendlyName, title) {
   if (!friendlyName) return "?";
   return friendlyName.startsWith(`${title} `) ? friendlyName.slice(title.length + 1) : friendlyName;
+}
+
+export function dayStart(date, days = 0) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+export function dayLine(day, language, now = new Date()) {
+  if (day.getTime() === dayStart(now).getTime()) return label(language, "today");
+  if (day.getTime() === dayStart(now, -1).getTime()) return label(language, "yesterday");
+  return day.toLocaleDateString(language, { weekday: "long", day: "numeric", month: "numeric" });
+}
+
+export function clockTime(value, language) {
+  return new Date(value).toLocaleTimeString(language, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+}
+
+export function vehicleRow(row) {
+  return { status: row.s, color: normalizeColor(row.a?.color), tone: null, missing: [], since: row.a?.availability_since };
+}
+
+// A train has no colour from Verdi; `tone` is the page's own, the same as the train's dot.
+export function trainRow(language) {
+  return (row) => {
+    const complete = row.s === "on";
+    return {
+      status: label(language, complete ? "train_complete" : "train_incomplete"),
+      color: null,
+      tone: complete ? "ok" : "short",
+      missing: complete ? [] : missingPositions(row.a?.positions),
+      since: null,
+    };
+  };
+}
+
+const NOTHING = { status: null, color: null, tone: null, missing: [], since: null };
+
+function sameStatus(a, b) {
+  return a.status === b.status && a.missing.join("\n") === b.missing.join("\n");
+}
+
+// Rows of HA's history command to periods, oldest first. dayEnd is the next midnight, or now for today.
+export function historyPeriods(rows, dayStartTime, dayEnd, read) {
+  const periods = [];
+  let previous = -Infinity;
+  for (const row of rows ?? []) {
+    const time = row.lu * 1000;
+    const meaning = row.s === "unavailable" || row.s === "unknown" ? NOTHING : read(row);
+    const since = validDate(meaning.since)?.getTime();
+    const chosen = since !== undefined && since <= time && since > previous ? since : time;
+    const start = Math.min(Math.max(chosen, dayStartTime), dayEnd);
+    previous = time;
+    const last = periods.at(-1);
+    if (last && sameStatus(last, meaning)) continue;
+    if (last) last.end = start;
+    else if (start > dayStartTime) periods.push({ ...NOTHING, start: dayStartTime, end: start });
+    const { status, color, tone, missing } = meaning;
+    periods.push({ start, end: dayEnd, status, color, tone, missing });
+  }
+  return periods
+    .filter(({ start, end }) => end > start)
+    .map(({ start, end, status, color, tone, missing }) => ({ start, end, status, color, tone, missing }));
+}
+
+// One row per status, also across a grey part; newest first.
+export function historyList(periods) {
+  const list = [];
+  for (const period of periods) {
+    if (period.status === null) continue;
+    const last = list.at(-1);
+    if (last && sameStatus(last, period)) last.end = period.end;
+    else list.push({ ...period });
+  }
+  return list.reverse();
+}
+
+export function barParts(periods, day) {
+  const start = day.getTime();
+  const length = dayStart(day, 1).getTime() - start;
+  return periods.map((period) => ({
+    left: ((period.start - start) / length) * 100,
+    width: ((period.end - period.start) / length) * 100,
+    color: period.color,
+    tone: period.tone,
+  }));
+}
+
+export function dayTicks(day) {
+  const start = day.getTime();
+  const length = dayStart(day, 1).getTime() - start;
+  return [0, 6, 12, 18, 24].map((hour) => {
+    const time = new Date(day.getFullYear(), day.getMonth(), day.getDate(), hour).getTime();
+    return { text: `${String(hour).padStart(2, "0")}:00`, left: ((time - start) / length) * 100 };
+  });
+}
+
+export function periodTimes(period, day, end, today, language) {
+  const start = clockTime(period.start, language);
+  if (today && period.end === end) return `${start}–${label(language, "now")}`;
+  if (period.end === dayStart(day, 1).getTime()) return `${start}–24:00`;
+  return `${start}–${clockTime(period.end, language)}`;
 }
 
 export function entityIds(section) {
