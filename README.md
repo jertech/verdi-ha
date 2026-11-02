@@ -49,6 +49,10 @@ so another zone's colours work by themselves, and a colour changed in Verdi show
 Every Home Assistant user can open the page. It shows the statuses you chose in the integration's options, and no
 colleagues' names. Entities you hide in Home Assistant are left out.
 
+With **Change my status** on, administrators can click the large status pill to add an exception or return to planning.
+The dialog keeps showing what Verdi answered if the change was overruled, couldn't be checked or was refused. For anyone
+else the pill is just a pill.
+
 Home Assistant's own history bars keep Home Assistant's colours: it has no setting for colours per status on sensors.
 
 ## Optional: Remote Calendar subscription
@@ -108,8 +112,8 @@ exception, not only that one. The event's title must be a status name. An all-da
 from the calendar (its start, midnight, is already past); use a time slot.
 
 When a change fails, Home Assistant itself may write Verdi's refusal message to its own log: for automations, for
-failed actions and button presses started from the UI, and for every refused calendar removal. The integration
-never logs it itself.
+failed actions and button presses started from the UI, for changes from the status page, and for every refused
+calendar removal. The integration never logs it itself.
 
 ## Privacy
 
