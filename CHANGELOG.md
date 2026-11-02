@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.13.0] - 2026-11-02
+
+### Integration
+- The **Verdi (unofficial)** page has a new layout: one column on a phone, two on a wide screen.
+- New on the page: **Readiness** per train, with the missing positions shown and all positions on a tap; **Statistics**;
+  pre-alert and garrison tags under your status; your next planned status when your planning shows one.
+- Vehicles are tiles in Verdi's colours, with the time since their status changed and the icon you set for the entity in
+  Home Assistant. Vehicles and trains now follow Verdi's own order.
+- Personnel is a bar with a legend.
+- When data is missing, the page says why: login expired, Verdi asked to slow down, or Verdi can't be reached.
+- New attributes: `title` on Readiness, `next_status` on My availability, `station` and `service` on the statistics sensors.
+
 ## [0.12.0] - 2026-11-02
 
 ### Integration
@@ -383,6 +395,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.13.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.13.0
 [0.12.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.12.0
 [0.11.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.11.2
 [0.11.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.11.0

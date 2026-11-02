@@ -43,11 +43,19 @@ never makes more than 30 calls a minute per Verdi entry.
 ## Status page
 
 The integration adds a **Verdi (unofficial)** page to the sidebar, with nothing to set up. It shows your own status,
-your vehicles and the personnel counts in the colours Verdi uses for each status. The colours come from Verdi's answers,
+readiness per train, your vehicles, the personnel counts and your statistics, in the colours
+Verdi uses for each status. The colours come from Verdi's answers,
 so another zone's colours work by themselves, and a colour changed in Verdi shows up with the next update.
 
 Every Home Assistant user can open the page. It shows the statuses you chose in the integration's options, and no
 colleagues' names. Entities you hide in Home Assistant are left out.
+
+Tap a train to see its positions. To give a vehicle its own icon, set one for its entity under **Settings** > **Devices &
+services** > **Entities**. Names of statuses, vehicles and trains come from your Verdi zone, in the language it's set up
+in. The rest of the page follows your Home Assistant language.
+
+Your next status shows only when your planning has one for the moment the current one ends. A status from a recurring
+planning doesn't show there.
 
 With **Change my status** on, administrators can click the large status pill to add an exception or return to planning.
 The dialog keeps showing what Verdi answered if the change was overruled, couldn't be checked or was refused. For anyone
