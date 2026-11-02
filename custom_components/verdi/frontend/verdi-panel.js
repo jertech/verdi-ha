@@ -1083,6 +1083,7 @@ function definePanel() {
     disconnectedCallback() {
       this._resize.disconnect();
       clearTimeout(this._timer);
+      this._drafts.delete(this._settingsTarget); // a reused element shows what's stored
       this._dialog.close();
     }
 

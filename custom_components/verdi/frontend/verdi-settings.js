@@ -272,12 +272,13 @@ function button(text, className, onClick) {
   return item;
 }
 
-function segmented(title, choices, current, onPick) {
+function segmented(title, key, choices, current, onPick) {
   const group = node("div", "segments");
   group.setAttribute("role", "group");
   group.setAttribute("aria-label", title);
   for (const { value, text, disabled } of choices) {
     const item = button(text, "segment", () => onPick(value));
+    item.dataset.focus = `${key}:${value}`;
     item.disabled = Boolean(disabled);
     item.setAttribute("aria-pressed", String(value === current));
     group.append(item);
@@ -289,6 +290,7 @@ const capitalised = (text) => text[0].toUpperCase() + text.slice(1);
 
 function viewSelect(language, title, name, value, onPick) {
   const select = node("select");
+  select.dataset.focus = `view:${name}`;
   select.setAttribute("aria-label", title);
   for (const view of VIEWS[name]) {
     const option = node("option", "", settingsLabel(language, `view${capitalised(view)}`));
@@ -307,6 +309,7 @@ function blockRow(state, name, index, last) {
   line.dataset.block = name;
   if (fine) {
     const handle = button("⋮⋮", "handle", () => {});
+    handle.dataset.focus = `handle:${name}`;
     handle.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "dragHint")}`);
     handle.addEventListener("keydown", (event) => {
       const step = { ArrowUp: -1, ArrowDown: 1 }[event.key];
@@ -326,6 +329,7 @@ function blockRow(state, name, index, last) {
   }
   const shown = node("input");
   shown.type = "checkbox";
+  shown.dataset.focus = `shown:${name}`;
   shown.checked = block.shown;
   shown.disabled = block.shown && !canHide(set, name);
   shown.setAttribute("aria-label", `${settingsLabel(language, "show")}: ${names[name]}`);
@@ -340,14 +344,16 @@ function blockRow(state, name, index, last) {
       text: settingsLabel(language, `place${capitalised(value)}`),
     }));
     line.append(
-      segmented(names[name], places, block.place, (value) => change(setOption(set, name, "place", value))),
+      segmented(names[name], `place:${name}`, places, block.place, (value) => change(setOption(set, name, "place", value))),
     );
   }
   if (!fine) {
     const up = button("↑", "arrow", () => change(moveBlock(set, name, -1), name));
+    up.dataset.focus = `up:${name}`;
     up.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "moveUp")}`);
     up.disabled = index === 0;
     const down = button("↓", "arrow", () => change(moveBlock(set, name, 1), name));
+    down.dataset.focus = `down:${name}`;
     down.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "moveDown")}`);
     down.disabled = index === last;
     line.append(up, down);
@@ -368,7 +374,8 @@ export function drawSettings(dialog, options) {
   const draft = { wide: options.draft.wide ?? PRESET_DEFAULT, phone: options.draft.phone ?? PRESET_DEFAULT };
   const edited = new Set();
 
-  const redraw = (focusBlock) => {
+  // Drawing replaces every control, so the one in use is found again by its key.
+  const redraw = (focusBlock, focusKey = dialog.getRootNode().activeElement?.dataset.focus) => {
     const set = draft[width];
     const layout = resolve(set);
     const change = (next, name) => {
@@ -392,26 +399,33 @@ export function drawSettings(dialog, options) {
       "",
       () => change(setPreset(set, layout.preset)),
     );
+    reset.dataset.focus = "reset";
     reset.disabled = !custom;
     const cancel = button(settingsLabel(language, "cancel"), "", () => actions.cancel());
+    cancel.dataset.focus = "cancel";
     const save = button(settingsLabel(language, "save"), "primary", async () => {
-      save.disabled = cancel.disabled = true;
+      // Nothing here can be used while it runs. A disabled control drops focus to body, where the dialog sees no Escape.
+      dialog.focus();
+      for (const control of dialog.querySelectorAll("button, input, select")) control.disabled = true;
+      for (const line of dialog.querySelectorAll(".setting")) line.draggable = false;
       failed = !(await actions.save({ ...draft }, [...edited]));
-      if (failed) redraw();
+      if (failed) redraw(undefined, "save");
     });
+    save.dataset.focus = "save";
     const heading = node("div", "settings-title");
     const close = button("✕", "close", () => actions.cancel());
+    close.dataset.focus = "close";
     close.setAttribute("aria-label", settingsLabel(language, "cancel"));
     heading.append(node("h2", "", `${settingsLabel(language, "settings")}: ${title}`), close);
     const children = [
       heading,
       node("div", "settings-label", settingsLabel(language, "settingsFor")),
-      segmented(settingsLabel(language, "settingsFor"), sets, width, (value) => {
+      segmented(settingsLabel(language, "settingsFor"), "width", sets, width, (value) => {
         width = value;
         redraw();
       }),
       node("div", "settings-label", settingsLabel(language, "preset")),
-      segmented(settingsLabel(language, "preset"), presets, custom ? "aangepast" : layout.preset, (value) =>
+      segmented(settingsLabel(language, "preset"), "preset", presets, custom ? "aangepast" : layout.preset, (value) =>
         change(setPreset(set, value)),
       ),
     ];
@@ -434,6 +448,7 @@ export function drawSettings(dialog, options) {
     children.push(actionRow);
     dialog.replaceChildren(...children);
     if (focusBlock) dialog.querySelector(`[data-block="${focusBlock}"] .handle, [data-block="${focusBlock}"] .arrow:not(:disabled)`)?.focus();
+    else if (focusKey) (dialog.querySelector(`[data-focus="${focusKey}"]:not(:disabled)`) ?? dialog).focus();
   };
   redraw();
 }
@@ -461,6 +476,12 @@ export const SETTINGS_STYLE = `
     cursor: pointer; }
   .settings-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
   .settings-actions .grow { flex: 1; }
+  .settings-actions button, .setting select { padding: 8px 12px; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+    border-radius: 8px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); font: inherit; }
+  .settings-actions button { cursor: pointer; }
+  .settings-actions .primary { border-color: var(--primary-color, #03a9f4); background: var(--primary-color, #03a9f4);
+    color: var(--text-primary-color, #fff); }
+  dialog.settings :disabled:not(.segment) { opacity: 0.5; cursor: default; }
   @media (max-width: 480px) {
     dialog.settings { width: 100%; height: 100%; max-height: 100%; margin: 0; border-radius: 0; }
   }
