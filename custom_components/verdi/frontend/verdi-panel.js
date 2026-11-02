@@ -306,6 +306,15 @@ export function trainRow(language) {
   };
 }
 
+// HA's purge also removes an entity's newest row, so a status held longer than its limit has no row today. The live
+// state is that status, held since last_changed (not last_updated: an attribute change doesn't end it).
+export function liveRows(rows, state, today) {
+  if (!today || rows?.length || !live(state)) return rows ?? [];
+  const since = Date.parse(state.last_changed);
+  if (!state.last_changed || Number.isNaN(since)) return [];
+  return [{ s: state.state, a: state.attributes ?? {}, lu: since / 1000 }];
+}
+
 const NOTHING = { status: null, color: null, tone: null, missing: [], since: null };
 
 function sameStatus(a, b) {
@@ -511,27 +520,30 @@ const STYLE = `
     background: var(--card-background-color); color: var(--primary-text-color); }
   dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
   dialog:focus { outline: none; }
+  dialog.history { margin-top: max(16px, 8vh); }
+  dialog.history[open] { display: flex; flex-direction: column; }
+  .history-body { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
   dialog h2 { margin: 0 0 16px; }
   .history-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
   .history-head h2 { margin: 0; min-width: 0; overflow-wrap: anywhere; }
   .pill .dot { display: inline-block; margin-right: 6px; }
   .days { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
   .days span { flex: 1; text-align: center; }
-  .days button { min-width: 40px; padding: 4px 12px; font: inherit; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
+  .days button { min-width: 44px; min-height: 44px; padding: 4px 12px; font: inherit; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
     border-radius: 8px; background: none; color: inherit; cursor: pointer; }
   .days button:disabled { opacity: 0.5; cursor: default; }
-  .history-bar { position: relative; height: 14px; overflow: hidden; border-radius: 7px;
+  .history-bar { position: relative; flex: none; height: 14px; overflow: hidden; border-radius: 7px;
     background: var(--secondary-background-color, #e5e5e5); }
   .history-bar span { position: absolute; top: 0; bottom: 0; min-width: 2px;
     box-shadow: inset 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
   .history-bar .ok { background: var(--success-color, #4caf50); }
   .history-bar .short { background: var(--error-color, #db4437); }
   .history-bar .none { background: ${FALLBACK_COLOR}; }
-  .ticks { position: relative; height: 16px; margin-bottom: 12px; color: var(--secondary-text-color, #727272); font-size: 11px; }
+  .ticks { position: relative; flex: none; height: 16px; margin-bottom: 12px; color: var(--secondary-text-color, #727272); font-size: 11px; }
   .ticks span { position: absolute; transform: translateX(-50%); }
   .ticks span:first-child { transform: none; }
   .ticks span:last-child { transform: translateX(-100%); }
-  .changes { display: flex; flex-direction: column; gap: 6px; max-height: 40vh; margin: 0 0 12px; padding: 0; overflow-y: auto;
+  .changes { display: flex; flex-direction: column; flex: 0 1 auto; min-height: 0; gap: 6px; max-height: 40vh; margin: 0 0 12px; padding: 0; overflow-y: auto;
     list-style: none; }
   .changes li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
   .changes time { flex: none; width: 96px; color: var(--secondary-text-color, #727272); font-size: 12px; }
@@ -858,7 +870,8 @@ function historyBody(periods, day, end, today, language) {
   if (!list.length) return [element("div", "message", label(language, "history_empty"))];
   const bar = element("div", "history-bar");
   bar.setAttribute("aria-hidden", "true"); // the list says the same
-  for (const { left, width, color, tone } of barParts(periods, day)) {
+  // Last first, so an earlier part paints over the next one and keeps its min-width.
+  for (const { left, width, color, tone } of barParts(periods, day).reverse()) {
     const part = element("span", tone ?? (color ? "" : "none"));
     part.style.left = `${left}%`;
     part.style.width = `${width}%`;
@@ -920,6 +933,7 @@ function definePanel() {
       // The pill or tile the browser would return focus to has been replaced by a redraw, so hand it to the current one.
       this._dialog.addEventListener("close", () => {
         this._historyCall += 1; // an answer still on its way has nowhere to go
+        this._dialog.classList.remove("history");
         this._dialog.replaceChildren();
         const target = this._historyTarget;
         this._historyTarget = undefined;
@@ -1055,9 +1069,10 @@ function definePanel() {
       const back = arrow("‹", "previous_day");
       const next = arrow("›", "next_day");
       const line = element("span");
+      line.setAttribute("aria-live", "polite"); // the day is read after each arrow; the body would read "Loading..." too
       const days = element("div", "days");
       days.append(back, line, next);
-      const body = element("div");
+      const body = element("div", "history-body");
       const close = actionButton(language, "close");
       close.addEventListener("click", () => this._dialog.close());
       const actions = element("div", "actions");
@@ -1070,6 +1085,7 @@ function definePanel() {
       back.addEventListener("click", () => step(-1));
       next.addEventListener("click", () => step(1));
       this._dialog.replaceChildren(head, days, body, actions);
+      this._dialog.classList.add("history");
       this._dialog.showModal();
       this._historyDay(view);
     }
@@ -1118,6 +1134,7 @@ function definePanel() {
         view.oldest = day.getTime(); // HA has nothing older either
         this._historyArrows(view);
       }
+      rows = liveRows(rows, this._hass.states[id], today);
       const periods = historyPeriods(rows, day.getTime(), end.getTime(), train ? trainRow(language) : vehicleRow);
       body.replaceChildren(...historyBody(periods, day, end.getTime(), today, language));
     }

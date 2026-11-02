@@ -17,6 +17,7 @@ import {
   historyList,
   historyPeriods,
   label,
+  liveRows,
   missingPositions,
   moment,
   normalizeColor,
@@ -437,4 +438,44 @@ test("ticks follow the real day, also with a clock change", () => {
     process.env.TZ = zone;
     if (zone === undefined) delete process.env.TZ;
   }
+});
+
+const held = { state: "Free", attributes: { color: "#0f0" }, last_changed: new Date(2026, 10, 1, 8).toISOString() };
+
+test("today without rows is the live state, held since last_changed", () => {
+  assert.deepEqual(liveRows([], held, true), [{ s: "Free", a: { color: "#0f0" }, lu: at(8, 0, 1) / 1000 }]);
+  assert.equal(liveRows(undefined, held, true).length, 1);
+});
+
+test("rows from HA are kept, and so is any other day", () => {
+  const rows = history(["Free", at(9), {}]);
+  assert.equal(liveRows(rows, held, true), rows);
+  assert.deepEqual(liveRows([], held, false), []);
+});
+
+test("an unavailable, unknown or missing live state gives no row", () => {
+  assert.deepEqual(liveRows([], { ...held, state: "unavailable" }, true), []);
+  assert.deepEqual(liveRows([], { ...held, state: "unknown" }, true), []);
+  assert.deepEqual(liveRows([], undefined, true), []);
+});
+
+test("a bad last_changed gives no row", () => {
+  for (const last_changed of [undefined, null, "", "not a date"]) {
+    assert.deepEqual(liveRows([], { ...held, last_changed }, true), [], String(last_changed));
+  }
+});
+
+test("a state without attributes still gives a row", () => {
+  assert.deepEqual(liveRows([], { state: "on", last_changed: held.last_changed }, true)[0].a, {});
+});
+
+test("a vehicle held since before midnight is one period from 00:00 to now", () => {
+  const periods = historyPeriods(liveRows([], held, true), at(0), at(14), vehicleRow);
+  assert.deepEqual(periods, [period(at(0), at(14), "Free", "#0f0")]);
+});
+
+test("a train held since before midnight is one period from 00:00 to now", () => {
+  const state = { state: "on", attributes: {}, last_changed: held.last_changed };
+  const periods = historyPeriods(liveRows([], state, true), at(0), at(14), trainRow("en"));
+  assert.deepEqual(periods.map(({ start, end, tone }) => [start, end, tone]), [[at(0), at(14), "ok"]]);
 });
