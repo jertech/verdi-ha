@@ -408,11 +408,9 @@ function row(name, ...right) {
   return node;
 }
 
-function until(end, language) {
-  const date = new Date(end);
-  if (!end || Number.isNaN(date.getTime())) return null;
-  const text = date.toLocaleString(language, { dateStyle: "short", timeStyle: "short" });
-  return `${label(language, "until")} ${text}`;
+export function until(end, language, now = new Date()) {
+  const text = moment(end, language, now);
+  return text ? `${label(language, "until")} ${text}` : null;
 }
 
 function live(state) {

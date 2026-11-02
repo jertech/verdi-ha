@@ -23,6 +23,7 @@ import {
   statusText,
   textColor,
   unavailableIds,
+  until,
   vehicleName,
 } from "../../custom_components/verdi/frontend/verdi-panel.js";
 
@@ -215,6 +216,14 @@ test("a moment is a time today, and a date and time on another day", () => {
   assert.match(moment(new Date(2026, 5, 14, 9, 5).toISOString(), "nl", now), /14.*6.*09:05/);
   assert.equal(moment(null, "nl", now), null);
   assert.equal(moment("not a date", "nl", now), null);
+});
+
+test("until is the time today, and a date and time on another day", () => {
+  const now = new Date(2026, 5, 15, 8, 0);
+  assert.equal(until(new Date(2026, 5, 15, 9, 5).toISOString(), "nl", now), "tot 09:05");
+  assert.match(until(new Date(2026, 5, 16, 9, 5).toISOString(), "nl", now), /^tot .*16.*6.*09:05/);
+  assert.equal(until(null, "nl", now), null);
+  assert.equal(until("not a date", "nl", now), null);
 });
 
 test("a day and a month, or nothing", () => {
