@@ -26,6 +26,7 @@ import {
   responseTime,
   sendError,
   sendResult,
+  settingsUrl,
   startingDuration,
   statisticTile,
   statusCounts,
@@ -478,4 +479,15 @@ test("a train held since before midnight is one period from 00:00 to now", () =>
   const state = { state: "on", attributes: {}, last_changed: held.last_changed };
   const periods = historyPeriods(liveRows([], state, true), at(0), at(14), trainRow("en"));
   assert.deepEqual(periods.map(({ start, end, tone }) => [start, end, tone]), [[at(0), at(14), "ok"]]);
+});
+
+test("the settings module carries the page's version", () => {
+  assert.equal(
+    settingsUrl("http://ha.local/verdi_static/verdi-panel.js?v=0.15.0"),
+    "http://ha.local/verdi_static/verdi-settings.js?v=0.15.0",
+  );
+  assert.equal(
+    settingsUrl("file:///repo/frontend/verdi-panel.js"),
+    "file:///repo/frontend/verdi-settings.js",
+  );
 });

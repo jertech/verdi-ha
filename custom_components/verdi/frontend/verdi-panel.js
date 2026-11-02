@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 jertech and contributors
 // Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-// The Verdi status page: current status in the colours Verdi sends. One file on purpose: a second
-// module would be imported without the version in the URL and could stay cached after an update.
+// The Verdi status page: current status in the colours Verdi sends. verdi-settings.js is imported with this file's
+// own query, because without the version in its URL it could stay cached after an update.
+
+export function settingsUrl(page) {
+  const url = new URL(page);
+  url.pathname = url.pathname.replace(/verdi-panel\.js$/, "verdi-settings.js");
+  return url.href;
+}
+
+const settings = await import(settingsUrl(import.meta.url));
 
 export const FALLBACK_COLOR = "#D3D3D3";
 
@@ -785,31 +793,45 @@ function statistics({ data, states, language }) {
   return block;
 }
 
-// The later settings reorder, hide and restyle blocks here.
-const BLOCKS = { myStatus, readiness, vehicles, personnel, statistics };
-const COLUMNS = [
-  ["myStatus", "readiness"],
-  ["vehicles", "personnel"],
-];
-const FULL_WIDTH = ["statistics"];
+const BLOCK_DRAWERS = { myStatus, readiness, vehicles, personnel, statistics };
+
+function drawBlock(context, layout, name) {
+  return BLOCK_DRAWERS[name]({ ...context, view: layout.blocks[name].view });
+}
+
+function drawColumn(context, layout, names) {
+  const column = element("div", "column");
+  column.append(...names.map((name) => drawBlock(context, layout, name)).filter(Boolean));
+  return column;
+}
 
 function section(context, withHeading) {
-  const { data, language } = context;
+  const { data, language, set, wide } = context;
   const nodes = [];
-  if (withHeading) nodes.push(element("h2", "", data.title));
+  if (withHeading) {
+    const title = element("h2", "station", data.title);
+    title.append(context.gear(data));
+    nodes.push(title);
+  }
   if (data.problem) {
     const line = element("div", `problem ${data.problem}`, label(language, `problem_${data.problem}`));
     line.setAttribute("role", "alert");
     nodes.push(line);
   }
-  const columns = element("div", "columns");
-  for (const names of COLUMNS) {
-    const column = element("div", "column");
-    column.append(...names.map((name) => BLOCKS[name](context)).filter(Boolean));
-    if (column.childElementCount) columns.append(column);
+  const layout = settings.resolve(set);
+  for (const row of settings.rows(layout, wide)) {
+    if (row.full) {
+      const block = drawBlock(context, layout, row.full);
+      if (block) nodes.push(block);
+      continue;
+    }
+    const columns = element("div", "columns");
+    for (const names of [row.left, row.right]) {
+      const column = drawColumn(context, layout, names);
+      if (column.childElementCount) columns.append(column);
+    }
+    if (columns.childElementCount) nodes.push(columns);
   }
-  if (columns.childElementCount) nodes.push(columns);
-  nodes.push(...FULL_WIDTH.map((name) => BLOCKS[name](context)).filter(Boolean));
   return nodes;
 }
 
@@ -905,6 +927,9 @@ function definePanel() {
       this._hass = undefined;
       this._sections = undefined;
       this._drawn = undefined;
+      this._drafts = new Map();
+      this._wide = undefined;
+      this._resize = new ResizeObserver(() => this._measure());
       this._sending = false;
       this._openTrains = new Set();
       this._unavailable = "";
@@ -945,12 +970,27 @@ function definePanel() {
     }
 
     connectedCallback() {
+      this._resize.observe(this);
       if (this._hass) this._arm();
     }
 
     disconnectedCallback() {
+      this._resize.disconnect();
       clearTimeout(this._timer);
       this._dialog.close();
+    }
+
+    _measure() {
+      const wide = settings.isWide(this.clientWidth, this.hasAttribute("narrow"));
+      if (wide === this._wide) return;
+      this._wide = wide;
+      this._drawn = undefined;
+      this._render();
+    }
+
+    _setOf(data) {
+      const sets = this._drafts.get(data.entry_id) ?? data.settings;
+      return sets?.[this._wide ? "wide" : "phone"];
     }
 
     _pill(entryId) {
@@ -979,6 +1019,7 @@ function definePanel() {
 
     set narrow(value) {
       this.toggleAttribute("narrow", Boolean(value));
+      if (this._hass) this._measure();
     }
 
     set hass(hass) {
@@ -1009,6 +1050,7 @@ function definePanel() {
       const hass = this._hass;
       if (!hass) return;
       const sections = this._sections ?? [];
+      this._wide ??= settings.isWide(this.clientWidth, this.hasAttribute("narrow"));
       const ids = sections.flatMap(entityIds);
       this._check(ids);
       const states = ids.map((id) => hass.states[id]);
@@ -1031,8 +1073,9 @@ function definePanel() {
       const open = (data) => this._open(data);
       const toggle = (id) => this._toggle(id);
       const history = (id, name, train) => this._openHistory(id, name, train);
-      const shared = { states: hass.states, language, open, opened: this._openTrains, toggle, history };
-      for (const data of sections) main.append(...section({ ...shared, data }, withHeading));
+      const gear = () => element("span");
+      const shared = { states: hass.states, language, open, opened: this._openTrains, toggle, history, gear, wide: this._wide };
+      for (const data of sections) main.append(...section({ ...shared, data, set: this._setOf(data) }, withHeading));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
       const active = this.shadowRoot.activeElement?.dataset ?? {};
       this._view.replaceChildren(header, main);
