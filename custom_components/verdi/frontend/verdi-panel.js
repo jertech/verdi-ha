@@ -20,6 +20,17 @@ const LABELS = {
     empty: "No Verdi data found.",
     incomplete: "List incomplete",
     menu: "Menu",
+    changeStatus: "Change status",
+    chooseStatus: "Choose a status",
+    status: "Status",
+    duration: "Duration",
+    addException: "Add exception",
+    returnToPlanning: "Return to planning",
+    close: "Close",
+    overruled: "Verdi accepted this, but a fixed planning overrules it. Your status stays as shown.",
+    unchecked: "Sent to Verdi, but the result couldn't be checked. The status on this page shows what applies.",
+    unclear: "No clear answer. Check in Verdi whether the change was made.",
+    sending: "Sending...",
   },
   nl: {
     myStatus: "Mijn status",
@@ -32,6 +43,17 @@ const LABELS = {
     empty: "Geen Verdi-gegevens gevonden.",
     incomplete: "Lijst onvolledig",
     menu: "Menu",
+    changeStatus: "Status wijzigen",
+    chooseStatus: "Kies een status",
+    status: "Status",
+    duration: "Duur",
+    addException: "Uitzondering toevoegen",
+    returnToPlanning: "Terug naar planning",
+    close: "Sluiten",
+    overruled: "Verdi heeft dit aanvaard, maar een vaste planning gaat voor. Je status blijft zoals getoond.",
+    unchecked: "Naar Verdi gestuurd, maar het resultaat kon niet gecontroleerd worden. De status op deze pagina toont wat geldt.",
+    unclear: "Geen duidelijk antwoord. Kijk in Verdi of de wijziging gebeurd is.",
+    sending: "Bezig met verzenden...",
   },
   fr: {
     myStatus: "Mon statut",
@@ -44,6 +66,17 @@ const LABELS = {
     empty: "Aucune donnée Verdi trouvée.",
     incomplete: "Liste incomplète",
     menu: "Menu",
+    changeStatus: "Changer le statut",
+    chooseStatus: "Choisissez un statut",
+    status: "Statut",
+    duration: "Durée",
+    addException: "Ajouter exception",
+    returnToPlanning: "Retour au planning",
+    close: "Fermer",
+    overruled: "Verdi a accepté, mais un planning fixe l'emporte. Votre statut reste celui affiché.",
+    unchecked: "Envoyé à Verdi, mais le résultat n'a pas pu être vérifié. Le statut sur cette page indique ce qui s'applique.",
+    unclear: "Pas de réponse claire. Vérifiez dans Verdi si la modification a été faite.",
+    sending: "Envoi en cours...",
   },
 };
 
@@ -98,7 +131,51 @@ export function byName(a, b) {
 }
 
 export function entityIds(section) {
-  return [section.my_availability, ...section.vehicles, section.personnel].filter(Boolean);
+  const { controls } = section;
+  return [
+    section.my_availability,
+    ...section.vehicles,
+    section.personnel,
+    controls?.status,
+    controls?.duration,
+    controls?.back_to_planning,
+  ].filter(Boolean);
+}
+
+// "unknown" is fine: the Status select has that state whenever nothing is chosen.
+export function canChange(controls, states) {
+  if (!controls) return false;
+  return [states[controls.status], states[controls.duration]].every(
+    (state) => state && state.state !== "unavailable" && state.attributes.options?.length > 0,
+  );
+}
+
+export function canReturn(controls, states) {
+  const state = states[controls.back_to_planning];
+  return Boolean(state) && state.state !== "unavailable";
+}
+
+export function startingDuration(state) {
+  const { options } = state.attributes;
+  return options.includes(state.state) ? state.state : options[0];
+}
+
+export function sendResult(answer) {
+  const active = answer?.response?.active;
+  if (active === true) return { close: true };
+  return { close: false, label: active === false ? "overruled" : "unchecked", canRetry: false };
+}
+
+// These two may have changed something, so the dialog doesn't offer the same change again.
+const MAYBE_SENT = ["outcome_unknown", "partly_ended"];
+
+// A lost connection arrives as { error: { code, message } } and anything not Verdi's has no reason to translate.
+export function sendError(err) {
+  if (err?.translation_domain !== "verdi" || !err.translation_key) {
+    return { close: false, label: "unclear", canRetry: false };
+  }
+  const exception = err.translation_key;
+  return { close: false, exception, canRetry: !MAYBE_SENT.includes(exception) };
 }
 
 const STYLE = `
@@ -119,6 +196,22 @@ const STYLE = `
   .pill { display: inline-block; padding: 4px 12px; border: 1px solid var(--divider-color); border-radius: 16px; overflow-wrap: anywhere; }
   .pill.large { padding: 8px 16px; font-size: 18px; }
   .muted { color: var(--secondary-text-color); }
+  .view { display: contents; }
+  button.pill { font: inherit; cursor: pointer; }
+  dialog { box-sizing: border-box; width: min(420px, calc(100vw - 32px)); padding: 16px; border: 0; border-radius: 12px;
+    background: var(--card-background-color); color: var(--primary-text-color); }
+  dialog::backdrop { background: rgba(0, 0, 0, 0.5); }
+  dialog:focus { outline: none; }
+  dialog h2 { margin: 0 0 16px; }
+  .field { display: block; margin-bottom: 12px; }
+  .field select { display: block; box-sizing: border-box; width: 100%; margin-top: 4px; padding: 8px; font: inherit;
+    border: 1px solid var(--divider-color); border-radius: 8px; background: var(--card-background-color); color: inherit; }
+  .message { margin-bottom: 12px; overflow-wrap: anywhere; }
+  .message:empty { display: none; }
+  .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+  .actions button { padding: 8px 12px; font: inherit; border: 1px solid var(--divider-color); border-radius: 8px;
+    background: none; color: inherit; cursor: pointer; }
+  .actions button:disabled { opacity: 0.5; cursor: default; }
 `;
 
 function element(tag, className, text) {
@@ -128,11 +221,20 @@ function element(tag, className, text) {
   return node;
 }
 
-function pill(text, color, large = false) {
-  const node = element("span", large ? "pill large" : "pill", text);
+function pill(text, color, large = false, tag = "span") {
+  const node = element(tag, large ? "pill large" : "pill", text);
   const background = normalizeColor(color);
   node.style.background = background;
   node.style.color = textColor(background);
+  return node;
+}
+
+function changePill(text, color, language, change) {
+  const node = pill(text, color, true, "button");
+  node.type = "button";
+  node.setAttribute("aria-haspopup", "dialog");
+  node.setAttribute("aria-label", `${label(language, "changeStatus")}: ${text}`);
+  node.addEventListener("click", change);
   return node;
 }
 
@@ -153,13 +255,15 @@ function live(state) {
   return Boolean(state) && state.state !== "unavailable" && state.state !== "unknown";
 }
 
-function myStatus(state, language) {
+function myStatus(state, language, change) {
   const block = element("div", "block");
   block.append(element("h3", "", label(language, "myStatus")));
   const attributes = state?.attributes ?? {};
   const colors = attributes.availability_colors ?? {};
   const main = element("div", "row");
-  main.append(pill(statusText(language, state), live(state) ? attributes.color : null, true));
+  const text = statusText(language, state);
+  const color = live(state) ? attributes.color : null;
+  main.append(change ? changePill(text, color, language, change) : pill(text, color, true));
   const end = until(attributes.end, language);
   if (end) main.append(element("span", "muted", end));
   block.append(main);
@@ -200,10 +304,16 @@ function personnel(state, language) {
   return block;
 }
 
-function section(data, states, language, heading) {
+function section(data, states, language, heading, open) {
   const nodes = [];
   if (heading) nodes.push(element("h2", "", data.title));
-  if (data.my_availability) nodes.push(myStatus(states[data.my_availability], language));
+  if (data.my_availability) {
+    const change = canChange(data.controls, states) ? () => open(data) : null;
+    const block = myStatus(states[data.my_availability], language, change);
+    const button = block.querySelector("button.pill");
+    if (button) button.dataset.entry = data.controls.entry_id;
+    nodes.push(block);
+  }
   if (data.vehicles.length) nodes.push(vehicles(data.vehicles, states, data.title, language));
   if (data.personnel) nodes.push(personnel(states[data.personnel], language));
   return nodes;
@@ -226,6 +336,25 @@ function menuButton(host, language) {
   return button;
 }
 
+function selectField(title, options, value) {
+  const select = element("select");
+  for (const option of options) {
+    const node = element("option", "", option.label);
+    node.value = option.value;
+    select.append(node);
+  }
+  select.value = value;
+  const field = element("label", "field", title);
+  field.append(select);
+  return { field, select };
+}
+
+function actionButton(language, key) {
+  const node = element("button", "", label(language, key));
+  node.type = "button";
+  return node;
+}
+
 function definePanel() {
   class VerdiPanel extends HTMLElement {
     constructor() {
@@ -234,6 +363,35 @@ function definePanel() {
       this._hass = undefined;
       this._sections = undefined;
       this._drawn = undefined;
+      this._sending = false;
+      // Outside what _render replaces: taking a modal dialog out of the page closes it.
+      this._view = element("div", "view");
+      this._dialog = element("dialog");
+      this._dialog.tabIndex = -1;
+      // HA's keyboard shortcuts listen on the window; typing in a select isn't for them. Escape is the browser's,
+      // except while a call runs.
+      this._dialog.addEventListener("keydown", (event) => {
+        event.stopPropagation();
+        if (event.key === "Escape" && this._sending) event.preventDefault();
+      });
+      this._dialog.addEventListener("cancel", (event) => {
+        if (this._sending) event.preventDefault();
+      });
+      // The pill the browser would return focus to has been replaced by a redraw, so hand it to the current one.
+      this._dialog.addEventListener("close", () => {
+        this._dialog.replaceChildren();
+        const active = this.shadowRoot.activeElement;
+        if (!active || active === this._dialog) this._pill(this._opened)?.focus();
+      });
+      this.shadowRoot.append(element("style", "", STYLE), this._view, this._dialog);
+    }
+
+    disconnectedCallback() {
+      this._dialog.close();
+    }
+
+    _pill(entryId) {
+      return [...this._view.querySelectorAll("button.pill")].find((node) => node.dataset.entry === entryId);
     }
 
     set narrow(value) {
@@ -277,10 +435,127 @@ function definePanel() {
       header.append(menuButton(this, language), element("h1", "", "Verdi (unofficial)"));
       const main = element("main");
       const heading = sections.length > 1;
-      for (const data of sections) main.append(...section(data, hass.states, language, heading));
+      const open = (data) => this._open(data);
+      for (const data of sections) main.append(...section(data, hass.states, language, heading, open));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
-      const style = element("style", "", STYLE);
-      this.shadowRoot.replaceChildren(style, header, main);
+      const focused = this.shadowRoot.activeElement?.dataset?.entry;
+      this._view.replaceChildren(header, main);
+      if (focused) this._pill(focused)?.focus();
+    }
+
+    async _reason(err) {
+      try {
+        const localize = await this._hass.loadBackendTranslation("exceptions", "verdi");
+        const text = localize(`component.verdi.exceptions.${err.translation_key}.message`, err.translation_placeholders);
+        if (text) return text;
+      } catch {
+        // The English text below is still the reason.
+      }
+      return err.message;
+    }
+
+    async _open(data) {
+      try {
+        await this._hass.loadBackendTranslation("entity", "verdi");
+      } catch {
+        // The duration labels fall back to their keys.
+      }
+      const { controls } = data;
+      this._opened = controls.entry_id;
+      const hass = this._hass;
+      // Again after the await: a call may be running, a second click may have opened it, or the select may have gone.
+      if (!this.isConnected || this._sending || this._dialog.open || !canChange(controls, hass.states)) return;
+      const language = hass.language;
+      this._dialog.setAttribute("aria-label", label(language, "changeStatus"));
+      const statusOptions = hass.states[controls.status].attributes.options.map((name) => ({ value: name, label: name }));
+      const status = selectField(
+        label(language, "status"),
+        [{ value: "", label: label(language, "chooseStatus") }, ...statusOptions],
+        "",
+      );
+      const durationState = hass.states[controls.duration];
+      const duration = selectField(
+        label(language, "duration"),
+        durationState.attributes.options.map((key) => ({ value: key, label: hass.formatEntityState(durationState, key) })),
+        startingDuration(durationState),
+      );
+      const add = actionButton(language, "addException");
+      const back = actionButton(language, "returnToPlanning");
+      const close = actionButton(language, "close");
+      const message = element("div", "message");
+      message.setAttribute("role", "alert");
+      const actions = element("div", "actions");
+      if (canReturn(controls, hass.states)) actions.append(back);
+      actions.append(close, add);
+
+      add.disabled = true;
+      status.select.addEventListener("change", () => {
+        add.disabled = !status.select.value;
+      });
+
+      const send = async (call) => {
+        this._sending = true;
+        message.textContent = label(language, "sending");
+        for (const node of [add, back, close, status.select, duration.select]) node.disabled = true;
+        // Disabling them drops focus to body, where the dialog no longer sees Escape or HA's shortcuts get the keys.
+        this._dialog.focus();
+        let outcome;
+        let reason;
+        try {
+          try {
+            outcome = await call();
+          } catch (err) {
+            outcome = sendError(err);
+            if (outcome.exception) reason = await this._reason(err);
+          }
+        } finally {
+          this._sending = false;
+          close.disabled = false;
+        }
+        if (outcome.close) {
+          this._dialog.close();
+          return;
+        }
+        message.textContent = reason ?? label(language, outcome.label);
+        // The selects stay locked after "only Close": the change may have gone through.
+        if (outcome.canRetry) {
+          status.select.disabled = false;
+          duration.select.disabled = false;
+          add.disabled = !status.select.value;
+          back.disabled = false;
+        }
+      };
+
+      add.addEventListener("click", () =>
+        send(async () =>
+          sendResult(
+            await this._hass.callService(
+              "verdi",
+              "add_exception",
+              { config_entry_id: controls.entry_id, status: status.select.value, duration: duration.select.value },
+              undefined,
+              false,
+              true,
+            ),
+          ),
+        ),
+      );
+      back.addEventListener("click", () =>
+        send(async () => {
+          await this._hass.callService("verdi", "return_to_planning", { config_entry_id: controls.entry_id }, undefined, false);
+          return { close: true };
+        }),
+      );
+      close.addEventListener("click", () => this._dialog.close());
+
+      this._dialog.replaceChildren(
+        element("h2", "", label(language, "changeStatus")),
+        status.field,
+        duration.field,
+        message,
+        actions,
+      );
+      this._dialog.showModal();
     }
   }
   customElements.define("verdi-panel", VerdiPanel);

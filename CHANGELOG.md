@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.12.0] - 2026-11-02
+
+### Integration
+- Change your own status from the **Verdi (unofficial)** page: click the large status pill, choose a status and a
+  duration, and press **Add exception**, or press **Return to planning**. Administrators only, with **Change my status**
+  on. Nothing is sent before you press a button.
+
 ## [0.11.2] - 2026-11-02
 
 ### Integration
@@ -376,6 +383,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.12.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.12.0
 [0.11.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.11.2
 [0.11.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.11.0
 [0.10.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.10.1

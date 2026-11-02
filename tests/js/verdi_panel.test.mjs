@@ -4,9 +4,14 @@ import { test } from "node:test";
 
 import {
   byName,
+  canChange,
+  canReturn,
   entityIds,
   label,
   normalizeColor,
+  sendError,
+  sendResult,
+  startingDuration,
   statusCounts,
   statusLabel,
   statusText,
@@ -72,7 +77,10 @@ test("labels follow the language, default English", () => {
 });
 
 test("every language has every label", () => {
-  for (const key of ["myStatus", "vehicles", "personnel", "until", "total", "noData", "unknown", "empty", "incomplete", "menu"]) {
+  for (const key of [
+    "myStatus", "vehicles", "personnel", "until", "total", "noData", "unknown", "empty", "incomplete", "menu",
+    "changeStatus", "chooseStatus", "status", "duration", "addException", "returnToPlanning", "close", "overruled", "unchecked", "unclear", "sending",
+  ]) {
     for (const language of ["en", "nl", "fr"]) {
       assert.ok(label(language, key), `${language} ${key}`);
     }
@@ -101,4 +109,80 @@ test("a personnel pill names the status, and says Unknown for the key unknown", 
 test("vehicles sort by name with numbers in order", () => {
   const names = ["P100", "A9", "P20", "A10"].map((name) => ({ name }));
   assert.deepEqual(names.sort(byName).map((row) => row.name), ["A9", "A10", "P20", "P100"]);
+});
+
+const CONTROLS = {
+  entry_id: "e1",
+  status: "select.status",
+  duration: "select.duration",
+  back_to_planning: "button.back",
+};
+const select = (state, options = ["a", "b"]) => ({ state, attributes: { options } });
+const STATES = { "select.status": select("unknown"), "select.duration": select("5m", ["5m", "1h"]) };
+
+test("a section's entities include what the dialog depends on", () => {
+  assert.deepEqual(
+    entityIds({ my_availability: "sensor.a", vehicles: [], personnel: null, controls: CONTROLS }),
+    ["sensor.a", "select.status", "select.duration", "button.back"],
+  );
+});
+
+test("the pill works with both selects live, and nothing chosen counts as live", () => {
+  assert.equal(canChange(CONTROLS, STATES), true);
+});
+
+test("the pill stays plain without what the dialog needs", () => {
+  assert.equal(canChange(null, STATES), false);
+  assert.equal(canChange(undefined, STATES), false);
+  assert.equal(canChange(CONTROLS, {}), false);
+  assert.equal(canChange(CONTROLS, { ...STATES, "select.status": select("unavailable") }), false);
+  assert.equal(canChange(CONTROLS, { ...STATES, "select.duration": select("unavailable") }), false);
+  assert.equal(canChange(CONTROLS, { ...STATES, "select.status": select("unknown", []) }), false);
+  assert.equal(canChange(CONTROLS, { ...STATES, "select.status": { state: "unknown", attributes: {} } }), false);
+});
+
+test("return to planning shows when the button can be pressed", () => {
+  assert.equal(canReturn(CONTROLS, { "button.back": { state: "unknown", attributes: {} } }), true);
+  assert.equal(canReturn(CONTROLS, { "button.back": { state: "unavailable", attributes: {} } }), false);
+  assert.equal(canReturn(CONTROLS, {}), false);
+  assert.equal(canReturn({ ...CONTROLS, back_to_planning: null }, {}), false);
+});
+
+test("the duration starts where the select is", () => {
+  assert.equal(startingDuration(select("1h", ["5m", "1h"])), "1h");
+  assert.equal(startingDuration(select("unknown", ["5m", "1h"])), "5m");
+});
+
+test("an active exception closes the dialog", () => {
+  assert.deepEqual(sendResult({ response: { active: true } }), { close: true });
+});
+
+test("an answer that isn't a plain yes keeps the dialog open, with only Close", () => {
+  const stays = (label) => ({ close: false, label, canRetry: false });
+  assert.deepEqual(sendResult({ response: { active: false } }), stays("overruled"));
+  assert.deepEqual(sendResult({ response: { active: null } }), stays("unchecked"));
+  assert.deepEqual(sendResult({ response: {} }), stays("unchecked"));
+  assert.deepEqual(sendResult({}), stays("unchecked"));
+});
+
+const verdi = (translation_key) => ({ code: "home_assistant_error", translation_domain: "verdi", translation_key });
+
+test("a refusal can be tried again", () => {
+  for (const key of ["verdi_refused", "busy", "verdi_busy", "no_right", "token_refused", "unknown_status"]) {
+    assert.deepEqual(sendError(verdi(key)), { close: false, exception: key, canRetry: true });
+  }
+});
+
+test("a change that may have gone through can't be sent again", () => {
+  for (const key of ["outcome_unknown", "partly_ended"]) {
+    assert.deepEqual(sendError(verdi(key)), { close: false, exception: key, canRetry: false });
+  }
+});
+
+test("an error that isn't Verdi's is unclear, and needs no server to say so", () => {
+  const unclear = { close: false, label: "unclear", canRetry: false };
+  assert.deepEqual(sendError({ error: { code: 3, message: "Connection lost" } }), unclear);
+  assert.deepEqual(sendError({ code: "unauthorized", message: "Unauthorized" }), unclear);
+  assert.deepEqual(sendError({ code: "x", translation_domain: "homeassistant", translation_key: "y" }), unclear);
+  assert.deepEqual(sendError(undefined), unclear);
 });

@@ -16,6 +16,13 @@ from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import ALL_OFF, DATA, fake_command, setup_with_token
 
+ON = {"status_changes": True}
+CONTROLS = {
+    "status": "select.verdi_status",
+    "duration": "select.verdi_duration",
+    "back_to_planning": "button.verdi_return_to_planning",
+}
+
 
 def second_entry() -> MockConfigEntry:
     return MockConfigEntry(domain=DOMAIN, version=4, unique_id="station-2", title="Verdi 2", data=dict(DATA))
@@ -91,6 +98,7 @@ async def test_command_lists_the_entities(hass: HomeAssistant, config_entry, moc
             "my_availability": "sensor.verdi_my_availability",
             "vehicles": ["sensor.verdi_p100"],
             "personnel": "sensor.verdi_personnel",
+            "controls": None,
         }
     ]
 
@@ -194,3 +202,78 @@ async def test_a_waiting_entry_keeps_its_rows(hass: HomeAssistant, config_entry,
     await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
     assert status_page(hass) == before
+
+
+async def test_controls_for_an_admin(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
+    await setup_with_token(hass, config_entry, options=ON)
+    sections = await _sections(hass, await hass_ws_client(hass))
+    assert sections[0]["controls"] == {"entry_id": config_entry.entry_id, **CONTROLS}
+
+
+async def test_no_controls_for_a_non_admin(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client, hass_read_only_access_token
+):
+    await setup_with_token(hass, config_entry, options=ON)
+    client = await hass_ws_client(hass, hass_read_only_access_token)
+    section = (await _sections(hass, client))[0]
+    assert section["controls"] is None
+    assert section["my_availability"] == "sensor.verdi_my_availability"
+
+
+async def test_no_controls_with_status_changes_off(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client
+):
+    await setup_with_token(hass, config_entry)
+    assert (await _sections(hass, await hass_ws_client(hass)))[0]["controls"] is None
+
+
+@pytest.mark.parametrize("entity_id", ["select.verdi_status", "select.verdi_duration"])
+async def test_no_controls_with_a_select_disabled(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client, entity_id
+):
+    await setup_with_token(hass, config_entry, options=ON)
+    er.async_get(hass).async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.USER)
+    assert (await _sections(hass, await hass_ws_client(hass)))[0]["controls"] is None
+
+
+async def test_a_hidden_select_still_counts(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
+    await setup_with_token(hass, config_entry, options=ON)
+    er.async_get(hass).async_update_entity("select.verdi_status", hidden_by=er.RegistryEntryHider.USER)
+    assert (await _sections(hass, await hass_ws_client(hass)))[0]["controls"] is not None
+
+
+async def test_a_renamed_select_is_still_found(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
+    await setup_with_token(hass, config_entry, options=ON)
+    er.async_get(hass).async_update_entity("select.verdi_status", new_entity_id="select.my_choice")
+    assert (await _sections(hass, await hass_ws_client(hass)))[0]["controls"]["status"] == "select.my_choice"
+
+
+async def test_controls_without_the_return_button(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client
+):
+    await setup_with_token(hass, config_entry, options=ON)
+    er.async_get(hass).async_update_entity(
+        "button.verdi_return_to_planning", disabled_by=er.RegistryEntryDisabler.USER
+    )
+    controls = (await _sections(hass, await hass_ws_client(hass)))[0]["controls"]
+    assert controls["back_to_planning"] is None
+    assert controls["status"] == "select.verdi_status"
+
+
+async def test_two_entries_keep_their_own_controls(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client
+):
+    await setup_with_token(hass, config_entry, options=ON)
+    other = second_entry()
+    await setup_with_token(hass, other, options=ON)
+    sections = await _sections(hass, await hass_ws_client(hass))
+    assert {s["controls"]["entry_id"] for s in sections} == {config_entry.entry_id, other.entry_id}
+    assert len({s["controls"]["status"] for s in sections}) == 2
+
+
+async def test_controls_alone_make_no_section(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
+    await setup_with_token(hass, config_entry, options=ON)
+    registry = er.async_get(hass)
+    for entity_id in ("sensor.verdi_p100", "sensor.verdi_my_availability", "sensor.verdi_personnel"):
+        registry.async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.USER)
+    assert await _sections(hass, await hass_ws_client(hass)) == []
