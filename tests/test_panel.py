@@ -1,20 +1,22 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The status page: sidebar panel and websocket command."""
 
+import copy
+from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
-from custom_components.verdi.api import VerdiError
+from custom_components.verdi.api import VerdiError, VerdiUnavailable
 from custom_components.verdi.const import DOMAIN
-from custom_components.verdi.panel import status_page
+from custom_components.verdi.panel import _problem, status_page
 from custom_components.verdi.token import get_store
 from tests import responses as r
-from tests.conftest import ALL_OFF, DATA, fake_command, setup_with_token
+from tests.conftest import ALL_OFF, DATA, fake_command, make_token, setup_with_token
 
 ON = {"status_changes": True}
 CONTROLS = {
@@ -91,14 +93,19 @@ async def _sections(hass, client) -> list:
 
 
 async def test_command_lists_the_entities(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
-    await setup_with_token(hass, config_entry)
+    await setup_with_token(hass, config_entry, options={"pre_alert": True, "garrison": True})
     assert await _sections(hass, await hass_ws_client(hass)) == [
         {
             "title": "Verdi",
             "my_availability": "sensor.verdi_my_availability",
+            "pre_alert": "binary_sensor.verdi_pre_alert",
+            "garrison": "binary_sensor.verdi_garrison",
+            "readiness": ["binary_sensor.verdi_readiness_pump_1"],
             "vehicles": ["sensor.verdi_p100"],
             "personnel": "sensor.verdi_personnel",
+            "statistics": [],
             "controls": None,
+            "problem": None,
         }
     ]
 
@@ -191,7 +198,7 @@ async def test_rows_stay_when_a_lookup_failed_on_reload(hass: HomeAssistant, con
     ):
         assert await hass.config_entries.async_reload(config_entry.entry_id)
         await hass.async_block_till_done()
-    assert status_page(hass) == before
+    assert [{**section, "problem": None} for section in status_page(hass)] == before
 
 
 async def test_a_waiting_entry_keeps_its_rows(hass: HomeAssistant, config_entry, mock_api):
@@ -201,7 +208,7 @@ async def test_a_waiting_entry_keeps_its_rows(hass: HomeAssistant, config_entry,
     await hass.config_entries.async_reload(config_entry.entry_id)
     await hass.async_block_till_done()
     assert config_entry.state is ConfigEntryState.SETUP_RETRY
-    assert status_page(hass) == before
+    assert [{**section, "problem": None} for section in status_page(hass)] == before
 
 
 async def test_controls_for_an_admin(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
@@ -277,3 +284,155 @@ async def test_controls_alone_make_no_section(hass: HomeAssistant, config_entry,
     for entity_id in ("sensor.verdi_p100", "sensor.verdi_my_availability", "sensor.verdi_personnel"):
         registry.async_update_entity(entity_id, disabled_by=er.RegistryEntryDisabler.USER)
     assert await _sections(hass, await hass_ws_client(hass)) == []
+
+
+def two_of_each() -> dict:
+    """Verdi's order: Z9 before P100, Pump 1 before Aerial. Sorting by name or by entity ID reverses both."""
+    answers = copy.deepcopy(r.all_ok())
+    vehicles = answers["configuration/vehicles/commands"]["data"]
+    vehicles.insert(0, {**vehicles[0], "guid": "v0", "name": "Z9"})
+    trains = answers["configuration/readinesses/commands"]["groups"][0]["items"]
+    trains.append({**trains[0], "guid": "t2", "title": {"default": "Aerial"}, "trainOrder": 2})
+    return answers
+
+
+async def test_vehicles_and_trains_come_in_verdis_order(hass: HomeAssistant, config_entry, hass_ws_client):
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(two_of_each())),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+        section = (await _sections(hass, await hass_ws_client(hass)))[0]
+    assert section["vehicles"] == ["sensor.verdi_z9", "sensor.verdi_p100"]
+    assert section["readiness"] == [
+        "binary_sensor.verdi_readiness_pump_1",
+        "binary_sensor.verdi_readiness_aerial",
+    ]
+
+
+async def test_entities_outside_the_answer_go_last(hass: HomeAssistant, config_entry):
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(two_of_each())),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await setup_with_token(hass, config_entry)
+    # P100 alone in the next answer: Z9 keeps its entity, and goes last.
+    config_entry.runtime_data.lane("vehicles").data["vehicles"].pop(0)
+    assert status_page(hass)[0]["vehicles"] == ["sensor.verdi_p100", "sensor.verdi_z9"]
+
+
+async def test_statistics_come_with_availability_first(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client, freezer
+):
+    await setup_with_token(hass, config_entry)
+    freezer.tick(timedelta(seconds=330))
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    section = (await _sections(hass, await hass_ws_client(hass)))[0]
+    assert section["statistics"] == [
+        "sensor.verdi_availability_this_year_station_north",
+        "sensor.verdi_times_called_station_north_2deg_ambulance",
+        "sensor.verdi_times_called_station_north_fire",
+    ]
+
+
+async def test_hidden_trains_stay_out(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    er.async_get(hass).async_update_entity(
+        "binary_sensor.verdi_readiness_pump_1", hidden_by=er.RegistryEntryHider.USER
+    )
+    assert status_page(hass)[0]["readiness"] == []
+
+
+async def test_no_tag_entities_by_default(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    section = status_page(hass)[0]
+    assert (section["pre_alert"], section["garrison"]) == (None, None)
+
+
+async def test_positions_keep_verdis_order_through_the_websocket(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client
+):
+    await setup_with_token(hass, config_entry)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "get_states"})
+    states = (await client.receive_json())["result"]
+    train = next(s for s in states if s["entity_id"] == "binary_sensor.verdi_readiness_pump_1")
+    assert list(train["attributes"]["positions"]) == ["Driver", "Crew"]
+
+
+async def test_no_problem_while_all_is_well(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    assert status_page(hass)[0]["problem"] is None
+
+
+async def test_problem_token_without_a_usable_token(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    get_store(hass).tokens.pop(config_entry.entry_id)
+    await hass.config_entries.async_reload(config_entry.entry_id)
+    await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert status_page(hass)[0]["problem"] == "token"
+
+
+async def test_problem_token_during_reauth(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    config_entry.async_start_reauth(hass)
+    await hass.async_block_till_done()
+    assert any(config_entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
+    assert status_page(hass)[0]["problem"] == "token"
+
+
+async def test_problem_verdi_when_setup_failed_despite_a_token(hass: HomeAssistant, config_entry):
+    # Not setup_with_token: that helper asserts the entry loaded.
+    config_entry.add_to_hass(hass)
+    get_store(hass).tokens[config_entry.entry_id] = make_token()
+    with (
+        patch("custom_components.verdi.api.VerdiApi.command", fake_command(VerdiError("down"))),
+        patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER),
+    ):
+        await hass.config_entries.async_setup(config_entry.entry_id)
+        await hass.async_block_till_done()
+    assert config_entry.state is ConfigEntryState.SETUP_RETRY
+    assert _problem(hass, config_entry) == "verdi"
+
+
+async def test_problem_verdi_when_updates_fail(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    config_entry.runtime_data.last_update_success = False
+    assert status_page(hass)[0]["problem"] == "verdi"
+
+
+@pytest.mark.parametrize(
+    ("trouble", "expected"),
+    [
+        (VerdiUnavailable("down", status=503), "verdi"),
+        (VerdiUnavailable("down"), "verdi"),
+        (VerdiUnavailable("busy", status=429), "paused"),
+        (VerdiUnavailable("busy", retry_after=120, status=503), "paused"),
+    ],
+)
+async def test_problem_after_a_failed_tick(hass: HomeAssistant, config_entry, freezer, trouble, expected):
+    failing = {
+        **r.all_ok(),
+        "configuration/persons/commands": trouble,
+        "configuration/vehicles/commands": trouble,
+    }
+    with patch("custom_components.verdi.api.VerdiApi.current_user", return_value=r.CURRENT_USER):
+        with patch("custom_components.verdi.api.VerdiApi.command", fake_command(r.all_ok())):
+            await setup_with_token(hass, config_entry)
+        with patch("custom_components.verdi.api.VerdiApi.command", fake_command(failing)):
+            freezer.tick(timedelta(seconds=120))
+            async_fire_time_changed(hass)
+            await hass.async_block_till_done()
+    assert config_entry.runtime_data.guard.backing_off
+    assert _problem(hass, config_entry) == expected
+
+
+async def test_problem_clears_after_a_success(hass: HomeAssistant, config_entry, mock_api):
+    await setup_with_token(hass, config_entry)
+    guard = config_entry.runtime_data.guard
+    guard.level, guard.asked_to_wait = 1, True
+    guard.succeeded()
+    assert guard.asked_to_wait is False
+    assert _problem(hass, config_entry) is None

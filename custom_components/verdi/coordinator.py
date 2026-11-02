@@ -437,6 +437,8 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 fetched.append(key)
                 self._fetched(key, value, old)
         self._failing = (self._failing - set(fetched)) | set(failed)
+        if trouble is not None:
+            self.guard.asked_to_wait = trouble.status == 429 or trouble.retry_after is not None
         if back_off and trouble is not None:
             # A tick that got nothing back: the whole entry waits. Any other failing lookup
             # has its own retry and must not slow the station down.

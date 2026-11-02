@@ -11,13 +11,14 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import frontend, panel_custom, websocket_api
 from homeassistant.components.http import StaticPathConfig
-from homeassistant.config_entries import ConfigEntryState
+from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntry, ConfigEntryState
 from homeassistant.const import ATTR_RESTORED
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
+from .token import get_store
 
 PANEL_PATH = "verdi"
 STATIC_URL = "/verdi_static"
@@ -31,44 +32,96 @@ CONTROLS = {
 }
 
 
+# What the page shows, by entity domain and translation key: sensors can share a key with a calendar.
+SHOWN = {
+    ("sensor", "my_availability"): "my_availability",
+    ("binary_sensor", "pre_alert"): "pre_alert",
+    ("binary_sensor", "garrison"): "garrison",
+    ("binary_sensor", "readiness"): "readiness",
+    ("sensor", "vehicles"): "vehicles",
+    ("sensor", "personnel"): "personnel",
+    ("sensor", "availability_year"): "statistics",
+    ("sensor", "times_called"): "statistics",
+}
+# Your own data: a lookup switched off by the options leaves these restored.
+PERSONAL = ("my_availability", "pre_alert", "garrison", "statistics")
+
+
+def _verdi_order(entry: ConfigEntry) -> dict[str, int]:
+    """Unique ID -> place in the latest answers. Verdi's order is the web app's, so the page keeps it."""
+    coordinator = getattr(entry, "runtime_data", None)
+    if coordinator is None:
+        return {}
+    prefix = entry.entry_id
+    vehicles = (coordinator.lane("vehicles").data or {}).get("vehicles") or []
+    ids = [f"{prefix}_vehicles_{v['id']}" for v in vehicles]
+    ids += [f"{prefix}_readiness_{t['id']}_bin" for t in (coordinator.data or {}).get("readiness") or []]
+    personal = coordinator.personal
+    statistics = ((personal.data if personal else None) or {}).get("statistics") or {}
+    for kind in ("availability_year", "times_called"):
+        ids += [f"{prefix}_{kind}_{item['id']}" for item in statistics.get(kind) or []]
+    return {unique_id: place for place, unique_id in enumerate(ids)}
+
+
+def _sorted(entities: list[er.RegistryEntry], order: dict[str, int]) -> list[str]:
+    """In Verdi's order; anything outside the answers last. Availability before counters until known."""
+    known = sorted((e for e in entities if e.unique_id in order), key=lambda e: order[e.unique_id])
+    rest = sorted(
+        (e for e in entities if e.unique_id not in order), key=lambda e: (e.translation_key, e.entity_id)
+    )
+    return [e.entity_id for e in known + rest]
+
+
+def _problem(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
+    """Why data may be missing. A fixed word, so no server text can reach the page."""
+    reauth = any(entry.async_get_active_flows(hass, {SOURCE_REAUTH}))
+    if get_store(hass).get(entry.entry_id) is None or reauth:
+        return "token"
+    if entry.state is not ConfigEntryState.LOADED:
+        return "verdi" if entry.state is ConfigEntryState.SETUP_RETRY else None
+    coordinator = entry.runtime_data
+    # A run the guard blocks counts as a success, so backing off comes first.
+    if coordinator.guard.backing_off:
+        return "paused" if coordinator.guard.asked_to_wait else "verdi"
+    return None if coordinator.last_update_success else "verdi"
+
+
 def status_page(hass: HomeAssistant, admin: bool = False) -> list[dict[str, Any]]:
-    """The sensors of each entry, by translation key: the availability calendar shares one of the keys. An
-    admin also gets what changing the status needs; the actions refuse anyone else."""
+    """The entities of each entry, by translation key. An admin also gets what changing the status needs; the
+    actions refuse anyone else."""
     registry = er.async_get(hass)
     sections = []
     for entry in hass.config_entries.async_entries(DOMAIN):
-        found: dict[str, list[str]] = {"my_availability": [], "vehicles": [], "personnel": []}
+        found: dict[str, list[er.RegistryEntry]] = {key: [] for key in set(SHOWN.values())}
         controls: dict[str, str] = {}
         loaded = entry.state is ConfigEntryState.LOADED
         for entity in er.async_entries_for_config_entry(registry, entry.entry_id):
             control = CONTROLS.get((entity.domain, entity.translation_key))
             if control and not entity.disabled:
                 controls[control] = entity.entity_id  # hidden is fine: hiding is about dashboards
-            if (
-                entity.domain == "sensor"
-                and entity.translation_key in found
-                and not entity.disabled
-                and not entity.hidden
-            ):
-                # My availability switched off by the options stays restored. Vehicle and personnel sensors
+            key = SHOWN.get((entity.domain, entity.translation_key))
+            if key and not entity.disabled and not entity.hidden:
+                # Personal data switched off by the options stays restored. Vehicle and personnel sensors
                 # exist only if their lookup answered once, so a failed lookup looks restored: keep them.
                 state = hass.states.get(entity.entity_id)
-                if (
-                    loaded
-                    and entity.translation_key == "my_availability"
-                    and state is not None
-                    and state.attributes.get(ATTR_RESTORED)
-                ):
+                if loaded and key in PERSONAL and state is not None and state.attributes.get(ATTR_RESTORED):
                     continue
-                found[entity.translation_key].append(entity.entity_id)
-        if any(found.values()):
+                found[key].append(entity)
+        if any(found[key] for key in ("my_availability", "vehicles", "personnel")):
+            order = _verdi_order(entry)
+            first = {key: next((e.entity_id for e in found[key]), None) for key in found}
             sections.append(
                 {
                     "title": entry.title,
-                    "my_availability": next(iter(found["my_availability"]), None),
-                    "vehicles": sorted(found["vehicles"]),
-                    "personnel": next(iter(found["personnel"]), None),
+                    "my_availability": first["my_availability"],
+                    "pre_alert": first["pre_alert"],
+                    "garrison": first["garrison"],
+                    "readiness": _sorted(found["readiness"], order),
+                    "vehicles": _sorted(found["vehicles"], order),
+                    "personnel": first["personnel"],
+                    "statistics": _sorted(found["statistics"], order),
                     "controls": _controls(entry.entry_id, controls) if admin else None,
+                    "problem": _problem(hass, entry),
                 }
             )
     return sections

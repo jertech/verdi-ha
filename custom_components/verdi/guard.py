@@ -30,6 +30,7 @@ class Guard:
         self.level = 0
         self._wait_until = 0.0
         self._rejected_since: float | None = None
+        self.asked_to_wait = False  # the last trouble was Verdi asking for it, not Verdi being down
 
     def calls_last_minute(self) -> int:
         now = self._clock()
@@ -44,7 +45,7 @@ class Guard:
         self._calls.append(self._clock())
 
     def succeeded(self) -> None:
-        self.level, self._rejected_since = 0, None
+        self.level, self._rejected_since, self.asked_to_wait = 0, None, False
 
     def wait(self, seconds: float | None) -> None:
         """No calls for this many seconds."""
