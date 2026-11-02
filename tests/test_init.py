@@ -45,6 +45,7 @@ async def test_personnel_sensor_has_the_status_colours(hass: HomeAssistant, conf
 def test_status_colours_are_not_recorded():
     assert "availability_colors" in PersonnelSensor._unrecorded_attributes
     assert "availability_colors" in MyAvailabilitySensor._unrecorded_attributes
+    assert "next_status" in MyAvailabilitySensor._unrecorded_attributes
 
 
 async def test_waits_for_token_during_grace(hass: HomeAssistant, config_entry, mock_api):

@@ -18,7 +18,7 @@ from .entity import VerdiEntity, device_info, find
 
 PARALLEL_UPDATES = 0
 
-READINESS_ATTRS = ("group", "fastest_response_time", "slowest_response_time", "positions")
+READINESS_ATTRS = ("title", "group", "fastest_response_time", "slowest_response_time", "positions")
 
 
 def _first_pre_alert(alerts: list[dict[str, Any]] | None) -> dict[str, Any] | None:

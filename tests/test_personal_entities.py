@@ -210,3 +210,21 @@ async def test_calendar_is_unavailable_when_the_first_events_fetch_fails(
         assert hass.states.get("calendar.verdi_my_shifts").state != "unavailable"
         await after_setup_delay(hass, freezer)
         assert hass.states.get("calendar.verdi_my_shifts").state == "unavailable"
+
+
+async def test_next_status(hass: HomeAssistant, config_entry, mock_api, freezer):
+    await setup_with_token(hass, config_entry)
+    assert hass.states.get("sensor.verdi_my_availability").attributes["next_status"] is None
+    await after_setup_delay(hass, freezer)
+    # Two single events cover the end of the status; the exception ends just before it.
+    assert hass.states.get("sensor.verdi_my_availability").attributes["next_status"] == "Urgent"
+
+
+async def test_statistics_sensors_carry_their_names(hass: HomeAssistant, config_entry, mock_api, freezer):
+    await setup_with_token(hass, config_entry)
+    await after_setup_delay(hass, freezer)
+    year = hass.states.get("sensor.verdi_availability_this_year_station_north").attributes
+    assert year["station"] == "Station North"
+    assert "service" not in year
+    fire = hass.states.get("sensor.verdi_times_called_station_north_fire").attributes
+    assert (fire["station"], fire["service"]) == ("Station North", "Fire")

@@ -287,3 +287,21 @@ def upcoming_events(data: dict[str, Any]) -> dict[str, list[dict[str, Any]]]:
         "shifts": sorted(shifts.values(), key=lambda e: e["start"]),
         "availability": sorted(availability.values(), key=lambda e: e["start"]),
     }
+
+
+def next_status(end: datetime | None, events: dict[str, list[dict[str, Any]]] | None) -> str | None:
+    """What your planning says for the moment your current status ends: a shift, else an exception, else a
+    single event; of those, the one that started last. Recurrences aren't listed, so nothing found means
+    "not known", never "nothing planned"."""
+    if end is None or not events:
+        return None
+    planned = events.get("availability") or []
+    for found in (
+        events.get("shifts") or [],
+        [e for e in planned if e["kind"] == "exception"],
+        [e for e in planned if e["kind"] == "single"],
+    ):
+        covering = [e for e in found if e["start"] <= end < e["end"]]
+        if covering:
+            return max(covering, key=lambda e: e["start"])["summary"]
+    return None

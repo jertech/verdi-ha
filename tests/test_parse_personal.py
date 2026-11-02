@@ -352,3 +352,52 @@ def test_page_keys_list_confirmation_items():
     keys = p.page_keys(r.CURRENT_INTERVENTION)
     assert "callConfirmations[].description" in keys and "callConfirmations[].guid" in keys
     assert "Declined" not in repr(keys)
+
+
+def _event(kind, start_hour, end_hour, summary):
+    start = datetime(2026, 6, 15, start_hour, 0, tzinfo=TZ)
+    return {
+        "kind": kind,
+        "start": start,
+        "end": datetime(2026, 6, 15, end_hour, 0, tzinfo=TZ),
+        "summary": summary,
+    }
+
+
+T = datetime(2026, 6, 15, 12, 0, tzinfo=TZ)
+
+
+def _planned(*events):
+    shifts = [e for e in events if e["kind"] == "shift"]
+    return {"shifts": shifts, "availability": [e for e in events if e["kind"] != "shift"]}
+
+
+def test_next_status_needs_an_end_and_events():
+    assert p.next_status(None, _planned(_event("single", 8, 20, "A"))) is None
+    assert p.next_status(T, None) is None
+    assert p.next_status(T, _planned()) is None
+
+
+def test_next_status_prefers_a_shift_then_an_exception_then_a_single_event():
+    single, exception, shift = (
+        _event("single", 8, 20, "S"),
+        _event("exception", 8, 20, "E"),
+        _event("shift", 8, 20, "F"),
+    )
+    assert p.next_status(T, _planned(single)) == "S"
+    assert p.next_status(T, _planned(single, exception)) == "E"
+    assert p.next_status(T, _planned(single, exception, shift)) == "F"
+
+
+def test_next_status_takes_the_event_that_started_last():
+    planned = _planned(_event("single", 8, 20, "Long"), _event("single", 11, 13, "Short"))
+    assert p.next_status(T, planned) == "Short"
+
+
+def test_next_status_boundaries():
+    assert p.next_status(T, _planned(_event("single", 12, 20, "Starts at T"))) == "Starts at T"
+    assert p.next_status(T, _planned(_event("single", 8, 12, "Ends at T"))) is None
+
+
+def test_next_status_never_guesses():
+    assert p.next_status(T, _planned(_event("single", 13, 20, "Later"))) is None
