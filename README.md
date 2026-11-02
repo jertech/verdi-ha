@@ -11,7 +11,7 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | Entity | Shows |
 |--------|-------|
 | `binary_sensor.<name>_readiness_<train>` | Whether a vehicle train is complete, with positions as attributes |
-| `sensor.<name>_<vehicle>` | Vehicle availability. A vehicle Verdi no longer lists for your station is hidden at the next start or reload and removed a week later |
+| `sensor.<name>_<vehicle>` | Vehicle availability. A vehicle Verdi no longer lists for your station is hidden at once and removed a week later. Until then it may still appear in the integration's entity list |
 | `binary_sensor.<name>_<vehicle>_on_intervention` | Whether the vehicle is on an intervention |
 | `sensor.<name>_personnel` | Head count of the configured availabilities (the statuses Verdi sets when someone is called always count too), with counts per availability and their colours (`availability_colors`) as attributes |
 | `sensor.<name>_team_on_duty_<group>` | Current team, next team and rotation time |

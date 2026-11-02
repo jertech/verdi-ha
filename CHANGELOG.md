@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.14.1] - 2026-11-02
+
+### Integration
+- A vehicle Verdi no longer lists is now hidden at once, also while Home Assistant keeps running, and the week until it's
+  removed no longer waits for a restart. One that's made visible while it's gone is hidden again. One that returns is
+  shown again at once. Hidden vehicles can still appear in the integration's entity list until they're removed.
+
 ## [0.14.0] - 2026-11-02
 
 ### Integration
