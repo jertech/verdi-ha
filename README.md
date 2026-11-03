@@ -154,7 +154,7 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
   and times called with the last call. The calendar feed link Verdi returns is never stored;
 - while you're paged: the page's station, crew function, vehicle, alarm time, incident, city (as Verdi
   sends it, sometimes with the postal code) and your confirmation (as the Paged sensor's attributes, so
-  also in the history); never the street address, coordinates or caller;
+  also in the history); never the street address, coordinates, caller or free text;
 - with **Change my status** on, the integration sends Verdi your person ID, the chosen status, duration or
   time slot, the time of a change, and Verdi's own IDs for your station, planning group, calendar, crew
   function and event type; nothing about other people. Verdi's answers to these changes are shown to whoever

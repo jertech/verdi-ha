@@ -281,7 +281,7 @@ def test_current_intervention_keeps_only_safe_fields():
 
 def test_current_intervention_city_as_sent():
     page = r.CURRENT_INTERVENTION["currentIntervention"]
-    for sent, kept in (("9000  Gent ", "9000 Gent"), ("Gent", "Gent"), ("", None), ("-", None), (None, None),
+    for sent, kept in (("1000  Townsville ", "1000 Townsville"), ("Townsville", "Townsville"), ("", None), ("-", None), (None, None),
                        ({"name": "x"}, None), (12, None)):  # fmt: skip
         assert p.current_intervention({"currentIntervention": {**page, "city": sent}})["city"] == kept
     assert p.current_intervention({"currentIntervention": {"station": "S"}})["city"] is None

@@ -1016,7 +1016,8 @@ function pagedBanner(context) {
     banner.append(element("div", "paged-city", a.city));
     say.push(a.city);
   }
-  const unit = [a.vehicle, a.crew_function].filter(Boolean).join(" · ");
+  const parts = [a.vehicle, a.crew_function].filter(Boolean);
+  const unit = parts.join(" · ");
   if (unit) {
     const line = element("div", "paged-line");
     const vehicles = (data.vehicles ?? []).map((id) => ({
@@ -1031,7 +1032,7 @@ function pagedBanner(context) {
     }
     line.append(element("span", "", unit));
     banner.append(line);
-    say.push(unit);
+    say.push(parts.join(", ")); // a middle dot is read out as "dot"
   }
   if (a.station) {
     banner.append(element("div", "paged-line", a.station));
@@ -1234,6 +1235,7 @@ function definePanel() {
           this._drawn = undefined;
           this._render();
         }
+        this._announce(); // a page that came in behind the dialog is spoken now; one already spoken is not
         const active = this.shadowRoot.activeElement;
         if (active && active !== this._dialog) return;
         if (gear) this._view.querySelector(`[data-settings="${gear}"]`)?.focus();
@@ -1294,6 +1296,7 @@ function definePanel() {
 
     // A page is new when its station, alarm time or incident differs; a banner that vanishes and returns is not.
     _announce() {
+      if (this._dialog.open) return; // a modal dialog hides the announcer; closing it calls this again
       const banners = [...this._view.querySelectorAll(".paged")];
       if (!banners.length) {
         this._announcer.textContent = "";
@@ -1303,7 +1306,7 @@ function definePanel() {
       for (const banner of banners) {
         if (this._announced.get(banner.dataset.entry) === banner.dataset.paged) continue;
         this._announced.set(banner.dataset.entry, banner.dataset.paged);
-        say.push(banner.dataset.say);
+        if (!say.includes(banner.dataset.say)) say.push(banner.dataset.say); // two entries, one account: one page
       }
       if (say.length) this._announcer.textContent = say.join(". ");
     }
@@ -1314,7 +1317,7 @@ function definePanel() {
       const times = [...this._view.querySelectorAll("[data-alarm]")];
       if (!this.isConnected || !times.length) return;
       const now = Date.now();
-      const wait = Math.min(...times.map((when) => nextMinute(when.dataset.alarm, now)));
+      const wait = Math.min(60000, ...times.map((when) => nextMinute(when.dataset.alarm, now)));
       this._minuteTimer = setTimeout(() => {
         for (const when of this._view.querySelectorAll("[data-alarm]")) {
           const time = pagedTime(when.dataset.alarm, Date.now(), this._hass.language);

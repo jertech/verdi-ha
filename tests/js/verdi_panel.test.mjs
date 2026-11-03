@@ -563,3 +563,12 @@ test("a section's entities include the Paged sensor", () => {
     ["sensor.a", "binary_sensor.p"],
   );
 });
+
+test("the paged words exist in every language", () => {
+  assert.equal(label("nl", "paged"), "Opgeroepen");
+  assert.equal(label("fr", "paged"), "Alarmé");
+  assert.equal(label("en", "paged"), "Paged");
+  for (const key of ["pagedAgo", "hourUnit", "confirmed", "notConfirmed"]) {
+    for (const language of ["en", "nl", "fr"]) assert.ok(label(language, key), `${language} ${key}`);
+  }
+});
