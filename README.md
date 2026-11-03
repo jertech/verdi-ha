@@ -50,6 +50,11 @@ so another zone's colours work by themselves, and a colour changed in Verdi show
 Every Home Assistant user can open the page. It shows the statuses you chose in the integration's options, and no
 colleagues' names. Entities you hide in Home Assistant are left out.
 
+**Your own layout:** the gear on the page opens the page settings. Choose Overview, Board or List, then change what you like:
+which blocks show, their order and place, and how vehicles, Readiness, personnel and statistics look. Each Home Assistant
+user has their own settings, per station, with one set for a phone and one for a wide screen. They follow you across
+browsers and the Companion app.
+
 Tap a train to see its positions. To give a vehicle its own icon, set one for its entity under **Settings** > **Devices &
 services** > **Entities**. Names of statuses, vehicles and trains come from your Verdi zone, in the language it's set up
 in. The rest of the page follows your Home Assistant language.
