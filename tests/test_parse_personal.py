@@ -270,12 +270,21 @@ def test_current_intervention_keeps_only_safe_fields():
     assert out == {
         "station": "Station 1", "crew_function": "Driver", "vehicle": "P100",
         "alarm_time": "2026-10-24T09:00:00+00:00", "incident": "Fire", "confirmation": "Confirmed",
+        "city": "Townsville",
     }  # fmt: skip
     for leaked in (
-        "Main St 1", "Townsville", "51.1", "3.7", "A Caller", "+320000", "secret", "RG1",
+        "Main St 1", "51.1", "3.7", "A Caller", "+320000", "secret", "RG1",
         "iv-1", "st-1", "cf-9", "cc-1", "Declined",
     ):  # fmt: skip
         assert leaked not in repr(out)
+
+
+def test_current_intervention_city_as_sent():
+    page = r.CURRENT_INTERVENTION["currentIntervention"]
+    for sent, kept in (("1000  Townsville ", "1000 Townsville"), ("Townsville", "Townsville"), ("", None), ("-", None), (None, None),
+                       ({"name": "x"}, None), (12, None)):  # fmt: skip
+        assert p.current_intervention({"currentIntervention": {**page, "city": sent}})["city"] == kept
+    assert p.current_intervention({"currentIntervention": {"station": "S"}})["city"] is None
 
 
 def test_current_intervention_none_when_absent():
@@ -297,7 +306,7 @@ def test_current_intervention_never_returns_objects():
     )
     assert out == {
         "station": "Plain station", "crew_function": None, "vehicle": "P1",
-        "alarm_time": None, "incident": None, "confirmation": None,
+        "alarm_time": None, "incident": None, "confirmation": None, "city": None,
     }  # fmt: skip
     assert all(v is None or isinstance(v, str) for v in out.values())
 

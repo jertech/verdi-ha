@@ -67,11 +67,22 @@ async def test_a_non_admin_saves_and_sees_only_their_own(
     assert (await section(await hass_ws_client(hass)))["settings"] == {"wide": BORD}
 
 
+BANNER_OFF = {"preset": "overzicht", "changes": {"banner": False}}
+
+
+async def test_the_banner_switch_is_stored(hass, config_entry, mock_api, hass_ws_client):
+    await setup_with_token(hass, config_entry)
+    client = await hass_ws_client(hass)
+    assert (await save(client, config_entry.entry_id, phone=BANNER_OFF))["success"]
+    assert (await section(client))["settings"] == {"phone": BANNER_OFF}
+
+
 @pytest.mark.parametrize(
     "bad",
     [
         {"preset": "aangepast", "changes": {}},
         {"preset": "bord"},
+        {"preset": "overzicht", "changes": {"banner": "no"}},
         {"preset": "bord", "changes": {"blocks": {"map": {"shown": False}}}},
         {"preset": "bord", "changes": {"blocks": {"vehicles": {"place": "middle"}}}},
         {"preset": "bord", "changes": {"blocks": {"vehicles": {"view": "chips"}}}},

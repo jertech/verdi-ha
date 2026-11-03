@@ -53,8 +53,9 @@ async def test_paged_on_with_safe_attributes(hass: HomeAssistant, config_entry, 
     assert state.attributes["incident"] == "Fire"
     assert state.attributes["crew_function"] == "Driver"
     assert state.attributes["confirmation"] == "Confirmed"
+    assert state.attributes["city"] == "Townsville"
     # The sensitive fields the parser drops never reach the attributes.
-    for hidden in ("address", "city", "latitude", "longitude", "callerName", "info", "radioGroup"):
+    for hidden in ("address", "latitude", "longitude", "callerName", "info", "radioGroup"):
         assert hidden not in state.attributes
     shown = repr(dict(state.attributes))
     for identifier in ("iv-1", "st-1", "cf-9", "cc-1"):

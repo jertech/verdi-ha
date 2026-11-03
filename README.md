@@ -19,7 +19,7 @@ plus a Home Assistant app (formerly called add-on) that keeps the login token fr
 | `sensor.<name>_my_availability` | Your own availability, its end time, per station and planning group, and the colours of the availabilities (`availability_colors`) as attributes (with its switch under "Your own data from the Verdi app" on) |
 | `binary_sensor.<name>_pre_alert` | Whether you have a pre-alert (off by default; switch on in the options) |
 | `binary_sensor.<name>_garrison` | Whether you're on garrison (off by default; switch on in the options) |
-| `binary_sensor.<name>_paged` | Whether you're paged right now (on by default; off when you untick Paged in the Fast lane), with the page's station, crew function, vehicle, alarm time, incident and your confirmation as attributes |
+| `binary_sensor.<name>_paged` | Whether you're paged right now (on by default; off when you untick Paged in the Fast lane), with the page's station, crew function, vehicle, alarm time, incident, city and your confirmation as attributes |
 | `sensor.<name>_availability_this_year_<station>` | Your availability % this year at a station; earlier years as attributes |
 | `sensor.<name>_times_called_<station>_<service>` | How often you were called for a service, with the last call |
 | `calendar.<name>_my_shifts` | Your own shifts, about a month ahead |
@@ -152,8 +152,9 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
   function, start and, when Verdi sends one, end) and your garrison station and city, both off by
   default; your shifts and availability events about a month ahead; and your availability % per year
   and times called with the last call. The calendar feed link Verdi returns is never stored;
-- while you're paged: the page's station, crew function, vehicle, alarm time, incident and your
-  confirmation (as the Paged sensor's attributes, so also in the history);
+- while you're paged: the page's station, crew function, vehicle, alarm time, incident, city (as Verdi
+  sends it, sometimes with the postal code) and your confirmation (as the Paged sensor's attributes, so
+  also in the history); never the street address, coordinates, caller or free text;
 - with **Change my status** on, the integration sends Verdi your person ID, the chosen status, duration or
   time slot, the time of a change, and Verdi's own IDs for your station, planning group, calendar, crew
   function and event type; nothing about other people. Verdi's answers to these changes are shown to whoever

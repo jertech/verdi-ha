@@ -161,14 +161,15 @@ def garrison(data: dict[str, Any]) -> dict[str, Any]:
 def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
     """Your current page, non-sensitive fields only, each text or None. None when you're not paged.
 
-    Everything locating the incident or a third party (address, city, coordinates, caller,
-    free-text info, radio group) is dropped here and never stored. Objects are reduced to their
+    Everything locating the incident beyond its city or a third party (address, coordinates,
+    caller, free text, radio group) is dropped here and never stored. Objects are reduced to their
     label, so no identifier reaches the sensor's attributes.
     """
     page = data.get("currentIntervention")
     if not isinstance(page, dict) or not page:
         return None
     alarm = page.get("alarmDate")
+    city = page.get("city")
     return {
         "station": _label(page.get("station")),
         "crew_function": _label(page.get("crewFunction")),
@@ -176,6 +177,7 @@ def current_intervention(data: dict[str, Any]) -> dict[str, Any] | None:
         "alarm_time": alarm if isinstance(alarm, str) else None,
         "incident": _label(page.get("incident")),
         "confirmation": _label(page.get("callConfirmation")),
+        "city": clean(city) if isinstance(city, str) else None,
     }
 
 

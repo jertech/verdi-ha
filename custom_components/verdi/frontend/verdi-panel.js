@@ -76,6 +76,11 @@ const LABELS = {
     problem_stale: "Some data may be out of date. It will retry by itself.",
     updated: "Verdi was updated. Reload to see the changes.",
     reload: "Reload",
+    paged: "Paged",
+    pagedAgo: "{since} ago",
+    hourUnit: "h",
+    confirmed: "Confirmed",
+    notConfirmed: "Not confirmed",
   },
   nl: {
     myStatus: "Mijn status",
@@ -127,6 +132,11 @@ const LABELS = {
     problem_stale: "Sommige gegevens zijn mogelijk niet actueel. Er wordt automatisch opnieuw geprobeerd.",
     updated: "Verdi is bijgewerkt. Herlaad om de wijzigingen te zien.",
     reload: "Herladen",
+    paged: "Opgeroepen",
+    pagedAgo: "{since} geleden",
+    hourUnit: "u",
+    confirmed: "Bevestigd",
+    notConfirmed: "Niet bevestigd",
   },
   fr: {
     myStatus: "Mon statut",
@@ -178,6 +188,11 @@ const LABELS = {
     problem_stale: "Certaines données peuvent ne pas être à jour. Nouvel essai automatique.",
     updated: "Verdi a été mis à jour. Rechargez pour voir les changements.",
     reload: "Recharger",
+    paged: "Alarmé",
+    pagedAgo: "il y a {since}",
+    hourUnit: "h",
+    confirmed: "Confirmé",
+    notConfirmed: "Non confirmé",
   },
 };
 
@@ -313,6 +328,33 @@ export function clockTime(value, language) {
   return new Date(value).toLocaleTimeString(language, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 }
 
+// Minutes since the alarm by this browser's clock. Under a minute, or an alarm ahead of the clock, is "< 1 min".
+export function pagedTime(alarm, now, language) {
+  if (typeof alarm !== "string" || !alarm) return null;
+  const at = new Date(alarm).getTime();
+  if (Number.isNaN(at)) return null;
+  const minutes = Math.floor((now - at) / 60000);
+  let since = "< 1 min";
+  if (minutes >= 60) since = `${Math.floor(minutes / 60)} ${label(language, "hourUnit")} ${minutes % 60} min`;
+  else if (minutes >= 1) since = `${minutes} min`;
+  return { clock: clockTime(alarm, language), since: label(language, "pagedAgo").replace("{since}", since) };
+}
+
+// When the minutes count next changes: a minute after the alarm, then on the alarm's own second.
+export function nextMinute(alarm, now) {
+  const at = new Date(alarm).getTime();
+  const elapsed = now - at;
+  return elapsed < 60000 ? at + 60000 - now : 60000 - (elapsed % 60000);
+}
+
+// Verdi's name for the paged vehicle against the names the page shows. No match: no icon, as the spec says.
+export function pagedVehicleIcon(vehicle, vehicles) {
+  const wanted = typeof vehicle === "string" ? vehicle.trim().toLowerCase() : "";
+  if (!wanted) return null;
+  const found = vehicles.find((item) => item.name.trim().toLowerCase() === wanted);
+  return found ? (found.icon ?? VEHICLE_ICON) : null;
+}
+
 export function vehicleRow(row) {
   return { status: row.s, color: normalizeColor(row.a?.color), tone: null, missing: [], since: row.a?.availability_since };
 }
@@ -414,6 +456,7 @@ export function entityIds(section) {
     section.my_availability,
     section.pre_alert,
     section.garrison,
+    section.paged,
     ...(section.readiness ?? []),
     ...section.vehicles,
     section.personnel,
@@ -491,6 +534,20 @@ const STYLE = `
   .pill { display: inline-block; padding: 4px 12px; border: 1px solid var(--divider-color); border-radius: 16px; overflow-wrap: anywhere; }
   .pill.large { padding: 8px 16px; font-size: 18px; }
   .muted { color: var(--secondary-text-color); }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .paged { display: flex; flex-direction: column; gap: 4px; padding: 14px 16px; border-radius: 12px;
+    background: #ef9a9a; color: #1a1a1a; overflow-wrap: anywhere; }
+  .paged-top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 2px 16px; }
+  .paged.phone .paged-top { flex-direction: column-reverse; align-items: flex-start; }
+  .paged-incident { min-width: 0; font-size: 24px; font-weight: 500; line-height: 1.2; }
+  .paged-time { font-size: 16px; font-weight: 500; }
+  .paged-city { font-size: 19px; font-weight: 500; }
+  .paged-line { display: flex; align-items: center; gap: 6px; min-width: 0; font-size: 16px; }
+  .paged-line ha-icon { flex: none; --mdc-icon-size: 22px; }
+  .paged-confirm { align-self: flex-start; margin-top: 4px; padding: 4px 12px; border: 1px solid rgba(0, 0, 0, 0.35);
+    border-radius: 16px; font-size: 16px; font-weight: 500; }
+  .paged-confirm.yes { background: #28a745; color: #1a1a1a; }
+  .paged-confirm.no { background: #dc3545; color: #fff; }
   h3.split { display: flex; justify-content: space-between; gap: 8px; }
   h3.split small { color: var(--secondary-text-color, #727272); font-size: 13px; font-weight: 400; }
   .until { flex: none; white-space: nowrap; }
@@ -504,8 +561,8 @@ const STYLE = `
     color: inherit; font: inherit; text-align: left; }
   button.line { cursor: pointer; }
   .dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: ${FALLBACK_COLOR}; }
-  .dot.ok { background: var(--success-color, #4caf50); }
-  .dot.short { background: var(--error-color, #db4437); }
+  .dot.ok { background: #28a745; }
+  .dot.short { background: #dc3545; }
   .line .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
   .line .time { flex: none; color: var(--secondary-text-color, #727272); font-size: 13px; }
   .chevron { flex: none; width: 8px; height: 8px; margin: 0 3px 3px; border-right: 2px solid var(--secondary-text-color, #727272);
@@ -536,8 +593,8 @@ const STYLE = `
   .chip { padding: 4px 12px; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); border-radius: 16px;
     background: none; color: inherit; font: inherit; overflow-wrap: anywhere; }
   button.chip { cursor: pointer; }
-  .chip.ok { border-color: #2e7d32; background: #2e7d32; color: #fff; }
-  .chip.short { border-color: #c62828; background: #c62828; color: #fff; }
+  .chip.ok { border-color: #28a745; background: #28a745; color: #1a1a1a; }
+  .chip.short { border-color: #dc3545; background: #dc3545; color: #fff; }
   .tile:hover { filter: brightness(0.95); }
   .tile:focus-visible, .history-link:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
   .history-link { margin: -4px 0 8px 18px; padding: 0; border: 0; background: none; color: var(--primary-color, #03a9f4);
@@ -584,8 +641,8 @@ const STYLE = `
     background: var(--secondary-background-color, #e5e5e5); }
   .history-bar span { position: absolute; top: 0; bottom: 0; min-width: 2px;
     box-shadow: inset 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
-  .history-bar .ok { background: var(--success-color, #4caf50); }
-  .history-bar .short { background: var(--error-color, #db4437); }
+  .history-bar .ok { background: #28a745; }
+  .history-bar .short { background: #dc3545; }
   .history-bar .none { background: ${FALLBACK_COLOR}; }
   .ticks { position: relative; flex: none; height: 16px; margin-bottom: 12px; color: var(--secondary-text-color, #727272); font-size: 11px; }
   .ticks span { position: absolute; transform: translateX(-50%); }
@@ -929,6 +986,67 @@ function updateNotice(language) {
   return line;
 }
 
+// Spec §4. The page redraws everything on any change, so this is drawn anew each time; _announce speaks once.
+function pagedBanner(context) {
+  const { data, language, states, wide, set } = context;
+  const state = data.paged ? states[data.paged] : undefined;
+  if (state?.state !== "on" || !settings.resolve(set).banner) return null;
+  const a = state.attributes ?? {};
+  const banner = element("div", `paged${wide ? "" : " phone"}`);
+  banner.dataset.entry = data.entry_id;
+  banner.dataset.paged = [data.entry_id, a.alarm_time ?? "", a.incident ?? ""].join("|");
+  banner.append(element("span", "sr-only", `${label(language, "paged")}: `));
+  const say = [];
+  const top = element("div", "paged-top");
+  if (a.incident) {
+    top.append(element("span", "paged-incident", a.incident));
+    say.push(a.incident);
+  }
+  const time = pagedTime(a.alarm_time, Date.now(), language);
+  if (time) {
+    const when = element("span", "paged-time");
+    when.dataset.alarm = a.alarm_time;
+    const shown = element("span", "", `${time.clock} · ${time.since}`);
+    shown.setAttribute("aria-hidden", "true");
+    when.append(shown, element("span", "sr-only", time.clock));
+    top.append(when);
+  }
+  if (top.childElementCount) banner.append(top);
+  if (a.city) {
+    banner.append(element("div", "paged-city", a.city));
+    say.push(a.city);
+  }
+  const parts = [a.vehicle, a.crew_function].filter(Boolean);
+  const unit = parts.join(" · ");
+  if (unit) {
+    const line = element("div", "paged-line");
+    const vehicles = (data.vehicles ?? []).map((id) => ({
+      name: vehicleName(states[id]?.attributes?.friendly_name, data.title),
+      icon: states[id]?.attributes?.icon,
+    }));
+    const icon = pagedVehicleIcon(a.vehicle, vehicles);
+    const node = icon ? vehicleIcon(icon) : null;
+    if (node) {
+      node.setAttribute("aria-hidden", "true");
+      line.append(node);
+    }
+    line.append(element("span", "", unit));
+    banner.append(line);
+    say.push(parts.join(", ")); // a middle dot is read out as "dot"
+  }
+  if (a.station) {
+    banner.append(element("div", "paged-line", a.station));
+    say.push(a.station);
+  }
+  if (time) say.push(time.clock);
+  const confirmed = Boolean(a.confirmation);
+  const answer = label(language, confirmed ? "confirmed" : "notConfirmed");
+  banner.append(element("div", `paged-confirm ${confirmed ? "yes" : "no"}`, answer));
+  say.push(answer);
+  banner.dataset.say = `${label(language, "paged")}: ${say.join(", ")}`;
+  return banner;
+}
+
 function section(context, withHeading) {
   const { data, language, set, wide } = context;
   const nodes = [];
@@ -937,6 +1055,8 @@ function section(context, withHeading) {
     title.append(context.gear(data));
     nodes.push(title);
   }
+  const banner = pagedBanner(context);
+  if (banner) nodes.push(banner);
   if (data.problem) {
     const line = element("div", `problem ${data.problem}`, label(language, `problem_${data.problem}`));
     line.setAttribute("role", "alert");
@@ -1076,6 +1196,11 @@ function definePanel() {
       this._historyCall = 0;
       this._historyTarget = undefined;
       this._settingsTarget = undefined;
+      this._minuteTimer = undefined;
+      this._announced = new Map(); // entry_id -> key of the page last announced there
+      // A redraw replaces the banner, so a page is announced here, once, and not by the banner itself.
+      this._announcer = element("div", "sr-only");
+      this._announcer.setAttribute("aria-live", "assertive");
       // `ha-icon` may arrive after the first drawing.
       customElements.whenDefined("ha-icon").then(() => {
         this._drawn = undefined;
@@ -1110,12 +1235,13 @@ function definePanel() {
           this._drawn = undefined;
           this._render();
         }
+        this._announce(); // a page that came in behind the dialog is spoken now; one already spoken is not
         const active = this.shadowRoot.activeElement;
         if (active && active !== this._dialog) return;
         if (gear) this._view.querySelector(`[data-settings="${gear}"]`)?.focus();
         else (target ? this._historyButton(target) : this._pill(this._opened))?.focus();
       });
-      this.shadowRoot.append(element("style", "", STYLE + settings.SETTINGS_STYLE), this._view, this._dialog);
+      this.shadowRoot.append(element("style", "", STYLE + settings.SETTINGS_STYLE), this._view, this._dialog, this._announcer);
     }
 
     connectedCallback() {
@@ -1128,11 +1254,13 @@ function definePanel() {
       }
       this._resize.observe(this);
       if (this._hass) this._arm();
+      this._armMinutes();
     }
 
     disconnectedCallback() {
       this._resize.disconnect();
       clearTimeout(this._timer);
+      clearTimeout(this._minuteTimer);
       this._drafts.delete(this._settingsTarget); // a reused element shows what's stored
       this._dialog.close();
     }
@@ -1164,6 +1292,39 @@ function definePanel() {
     _arm() {
       clearTimeout(this._timer);
       if (this.isConnected) this._timer = setTimeout(() => this._load(), refreshDelay(this._loadedAt, Date.now()));
+    }
+
+    // A page is new when its station, alarm time or incident differs; a banner that vanishes and returns is not.
+    _announce() {
+      if (this._dialog.open) return; // a modal dialog hides the announcer; closing it calls this again
+      const banners = [...this._view.querySelectorAll(".paged")];
+      if (!banners.length) {
+        this._announcer.textContent = "";
+        return;
+      }
+      const say = [];
+      for (const banner of banners) {
+        if (this._announced.get(banner.dataset.entry) === banner.dataset.paged) continue;
+        this._announced.set(banner.dataset.entry, banner.dataset.paged);
+        if (!say.includes(banner.dataset.say)) say.push(banner.dataset.say); // two entries, one account: one page
+      }
+      if (say.length) this._announcer.textContent = say.join(". ");
+    }
+
+    // While a banner shows, its minutes count on in place: no redraw, so focus and dialogs stay.
+    _armMinutes() {
+      clearTimeout(this._minuteTimer);
+      const times = [...this._view.querySelectorAll("[data-alarm]")];
+      if (!this.isConnected || !times.length) return;
+      const now = Date.now();
+      const wait = Math.min(60000, ...times.map((when) => nextMinute(when.dataset.alarm, now)));
+      this._minuteTimer = setTimeout(() => {
+        for (const when of this._view.querySelectorAll("[data-alarm]")) {
+          const time = pagedTime(when.dataset.alarm, Date.now(), this._hass.language);
+          if (time) when.firstChild.textContent = `${time.clock} · ${time.since}`;
+        }
+        this._armMinutes();
+      }, wait + 50);
     }
 
     // Why data is missing comes from the server, so ask again when what's missing changes.
@@ -1247,6 +1408,8 @@ function definePanel() {
       if (target) this._historyButton(target)?.focus({ preventScroll: true });
       if (active.settings) this._view.querySelector(`[data-settings="${active.settings}"]`)?.focus({ preventScroll: true });
       if ("reload" in active) this._view.querySelector("[data-reload]")?.focus({ preventScroll: true });
+      this._announce();
+      this._armMinutes();
     }
 
     _openSettings(data) {

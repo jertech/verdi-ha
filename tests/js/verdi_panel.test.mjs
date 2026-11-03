@@ -21,7 +21,10 @@ import {
   liveRows,
   missingPositions,
   moment,
+  nextMinute,
   normalizeColor,
+  pagedTime,
+  pagedVehicleIcon,
   periodTimes,
   refreshDelay,
   responseTime,
@@ -519,4 +522,53 @@ test("the update notice is there in every language", () => {
   }
   assert.notEqual(label("nl", "updated"), label("en", "updated"));
   assert.notEqual(label("fr", "updated"), label("en", "updated"));
+});
+
+const local = (h, m, s = 0) => new Date(2026, 10, 3, h, m, s);
+
+test("the banner's time: the alarm's clock and the minutes since", () => {
+  const alarm = local(12, 3).toISOString();
+  const at = (h, m, s = 0) => local(h, m, s).getTime();
+  assert.deepEqual(pagedTime(alarm, at(12, 7, 30), "en"), { clock: "12:03", since: "4 min ago" });
+  assert.equal(pagedTime(alarm, at(12, 7, 30), "nl").since, "4 min geleden");
+  assert.equal(pagedTime(alarm, at(12, 7, 30), "fr").since, "il y a 4 min");
+  assert.equal(pagedTime(alarm, at(12, 3, 59), "en").since, "< 1 min ago");
+  assert.equal(pagedTime(alarm, at(12, 1), "en").since, "< 1 min ago");
+  assert.equal(pagedTime(alarm, at(13, 8), "en").since, "1 h 5 min ago");
+  assert.equal(pagedTime(alarm, at(13, 8), "nl").since, "1 u 5 min geleden");
+  assert.equal(pagedTime(alarm, at(13, 8), "fr").since, "il y a 1 h 5 min");
+  assert.equal(pagedTime(local(12, 0).toISOString(), local(13, 0, 1).getTime(), "en").since, "1 h 0 min ago");
+  for (const bad of [undefined, null, "", "not a date", 12]) assert.equal(pagedTime(bad, at(12, 7), "en"), null);
+});
+
+test("the minutes change on the alarm's own second", () => {
+  const alarm = local(12, 3, 20).toISOString();
+  assert.equal(nextMinute(alarm, local(12, 3, 30).getTime()), 50000);
+  assert.equal(nextMinute(alarm, local(12, 7, 50).getTime()), 30000);
+  assert.equal(nextMinute(alarm, local(12, 2, 0).getTime()), 140000); // alarm ahead of the clock
+});
+
+test("the paged vehicle's icon comes from its entity", () => {
+  const vehicles = [{ name: "P100", icon: "mdi:ambulance" }, { name: "Z9", icon: undefined }];
+  assert.equal(pagedVehicleIcon(" p100", vehicles), "mdi:ambulance");
+  assert.equal(pagedVehicleIcon("Z9", vehicles), "mdi:fire-truck");
+  assert.equal(pagedVehicleIcon("Ladder 3", vehicles), null);
+  assert.equal(pagedVehicleIcon(null, vehicles), null);
+  assert.equal(pagedVehicleIcon("", vehicles), null);
+});
+
+test("a section's entities include the Paged sensor", () => {
+  assert.deepEqual(
+    entityIds({ my_availability: "sensor.a", paged: "binary_sensor.p", vehicles: [], personnel: null }),
+    ["sensor.a", "binary_sensor.p"],
+  );
+});
+
+test("the paged words exist in every language", () => {
+  assert.equal(label("nl", "paged"), "Opgeroepen");
+  assert.equal(label("fr", "paged"), "Alarmé");
+  assert.equal(label("en", "paged"), "Paged");
+  for (const key of ["pagedAgo", "hourUnit", "confirmed", "notConfirmed"]) {
+    for (const language of ["en", "nl", "fr"]) assert.ok(label(language, key), `${language} ${key}`);
+  }
 });

@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.17.0] - 2026-11-03
+
+### Integration
+- While you're paged, the **Verdi (unofficial)** page shows a light red banner at the top: the incident, the time of the
+  alarm and the minutes since, the city, the vehicle with its icon and your function, the station, and whether you've
+  confirmed. Turn it off per set in the page settings (**Paged banner**).
+- The Paged sensor has the page's city as an attribute, as Verdi sends it (sometimes with the postal code). The street
+  address is still never read.
+- Paraatheid's dots, chips and history bar use the Verdi web app's green and red.
+
 ## [0.16.0] - 2026-11-03
 
 ### Integration
@@ -433,6 +443,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.17.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.17.0
 [0.16.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.16.0
 [0.15.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.15.1
 [0.15.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.15.0

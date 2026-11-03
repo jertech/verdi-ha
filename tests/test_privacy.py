@@ -201,6 +201,7 @@ async def test_diagnostics_show_timing_without_ids_or_page_values(
         "Station 1",
         "P100",
         "Main St 1",
+        "Townsville",
         "A Caller",
         "+320000",
         "Confirmed",
