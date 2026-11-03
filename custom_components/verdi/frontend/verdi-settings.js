@@ -21,6 +21,7 @@ const everywhere = (views) =>
 
 export const PRESETS = {
   overzicht: {
+    banner: true,
     order: [...BLOCKS],
     blocks: {
       myStatus: { shown: true, place: "left" },
@@ -31,10 +32,12 @@ export const PRESETS = {
     },
   },
   bord: {
+    banner: true,
     order: LEADING,
     blocks: everywhere({ vehicles: "tiles", readiness: "chips", personnel: "bar", statistics: "numbers" }),
   },
   lijst: {
+    banner: true,
     order: LEADING,
     blocks: everywhere({ vehicles: "list", readiness: "lines", personnel: "bar", statistics: "rows" }),
   },
@@ -68,7 +71,8 @@ export function resolve(set) {
     BLOCKS.map((block) => [block, resolvedBlock(block, preset.blocks[block], stored[block])]),
   );
   if (!BLOCKS.some((block) => blocks[block].shown)) blocks[preset.order[0]].shown = true;
-  return { preset: name, order: resolvedOrder(preset, changes), blocks };
+  const banner = typeof changes.banner === "boolean" ? changes.banner : preset.banner;
+  return { preset: name, order: resolvedOrder(preset, changes), blocks, banner };
 }
 
 /** The page's rows: `{ left, right }` columns, or `{ full }`. A phone is one column. */
@@ -110,6 +114,14 @@ export function setOption(set, name, field, value) {
   const blocks = { ...storedBlocks, [name]: block };
   if (!Object.keys(block).length) delete blocks[name];
   if (Object.keys(blocks).length) changes.blocks = blocks;
+  return { ...set, changes };
+}
+
+/** The banner isn't a block: one flag per set, stored only when it differs from the preset. */
+export function setBanner(set, value) {
+  const preset = PRESETS[presetName(set)];
+  const { banner: _, ...changes } = isObject(set.changes) ? set.changes : {};
+  if (value !== preset.banner) changes.banner = value;
   return { ...set, changes };
 }
 
@@ -163,6 +175,7 @@ export const SETTINGS_LABELS = {
     lijst: "List",
     aangepast: "Custom",
     blocks: "Blocks",
+    pagedBanner: "Paged banner",
     dragHint: "Drag to reorder",
     arrowHint: "Use the arrows to reorder",
     show: "Show",
@@ -198,6 +211,7 @@ export const SETTINGS_LABELS = {
     lijst: "Lijst",
     aangepast: "Aangepast",
     blocks: "Blokken",
+    pagedBanner: "Banner bij oproep",
     dragHint: "Sleep om de volgorde te wijzigen",
     arrowHint: "Gebruik de pijlen om de volgorde te wijzigen",
     show: "Tonen",
@@ -233,6 +247,7 @@ export const SETTINGS_LABELS = {
     lijst: "Liste",
     aangepast: "Personnalisé",
     blocks: "Blocs",
+    pagedBanner: "Bandeau d'alarme",
     dragHint: "Faites glisser pour réorganiser",
     arrowHint: "Utilisez les flèches pour réorganiser",
     show: "Afficher",
@@ -447,6 +462,14 @@ export function drawSettings(dialog, options) {
       ),
     ];
     if (width !== current) children.push(node("div", "muted", settingsLabel(language, "otherWidth")));
+    const bannerLine = node("label", "banner-setting");
+    const bannerBox = node("input");
+    bannerBox.type = "checkbox";
+    bannerBox.dataset.focus = "banner";
+    bannerBox.checked = layout.banner;
+    bannerBox.addEventListener("change", () => change(setBanner(set, bannerBox.checked)));
+    bannerLine.append(bannerBox, node("span", "block-name", settingsLabel(language, "pagedBanner")));
+    children.push(bannerLine);
     children.push(
       node("div", "settings-label", settingsLabel(language, "blocks")),
       node("div", "muted", settingsLabel(language, fine ? "dragHint" : "arrowHint")),
@@ -481,6 +504,7 @@ export const SETTINGS_STYLE = `
   .segment:disabled { cursor: default; }
   .segment:disabled:not([aria-pressed="true"]) { color: var(--secondary-text-color, #727272); }
   .settings-blocks { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+  .banner-setting { display: flex; align-items: center; gap: 8px; padding: 8px 0; }
   .setting { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 8px;
     border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); border-radius: 8px; }
   .setting .block-name { flex: 1; min-width: 96px; }

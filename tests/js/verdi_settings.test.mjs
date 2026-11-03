@@ -13,6 +13,7 @@ import {
   PRESETS,
   resolve,
   rows,
+  setBanner,
   setOption,
   setPreset,
   settingsLabel,
@@ -162,8 +163,35 @@ test("wide starts at 720 px of content", () => {
 
 test("every label is there in all three languages", () => {
   const keys = Object.keys(SETTINGS_LABELS.en);
-  assert.equal(keys.length, 33);
+  assert.equal(keys.length, 34);
   for (const language of ["nl", "fr"]) assert.deepEqual(Object.keys(SETTINGS_LABELS[language]), keys);
   assert.equal(settingsLabel("nl-BE", "save"), "Opslaan");
   assert.equal(settingsLabel("de", "save"), "Save");
+});
+
+test("every preset shows the paged banner", () => {
+  for (const preset of [undefined, "overzicht", "bord", "lijst"]) {
+    assert.equal(resolve(preset ? { preset, changes: {} } : undefined).banner, true);
+  }
+});
+
+test("a set can switch the banner off, and back", () => {
+  const off = setBanner({ preset: "bord", changes: {} }, false);
+  assert.deepEqual(off, { preset: "bord", changes: { banner: false } });
+  assert.equal(resolve(off).banner, false);
+  assert.equal(isCustom(off), true);
+  const on = setBanner(off, true);
+  assert.deepEqual(on, { preset: "bord", changes: {} });
+  assert.equal(isCustom(on), false);
+});
+
+test("a damaged banner value shows the banner", () => {
+  for (const banner of ["no", 0, null, {}]) {
+    assert.equal(resolve({ preset: "lijst", changes: { banner } }).banner, true);
+  }
+});
+
+test("the banner switch keeps the other changes", () => {
+  const set = { preset: "overzicht", changes: { order: ["vehicles", "myStatus", "readiness", "personnel", "statistics"] } };
+  assert.deepEqual(setBanner(set, false).changes, { order: set.changes.order, banner: false });
 });

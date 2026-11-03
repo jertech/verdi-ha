@@ -49,6 +49,7 @@ SET_SCHEMA = vol.Schema(
         vol.Required("changes"): {
             vol.Optional("order"): vol.All([str], _each_block_once),
             vol.Optional("blocks"): {vol.Optional(name): _block(name) for name in BLOCKS},
+            vol.Optional("banner"): bool,
         },
     }
 )
