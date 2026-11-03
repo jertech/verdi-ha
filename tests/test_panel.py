@@ -113,6 +113,7 @@ async def test_command_lists_the_entities(hass: HomeAssistant, config_entry, moc
             "my_availability": "sensor.verdi_my_availability",
             "pre_alert": "binary_sensor.verdi_pre_alert",
             "garrison": "binary_sensor.verdi_garrison",
+            "paged": "binary_sensor.verdi_paged",
             "readiness": ["binary_sensor.verdi_readiness_pump_1"],
             "vehicles": ["sensor.verdi_p100"],
             "personnel": "sensor.verdi_personnel",
@@ -121,6 +122,11 @@ async def test_command_lists_the_entities(hass: HomeAssistant, config_entry, moc
             "problem": None,
         }
     ]
+
+
+async def test_command_without_a_paged_entity(hass: HomeAssistant, config_entry, mock_api, hass_ws_client):
+    await setup_with_token(hass, config_entry, options={"paged": False})
+    assert (await _sections(hass, await hass_ws_client(hass)))[0]["paged"] is None
 
 
 async def test_command_says_the_installed_version(
