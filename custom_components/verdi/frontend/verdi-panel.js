@@ -483,7 +483,7 @@ const STYLE = `
   .until { flex: none; white-space: nowrap; }
   .tags { display: flex; align-items: center; gap: 6px; height: 24px; }
   .tag { flex: none; padding: 2px 8px; border: 1px solid var(--primary-color, #03a9f4); border-radius: 10px;
-    color: var(--primary-color, #03a9f4); font-size: 12px; white-space: nowrap; }
+    color: var(--primary-text-color, #212121); font-size: 12px; white-space: nowrap; }
   .next { min-height: 19px; font-size: 13px; }
   .trains { display: flex; flex-direction: column; }
   .train + .train { border-top: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); }
