@@ -18,6 +18,8 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
 
 from .const import DOMAIN
+from .page_settings import DATA as PAGE_SETTINGS
+from .page_settings import async_setup_page_settings
 from .token import get_store
 
 PANEL_PATH = "verdi"
@@ -97,7 +99,7 @@ def _problem(hass: HomeAssistant, entry: ConfigEntry) -> str | None:
     return "stale" if any(lane.failing & LIVE for lane in lanes) else None
 
 
-def status_page(hass: HomeAssistant, admin: bool = False) -> list[dict[str, Any]]:
+def status_page(hass: HomeAssistant, admin: bool = False, user_id: str | None = None) -> list[dict[str, Any]]:
     """The entities of each entry, by translation key. An admin also gets what changing the status needs; the
     actions refuse anyone else."""
     registry = er.async_get(hass)
@@ -124,6 +126,8 @@ def status_page(hass: HomeAssistant, admin: bool = False) -> list[dict[str, Any]
             sections.append(
                 {
                     "title": entry.title,
+                    "entry_id": entry.entry_id,
+                    "settings": hass.data[PAGE_SETTINGS].read(user_id, entry.entry_id),
                     "my_availability": first["my_availability"],
                     "pre_alert": first["pre_alert"],
                     "garrison": first["garrison"],
@@ -152,7 +156,8 @@ def _controls(entry_id: str, found: dict[str, str]) -> dict[str, str | None] | N
 @websocket_api.websocket_command({vol.Required("type"): "verdi/status_page"})
 @callback
 def ws_status_page(hass: HomeAssistant, connection: Any, msg: dict[str, Any]) -> None:
-    connection.send_result(msg["id"], {"sections": status_page(hass, connection.user.is_admin)})
+    sections = status_page(hass, connection.user.is_admin, connection.user.id)
+    connection.send_result(msg["id"], {"sections": sections})
 
 
 async def async_setup_panel(hass: HomeAssistant) -> None:
@@ -161,6 +166,7 @@ async def async_setup_panel(hass: HomeAssistant) -> None:
         [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "frontend"), True)]
     )
     websocket_api.async_register_command(hass, ws_status_page)
+    await async_setup_page_settings(hass)
 
 
 async def async_show_panel(hass: HomeAssistant) -> None:

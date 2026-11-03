@@ -1,12 +1,21 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Copyright (C) 2026 jertech and contributors
 // Additional terms under GPL section 7 apply; see ADDITIONAL_TERMS.md.
-// The Verdi status page: current status in the colours Verdi sends. One file on purpose: a second
-// module would be imported without the version in the URL and could stay cached after an update.
+// The Verdi status page: current status in the colours Verdi sends. verdi-settings.js is imported with this file's
+// own query, because without the version in its URL it could stay cached after an update.
+
+export function settingsUrl(page) {
+  const url = new URL(page);
+  url.pathname = url.pathname.replace(/verdi-panel\.js$/, "verdi-settings.js");
+  return url.href;
+}
+
+const settings = await import(settingsUrl(import.meta.url));
 
 export const FALLBACK_COLOR = "#D3D3D3";
 
 const MENU_ICON = "M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z";
+const GEAR_ICON = "M12,15.5A3.5,3.5 0 0,1 8.5,12A3.5,3.5 0 0,1 12,8.5A3.5,3.5 0 0,1 15.5,12A3.5,3.5 0 0,1 12,15.5M19.43,12.97C19.47,12.65 19.5,12.33 19.5,12C19.5,11.67 19.47,11.34 19.43,11L21.54,9.37C21.73,9.22 21.78,8.95 21.66,8.73L19.66,5.27C19.54,5.05 19.27,4.96 19.05,5.05L16.56,6.05C16.04,5.66 15.5,5.32 14.87,5.07L14.5,2.42C14.46,2.18 14.25,2 14,2H10C9.75,2 9.54,2.18 9.5,2.42L9.13,5.07C8.5,5.32 7.96,5.66 7.44,6.05L4.95,5.05C4.73,4.96 4.46,5.05 4.34,5.27L2.34,8.73C2.21,8.95 2.27,9.22 2.46,9.37L4.57,11C4.53,11.34 4.5,11.67 4.5,12C4.5,12.33 4.53,12.65 4.57,12.97L2.46,14.63C2.27,14.78 2.21,15.05 2.34,15.27L4.34,18.73C4.46,18.95 4.73,19.03 4.95,18.95L7.44,17.94C7.96,18.34 8.5,18.68 9.13,18.93L9.5,21.58C9.54,21.82 9.75,22 10,22H14C14.25,22 14.46,21.82 14.5,21.58L14.87,18.93C15.5,18.67 16.04,18.34 16.56,17.94L19.05,18.95C19.27,19.03 19.54,18.95 19.66,18.73L21.66,15.27C21.78,15.05 21.73,14.78 21.54,14.63L19.43,12.97Z";
 const VEHICLE_ICON = "mdi:fire-truck";
 
 const LABELS = {
@@ -44,6 +53,7 @@ const LABELS = {
     history: "History",
     train_complete: "Complete",
     train_incomplete: "Incomplete",
+    onIntervention: "On intervention",
     today: "Today",
     yesterday: "Yesterday",
     previous_day: "Previous day",
@@ -92,6 +102,7 @@ const LABELS = {
     history: "Geschiedenis",
     train_complete: "Volledig",
     train_incomplete: "Onvolledig",
+    onIntervention: "Op interventie",
     today: "Vandaag",
     yesterday: "Gisteren",
     previous_day: "Vorige dag",
@@ -140,6 +151,7 @@ const LABELS = {
     history: "Historique",
     train_complete: "Complet",
     train_incomplete: "Incomplet",
+    onIntervention: "Sur intervention",
     today: "Aujourd'hui",
     yesterday: "Hier",
     previous_day: "Jour précédent",
@@ -453,6 +465,10 @@ const STYLE = `
     .numbers { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
   }
   h2 { margin: 24px 0 8px; font-size: 18px; font-weight: 500; }
+  h2.station { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .gear { flex: none; width: 40px; height: 40px; padding: 8px; border: 0; background: none; color: inherit; cursor: pointer; }
+  .gear svg { width: 24px; height: 24px; fill: currentColor; }
+  header .gear { margin-left: auto; }
   h3 { margin: 16px 0 8px; font-size: 16px; font-weight: 500; }
   .block { display: flex; flex-direction: column; gap: 8px; min-width: 0; box-sizing: border-box; padding: 16px;
     border-radius: 12px; background: var(--card-background-color, #fff); }
@@ -496,6 +512,19 @@ const STYLE = `
   .tile ha-icon { --mdc-icon-size: 24px; }
   .tile strong { font-size: 16px; font-weight: 700; overflow-wrap: anywhere; }
   .tile span { font-size: 12px; overflow-wrap: anywhere; }
+  .tile.border { border: 3px solid; outline: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); outline-offset: -1px;
+    background: var(--secondary-background-color, #e5e5e5); color: var(--primary-text-color, #212121); }
+  .vehicle-rows, .stat-rows { display: flex; flex-direction: column; }
+  .vehicle-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 0; border: 0; background: none;
+    color: inherit; font: inherit; text-align: left; cursor: pointer; }
+  .vehicle-row .name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .vehicle-row .dot { box-shadow: 0 0 0 1px var(--divider-color, rgba(0, 0, 0, 0.12)); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { padding: 4px 12px; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12)); border-radius: 16px;
+    background: none; color: inherit; font: inherit; overflow-wrap: anywhere; }
+  button.chip { cursor: pointer; }
+  .chip.ok { border-color: #2e7d32; background: #2e7d32; color: #fff; }
+  .chip.short { border-color: #c62828; background: #c62828; color: #fff; }
   .tile:hover { filter: brightness(0.95); }
   .tile:focus-visible, .history-link:focus-visible { outline: 2px solid var(--primary-color, #03a9f4); outline-offset: 2px; }
   .history-link { margin: -4px 0 8px 18px; padding: 0; border: 0; background: none; color: var(--primary-color, #03a9f4);
@@ -640,6 +669,44 @@ function myStatus({ data, states, language, open }) {
   return block;
 }
 
+function trainDetail(id, name, state, language, opened, history) {
+  const known = live(state);
+  const attributes = known ? state.attributes : {};
+  const positions = Object.entries(attributes.positions ?? {});
+  if (opened && positions.length) {
+    const list = element("ul", "positions");
+    for (const [position, met] of positions) list.append(element("li", met ? "" : "no", position));
+    const more = element("button", "history-link", label(language, "history"));
+    more.type = "button";
+    more.dataset.history = id;
+    more.setAttribute("aria-haspopup", "dialog");
+    more.addEventListener("click", () => history(id, name, true));
+    return [list, more];
+  }
+  const missing = known && state.state !== "on" ? missingPositions(attributes.positions) : [];
+  if (!missing.length) return [];
+  return [element("div", "short-line", `${label(language, "missing")}: ${missing.join(", ")}`)];
+}
+
+function trainChip(id, name, state, language, opened, toggle) {
+  const known = live(state);
+  const positions = Object.keys(known ? (state.attributes.positions ?? {}) : {});
+  const tone = known ? (state.state === "on" ? "ok" : "short") : "";
+  const chip = element(positions.length ? "button" : "span", `chip ${tone}`, name);
+  if (positions.length) {
+    chip.type = "button";
+    chip.dataset.train = id;
+    chip.setAttribute("aria-expanded", String(opened));
+    chip.addEventListener("click", () => toggle(id));
+  }
+  if (known) {
+    const status = label(language, state.state === "on" ? "train_complete" : "train_incomplete");
+    chip.setAttribute("aria-label", `${name}, ${status}`);
+    if (!positions.length) chip.setAttribute("role", "img"); // a plain span's label isn't read out
+  }
+  return chip;
+}
+
 function train(id, name, state, language, opened, toggle, history) {
   const known = live(state);
   const attributes = known ? state.attributes : {};
@@ -659,34 +726,30 @@ function train(id, name, state, language, opened, toggle, history) {
     element("span", "time", responseTime(attributes) ?? ""),
   );
   if (positions.length) line.append(element("span", "chevron"));
-  node.append(line);
-  const missing = known && !complete ? missingPositions(attributes.positions) : [];
-  if (opened && positions.length) {
-    const list = element("ul", "positions");
-    for (const [name, met] of positions) list.append(element("li", met ? "" : "no", name));
-    node.append(list);
-    const more = element("button", "history-link", label(language, "history"));
-    more.type = "button";
-    more.dataset.history = id;
-    more.setAttribute("aria-haspopup", "dialog");
-    more.addEventListener("click", () => history(id, name, true));
-    node.append(more);
-  } else if (missing.length) {
-    node.append(element("div", "short-line", `${label(language, "missing")}: ${missing.join(", ")}`));
-  }
+  node.append(line, ...trainDetail(id, name, state, language, opened, history));
   return node;
 }
 
-function readiness({ data, states, language, opened, toggle, history }) {
+function readiness({ data, states, language, opened, toggle, history, view }) {
   if (!data.readiness?.length) return null;
   const block = element("div", "block");
-  const list = element("div", "trains");
-  for (const id of data.readiness) {
+  const named = data.readiness.map((id) => {
     const attributes = states[id]?.attributes ?? {};
-    const name = attributes.title ?? vehicleName(attributes.friendly_name, data.title);
-    list.append(train(id, name, states[id], language, opened.has(id), toggle, history));
+    return { id, name: attributes.title ?? vehicleName(attributes.friendly_name, data.title) };
+  });
+  block.append(heading(language, "readiness"));
+  if (view === "chips") {
+    const chips = element("div", "chips");
+    for (const { id, name } of named) chips.append(trainChip(id, name, states[id], language, opened.has(id), toggle));
+    block.append(chips);
+    for (const { id, name } of named) {
+      if (opened.has(id)) block.append(element("strong", "", name), ...trainDetail(id, name, states[id], language, true, history));
+    }
+    return block;
   }
-  block.append(heading(language, "readiness"), list);
+  const list = element("div", "trains");
+  for (const { id, name } of named) list.append(train(id, name, states[id], language, opened.has(id), toggle, history));
+  block.append(list);
   return block;
 }
 
@@ -697,16 +760,20 @@ function vehicleIcon(icon) {
   return node;
 }
 
-function vehicleTile(id, state, title, language, history) {
+function vehicleTile(id, state, title, language, history, view) {
   const known = live(state);
   const attributes = state?.attributes ?? {};
-  const background = normalizeColor(known ? attributes.color : null);
-  const node = element("button", known && attributes.on_intervention ? "tile on" : "tile");
+  const color = normalizeColor(known ? attributes.color : null);
+  const node = element("button", `tile${view === "border" ? " border" : ""}${known && attributes.on_intervention ? " on" : ""}`);
   node.type = "button";
   node.dataset.vehicle = id;
   node.setAttribute("aria-haspopup", "dialog");
-  node.style.background = background;
-  node.style.color = textColor(background);
+  if (view === "border") {
+    node.style.borderColor = color;
+  } else {
+    node.style.background = color;
+    node.style.color = textColor(color);
+  }
   const name = vehicleName(attributes.friendly_name, title);
   const status = statusText(language, state);
   node.setAttribute("aria-label", `${name}, ${status}, ${label(language, "open_history")}`);
@@ -720,16 +787,40 @@ function vehicleTile(id, state, title, language, history) {
   return node;
 }
 
-function vehicles({ data, states, language, history }) {
+function vehicleListRow(id, state, title, language, history) {
+  const known = live(state);
+  const attributes = state?.attributes ?? {};
+  const node = element("button", "vehicle-row");
+  node.type = "button";
+  node.dataset.vehicle = id;
+  node.setAttribute("aria-haspopup", "dialog");
+  const name = vehicleName(attributes.friendly_name, title);
+  const status = statusText(language, state);
+  const out = known && attributes.on_intervention ? label(language, "onIntervention") : null;
+  const spoken = [name, status, ...(out ? [out] : []), label(language, "open_history")];
+  node.setAttribute("aria-label", spoken.join(", "));
+  node.addEventListener("click", () => history(id, name, false));
+  const dot = element("span", "dot");
+  dot.style.background = normalizeColor(known ? attributes.color : null);
+  node.append(dot, element("span", "name", name));
+  if (out) node.append(element("span", "tag", out));
+  node.append(element("span", "muted", status));
+  return node;
+}
+
+function vehicles({ data, states, language, history, view }) {
   if (!data.vehicles.length) return null;
   const block = element("div", "block");
-  const tiles = element("div", "tiles");
-  for (const id of data.vehicles) tiles.append(vehicleTile(id, states[id], data.title, language, history));
-  block.append(heading(language, "vehicles"), tiles);
+  const list = element("div", view === "list" ? "vehicle-rows" : "tiles");
+  for (const id of data.vehicles) {
+    const draw = view === "list" ? vehicleListRow : vehicleTile;
+    list.append(draw(id, states[id], data.title, language, history, view));
+  }
+  block.append(heading(language, "vehicles"), list);
   return block;
 }
 
-function personnel({ data, states, language }) {
+function personnel({ data, states, language, view }) {
   if (!data.personnel) return null;
   const state = states[data.personnel];
   const block = element("div", "block");
@@ -746,36 +837,46 @@ function personnel({ data, states, language }) {
     text: `${statusLabel(language, name)} ${count}`,
     color: normalizeColor(color),
   }));
-  const bar = element("div", "stack");
-  bar.setAttribute("role", "img");
-  bar.setAttribute("aria-label", counts.map(({ text }) => text).join(", "));
-  for (const { color, count } of barSegments(state.attributes)) {
-    const segment = element("span");
-    segment.style.flex = String(count);
-    segment.style.background = normalizeColor(color);
-    bar.append(segment);
+  if (view === "pills") {
+    const pills = element("div", "pills");
+    for (const { text, color } of counts) pills.append(pill(text, color));
+    block.append(title, pills);
+  } else {
+    const bar = element("div", "stack");
+    bar.setAttribute("role", "img");
+    bar.setAttribute("aria-label", counts.map(({ text }) => text).join(", "));
+    for (const { color, count } of barSegments(state.attributes)) {
+      const segment = element("span");
+      segment.style.flex = String(count);
+      segment.style.background = normalizeColor(color);
+      bar.append(segment);
+    }
+    const legend = element("div", "legend");
+    for (const { text, color } of counts) {
+      const item = element("span");
+      const square = element("i");
+      square.style.background = color;
+      item.append(square, text);
+      legend.append(item);
+    }
+    block.append(title, bar, legend);
   }
-  const legend = element("div", "legend");
-  for (const { text, color } of counts) {
-    const item = element("span");
-    const square = element("i");
-    square.style.background = color;
-    item.append(square, text);
-    legend.append(item);
-  }
-  block.append(title, bar, legend);
   if (state.attributes.truncated) block.append(element("div", "muted", label(language, "incomplete")));
   return block;
 }
 
-function statistics({ data, states, language }) {
+function statistics({ data, states, language, view }) {
   const ids = data.statistics ?? [];
   const availability = ids.filter((id) => states[id]?.attributes.service === undefined);
   const tiles = ids.map((id) => statisticTile(states[id], language, availability.length > 1)).filter(Boolean);
   if (!tiles.length) return null;
   const block = element("div", "block");
-  const numbers = element("div", "numbers");
+  const numbers = element("div", view === "rows" ? "stat-rows" : "numbers");
   for (const { value, title, detail } of tiles) {
+    if (view === "rows") {
+      numbers.append(row(detail ? `${title} (${detail})` : title, element("strong", "", value)));
+      continue;
+    }
     const node = element("div", "number");
     node.append(element("strong", "", value), element("span", "", title));
     if (detail) node.append(element("span", "muted", detail));
@@ -785,44 +886,72 @@ function statistics({ data, states, language }) {
   return block;
 }
 
-// The later settings reorder, hide and restyle blocks here.
-const BLOCKS = { myStatus, readiness, vehicles, personnel, statistics };
-const COLUMNS = [
-  ["myStatus", "readiness"],
-  ["vehicles", "personnel"],
-];
-const FULL_WIDTH = ["statistics"];
+const BLOCK_DRAWERS = { myStatus, readiness, vehicles, personnel, statistics };
+
+function drawBlock(context, layout, name) {
+  return BLOCK_DRAWERS[name]({ ...context, view: layout.blocks[name].view });
+}
+
+function drawColumn(context, layout, names) {
+  const column = element("div", "column");
+  column.append(...names.map((name) => drawBlock(context, layout, name)).filter(Boolean));
+  return column;
+}
 
 function section(context, withHeading) {
-  const { data, language } = context;
+  const { data, language, set, wide } = context;
   const nodes = [];
-  if (withHeading) nodes.push(element("h2", "", data.title));
+  if (withHeading) {
+    const title = element("h2", "station", data.title);
+    title.append(context.gear(data));
+    nodes.push(title);
+  }
   if (data.problem) {
     const line = element("div", `problem ${data.problem}`, label(language, `problem_${data.problem}`));
     line.setAttribute("role", "alert");
     nodes.push(line);
   }
-  const columns = element("div", "columns");
-  for (const names of COLUMNS) {
-    const column = element("div", "column");
-    column.append(...names.map((name) => BLOCKS[name](context)).filter(Boolean));
-    if (column.childElementCount) columns.append(column);
+  const layout = settings.resolve(set);
+  for (const row of settings.rows(layout, wide)) {
+    if (row.full) {
+      const block = drawBlock(context, layout, row.full);
+      if (block) nodes.push(block);
+      continue;
+    }
+    const columns = element("div", "columns");
+    for (const names of [row.left, row.right]) {
+      const column = drawColumn(context, layout, names);
+      if (column.childElementCount) columns.append(column);
+    }
+    if (columns.childElementCount) nodes.push(columns);
   }
-  if (columns.childElementCount) nodes.push(columns);
-  nodes.push(...FULL_WIDTH.map((name) => BLOCKS[name](context)).filter(Boolean));
   return nodes;
 }
 
-function menuButton(host, language) {
+function iconButton(path, title) {
   const button = element("button");
   button.type = "button";
-  button.setAttribute("aria-label", label(language, "menu"));
+  button.setAttribute("aria-label", title);
   const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   icon.setAttribute("viewBox", "0 0 24 24");
-  const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-  path.setAttribute("d", MENU_ICON);
-  icon.append(path);
+  const shape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+  shape.setAttribute("d", path);
+  icon.append(shape);
   button.append(icon);
+  return button;
+}
+
+function gearButton(data, language, open) {
+  const button = iconButton(GEAR_ICON, `${settings.settingsLabel(language, "settings")}: ${data.title}`);
+  button.classList.add("gear");
+  button.dataset.settings = data.entry_id;
+  button.setAttribute("aria-haspopup", "dialog");
+  button.addEventListener("click", () => open(data));
+  return button;
+}
+
+function menuButton(host, language) {
+  const button = iconButton(MENU_ICON, label(language, "menu"));
   // HA decides what this does: the drawer on a phone, collapse or expand on a wide screen.
   button.addEventListener("click", () =>
     host.dispatchEvent(new CustomEvent("hass-toggle-menu", { bubbles: true, composed: true })),
@@ -905,6 +1034,9 @@ function definePanel() {
       this._hass = undefined;
       this._sections = undefined;
       this._drawn = undefined;
+      this._drafts = new Map();
+      this._wide = undefined;
+      this._resize = new ResizeObserver(() => this._measure());
       this._sending = false;
       this._openTrains = new Set();
       this._unavailable = "";
@@ -912,6 +1044,7 @@ function definePanel() {
       this._timer = undefined;
       this._historyCall = 0;
       this._historyTarget = undefined;
+      this._settingsTarget = undefined;
       // `ha-icon` may arrive after the first drawing.
       customElements.whenDefined("ha-icon").then(() => {
         this._drawn = undefined;
@@ -929,28 +1062,61 @@ function definePanel() {
       });
       this._dialog.addEventListener("cancel", (event) => {
         if (this._sending) event.preventDefault();
+        else if (this._settingsTarget) this._drafts.delete(this._settingsTarget);
       });
       // The pill or tile the browser would return focus to has been replaced by a redraw, so hand it to the current one.
       this._dialog.addEventListener("close", () => {
         this._historyCall += 1; // an answer still on its way has nowhere to go
         this._dialog.classList.remove("history");
+        this._dialog.classList.remove("settings");
+        const gear = this._settingsTarget;
+        this._settingsTarget = undefined;
         this._dialog.replaceChildren();
         const target = this._historyTarget;
         this._historyTarget = undefined;
+        // The draft is gone by now, so the page goes back to what's stored. Before the focus check, which can return.
+        if (gear) {
+          this._drawn = undefined;
+          this._render();
+        }
         const active = this.shadowRoot.activeElement;
         if (active && active !== this._dialog) return;
-        (target ? this._historyButton(target) : this._pill(this._opened))?.focus();
+        if (gear) this._view.querySelector(`[data-settings="${gear}"]`)?.focus();
+        else (target ? this._historyButton(target) : this._pill(this._opened))?.focus();
       });
-      this.shadowRoot.append(element("style", "", STYLE), this._view, this._dialog);
+      this.shadowRoot.append(element("style", "", STYLE + settings.SETTINGS_STYLE), this._view, this._dialog);
     }
 
     connectedCallback() {
+      // HA doesn't wait for this module's top-level await, so it may have set these on the element before it was upgraded.
+      for (const name of ["narrow", "hass"]) {
+        if (!Object.hasOwn(this, name)) continue;
+        const value = this[name];
+        delete this[name];
+        this[name] = value;
+      }
+      this._resize.observe(this);
       if (this._hass) this._arm();
     }
 
     disconnectedCallback() {
+      this._resize.disconnect();
       clearTimeout(this._timer);
+      this._drafts.delete(this._settingsTarget); // a reused element shows what's stored
       this._dialog.close();
+    }
+
+    _measure() {
+      const wide = settings.isWide(this.clientWidth, this.hasAttribute("narrow"));
+      if (wide === this._wide) return;
+      this._wide = wide;
+      this._drawn = undefined;
+      this._render();
+    }
+
+    _setOf(data) {
+      const sets = this._drafts.get(data.entry_id) ?? data.settings;
+      return sets?.[this._wide ? "wide" : "phone"];
     }
 
     _pill(entryId) {
@@ -979,6 +1145,7 @@ function definePanel() {
 
     set narrow(value) {
       this.toggleAttribute("narrow", Boolean(value));
+      if (this._hass) this._measure();
     }
 
     set hass(hass) {
@@ -1009,6 +1176,7 @@ function definePanel() {
       const hass = this._hass;
       if (!hass) return;
       const sections = this._sections ?? [];
+      this._wide ??= settings.isWide(this.clientWidth, this.hasAttribute("narrow"));
       const ids = sections.flatMap(entityIds);
       this._check(ids);
       const states = ids.map((id) => hass.states[id]);
@@ -1031,8 +1199,10 @@ function definePanel() {
       const open = (data) => this._open(data);
       const toggle = (id) => this._toggle(id);
       const history = (id, name, train) => this._openHistory(id, name, train);
-      const shared = { states: hass.states, language, open, opened: this._openTrains, toggle, history };
-      for (const data of sections) main.append(...section({ ...shared, data }, withHeading));
+      const gear = (data) => gearButton(data, language, (target) => this._openSettings(target));
+      if (sections.length === 1) header.append(gear(sections[0]));
+      const shared = { states: hass.states, language, open, opened: this._openTrains, toggle, history, gear, wide: this._wide };
+      for (const data of sections) main.append(...section({ ...shared, data, set: this._setOf(data) }, withHeading));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
       const active = this.shadowRoot.activeElement?.dataset ?? {};
       this._view.replaceChildren(header, main);
@@ -1040,10 +1210,60 @@ function definePanel() {
       if (active.train) this._trainButton(active.train)?.focus({ preventScroll: true });
       const target = active.vehicle ?? active.history;
       if (target) this._historyButton(target)?.focus({ preventScroll: true });
+      if (active.settings) this._view.querySelector(`[data-settings="${active.settings}"]`)?.focus({ preventScroll: true });
+    }
+
+    _openSettings(data) {
+      if (!this.isConnected || this._sending || this._dialog.open) return;
+      const language = this._hass.language;
+      this._settingsTarget = data.entry_id;
+      this._dialog.classList.add("settings");
+      this._dialog.setAttribute("aria-label", `${settings.settingsLabel(language, "settings")}: ${data.title}`);
+      settings.drawSettings(this._dialog, {
+        language,
+        title: data.title,
+        names: Object.fromEntries(settings.BLOCKS.map((name) => [name, label(language, name)])),
+        current: this._wide ? "wide" : "phone",
+        fine: matchMedia("(pointer: fine)").matches,
+        draft: data.settings ?? {},
+        actions: {
+          change: (next) => {
+            this._drafts.set(data.entry_id, next);
+            this._drawn = undefined;
+            this._render();
+          },
+          cancel: () => {
+            this._drafts.delete(data.entry_id);
+            this._dialog.close();
+          },
+          save: (next, edited) => this._saveSettings(data.entry_id, next, edited),
+        },
+      });
+      this._dialog.showModal();
+    }
+
+    async _saveSettings(entryId, draft, edited) {
+      this._sending = true;
+      const sets = Object.fromEntries(edited.map((key) => [key, draft[key]]));
+      try {
+        await this._hass.callWS({ type: "verdi/save_page_settings", entry_id: entryId, ...sets });
+      } catch (err) {
+        console.error("verdi/save_page_settings failed", err);
+        return false;
+      } finally {
+        this._sending = false;
+      }
+      // The sections may be newer than the ones the dialog opened with.
+      for (const data of this._sections ?? []) {
+        if (data.entry_id === entryId) data.settings = { ...data.settings, ...sets };
+      }
+      this._drafts.delete(entryId);
+      this._dialog.close();
+      return true;
     }
 
     _trainButton(id) {
-      return [...this._view.querySelectorAll("button.line")].find((node) => node.dataset.train === id);
+      return [...this._view.querySelectorAll("[data-train]")].find((node) => node.dataset.train === id);
     }
 
     _historyButton(id) {

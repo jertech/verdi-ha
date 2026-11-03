@@ -26,6 +26,7 @@ import {
   responseTime,
   sendError,
   sendResult,
+  settingsUrl,
   startingDuration,
   statisticTile,
   statusCounts,
@@ -103,12 +104,18 @@ test("every language has every label", () => {
     "readiness", "statistics", "since", "next", "missing", "last", "available", "preAlert", "garrison",
     "problem_token", "problem_paused", "problem_verdi", "problem_stale",
     "now", "loading", "open_history", "history", "train_complete", "train_incomplete", "today", "yesterday", "previous_day",
-    "next_day", "history_empty", "history_failed",
+    "next_day", "history_empty", "history_failed", "onIntervention",
   ]) {
     for (const language of ["en", "nl", "fr"]) {
       assert.ok(label(language, key), `${language} ${key}`);
     }
   }
+});
+
+test("the on-intervention marker uses Verdi's own words", () => {
+  assert.equal(label("en", "onIntervention"), "On intervention");
+  assert.equal(label("nl", "onIntervention"), "Op interventie");
+  assert.equal(label("fr", "onIntervention"), "Sur intervention");
 });
 
 test("a vehicle's name drops the device name", () => {
@@ -478,4 +485,15 @@ test("a train held since before midnight is one period from 00:00 to now", () =>
   const state = { state: "on", attributes: {}, last_changed: held.last_changed };
   const periods = historyPeriods(liveRows([], state, true), at(0), at(14), trainRow("en"));
   assert.deepEqual(periods.map(({ start, end, tone }) => [start, end, tone]), [[at(0), at(14), "ok"]]);
+});
+
+test("the settings module carries the page's version", () => {
+  assert.equal(
+    settingsUrl("http://ha.local/verdi_static/verdi-panel.js?v=0.15.0"),
+    "http://ha.local/verdi_static/verdi-settings.js?v=0.15.0",
+  );
+  assert.equal(
+    settingsUrl("file:///repo/frontend/verdi-panel.js"),
+    "file:///repo/frontend/verdi-settings.js",
+  );
 });
