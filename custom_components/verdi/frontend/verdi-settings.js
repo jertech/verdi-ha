@@ -471,7 +471,8 @@ export const SETTINGS_STYLE = `
   .segments { display: flex; flex-wrap: wrap; overflow: hidden; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
     border-radius: 8px; }
   .segment { flex: 1 1 auto; padding: 6px 10px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
-  .segment[aria-pressed="true"] { background: var(--primary-color, #03a9f4); color: var(--text-primary-color, #fff); }
+  .segment[aria-pressed="true"] { background: color-mix(in srgb, var(--primary-color, #03a9f4) 20%, var(--card-background-color, #fff));
+    box-shadow: inset 0 0 0 2px var(--primary-color, #03a9f4); color: var(--primary-text-color, #212121); }
   .segment:disabled { cursor: default; }
   .segment:disabled:not([aria-pressed="true"]) { color: var(--secondary-text-color, #727272); }
   .settings-blocks { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
@@ -491,8 +492,8 @@ export const SETTINGS_STYLE = `
   .settings-actions button, .setting select { padding: 8px 12px; border: 1px solid var(--divider-color, rgba(0, 0, 0, 0.12));
     border-radius: 8px; background: var(--card-background-color, #fff); color: var(--primary-text-color, #212121); font: inherit; }
   .settings-actions button { cursor: pointer; }
-  .settings-actions .primary { border-color: var(--primary-color, #03a9f4); background: var(--primary-color, #03a9f4);
-    color: var(--text-primary-color, #fff); }
+  .settings-actions .primary { border-color: var(--primary-color, #03a9f4);
+    background: color-mix(in srgb, var(--primary-color, #03a9f4) 20%, var(--card-background-color, #fff)); }
   dialog.settings :disabled:not(.segment) { opacity: 0.5; cursor: default; }
   @media (max-width: 480px) {
     dialog.settings { width: 100%; height: 100%; max-height: 100%; margin: 0; border-radius: 0; }
