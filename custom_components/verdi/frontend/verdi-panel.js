@@ -76,6 +76,11 @@ const LABELS = {
     problem_stale: "Some data may be out of date. It will retry by itself.",
     updated: "Verdi was updated. Reload to see the changes.",
     reload: "Reload",
+    paged: "Paged",
+    pagedAgo: "{since} ago",
+    hourUnit: "h",
+    confirmed: "Confirmed",
+    notConfirmed: "Not confirmed",
   },
   nl: {
     myStatus: "Mijn status",
@@ -127,6 +132,11 @@ const LABELS = {
     problem_stale: "Sommige gegevens zijn mogelijk niet actueel. Er wordt automatisch opnieuw geprobeerd.",
     updated: "Verdi is bijgewerkt. Herlaad om de wijzigingen te zien.",
     reload: "Herladen",
+    paged: "Opgeroepen",
+    pagedAgo: "{since} geleden",
+    hourUnit: "u",
+    confirmed: "Bevestigd",
+    notConfirmed: "Niet bevestigd",
   },
   fr: {
     myStatus: "Mon statut",
@@ -178,6 +188,11 @@ const LABELS = {
     problem_stale: "Certaines données peuvent ne pas être à jour. Nouvel essai automatique.",
     updated: "Verdi a été mis à jour. Rechargez pour voir les changements.",
     reload: "Recharger",
+    paged: "Alarmé",
+    pagedAgo: "il y a {since}",
+    hourUnit: "h",
+    confirmed: "Confirmé",
+    notConfirmed: "Non confirmé",
   },
 };
 
@@ -313,6 +328,33 @@ export function clockTime(value, language) {
   return new Date(value).toLocaleTimeString(language, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 }
 
+// Minutes since the alarm by this browser's clock. Under a minute, or an alarm ahead of the clock, is "< 1 min".
+export function pagedTime(alarm, now, language) {
+  if (typeof alarm !== "string" || !alarm) return null;
+  const at = new Date(alarm).getTime();
+  if (Number.isNaN(at)) return null;
+  const minutes = Math.floor((now - at) / 60000);
+  let since = "< 1 min";
+  if (minutes >= 60) since = `${Math.floor(minutes / 60)} ${label(language, "hourUnit")} ${minutes % 60} min`;
+  else if (minutes >= 1) since = `${minutes} min`;
+  return { clock: clockTime(alarm, language), since: label(language, "pagedAgo").replace("{since}", since) };
+}
+
+// When the minutes count next changes: a minute after the alarm, then on the alarm's own second.
+export function nextMinute(alarm, now) {
+  const at = new Date(alarm).getTime();
+  const elapsed = now - at;
+  return elapsed < 60000 ? at + 60000 - now : 60000 - (elapsed % 60000);
+}
+
+// Verdi's name for the paged vehicle against the names the page shows. No match: no icon, as the spec says.
+export function pagedVehicleIcon(vehicle, vehicles) {
+  const wanted = typeof vehicle === "string" ? vehicle.trim().toLowerCase() : "";
+  if (!wanted) return null;
+  const found = vehicles.find((item) => item.name.trim().toLowerCase() === wanted);
+  return found ? (found.icon ?? VEHICLE_ICON) : null;
+}
+
 export function vehicleRow(row) {
   return { status: row.s, color: normalizeColor(row.a?.color), tone: null, missing: [], since: row.a?.availability_since };
 }
@@ -414,6 +456,7 @@ export function entityIds(section) {
     section.my_availability,
     section.pre_alert,
     section.garrison,
+    section.paged,
     ...(section.readiness ?? []),
     ...section.vehicles,
     section.personnel,
