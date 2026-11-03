@@ -10,6 +10,7 @@ import pytest
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
+from homeassistant.loader import async_get_integration
 from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError, VerdiUnavailable
@@ -120,6 +121,17 @@ async def test_command_lists_the_entities(hass: HomeAssistant, config_entry, moc
             "problem": None,
         }
     ]
+
+
+async def test_command_says_the_installed_version(
+    hass: HomeAssistant, config_entry, mock_api, hass_ws_client
+):
+    """A page left open across an update compares this with its own ?v= and asks for a reload."""
+    await setup_with_token(hass, config_entry)
+    client = await hass_ws_client(hass)
+    await client.send_json_auto_id({"type": "verdi/status_page"})
+    msg = await client.receive_json()
+    assert msg["result"]["version"] == (await async_get_integration(hass, DOMAIN)).version
 
 
 async def test_command_for_a_non_admin(

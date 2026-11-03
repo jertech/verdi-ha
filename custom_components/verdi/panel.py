@@ -26,6 +26,8 @@ PANEL_PATH = "verdi"
 STATIC_URL = "/verdi_static"
 # hass.data key. A panel can't be registered twice, and HA 2026.4.0 has no async_panel_exists.
 PANEL_SHOWN = f"{DOMAIN}_panel_shown"
+# hass.data key: the version this start runs. A page left open across an update compares it with its own ?v=.
+PAGE_VERSION = f"{DOMAIN}_page_version"
 # What the page's dialog needs, by entity domain and translation key.
 CONTROLS = {
     ("select", "status_to_set"): "status",
@@ -157,11 +159,12 @@ def _controls(entry_id: str, found: dict[str, str]) -> dict[str, str | None] | N
 @callback
 def ws_status_page(hass: HomeAssistant, connection: Any, msg: dict[str, Any]) -> None:
     sections = status_page(hass, connection.user.is_admin, connection.user.id)
-    connection.send_result(msg["id"], {"sections": sections})
+    connection.send_result(msg["id"], {"sections": sections, "version": hass.data.get(PAGE_VERSION)})
 
 
 async def async_setup_panel(hass: HomeAssistant) -> None:
     """Once per start: the page file and the command."""
+    hass.data[PAGE_VERSION] = str((await async_get_integration(hass, DOMAIN)).version)
     await hass.http.async_register_static_paths(
         [StaticPathConfig(STATIC_URL, str(Path(__file__).parent / "frontend"), True)]
     )
