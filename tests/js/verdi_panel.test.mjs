@@ -16,6 +16,7 @@ import {
   FALLBACK_COLOR,
   historyList,
   historyPeriods,
+  isOutdated,
   label,
   liveRows,
   missingPositions,
@@ -496,4 +497,26 @@ test("the settings module carries the page's version", () => {
     settingsUrl("file:///repo/frontend/verdi-panel.js"),
     "file:///repo/frontend/verdi-settings.js",
   );
+});
+
+test("a page older than the installed Verdi asks for a reload", () => {
+  const page = "http://ha.local/verdi_static/verdi-panel.js?v=0.16.0";
+  assert.equal(isOutdated(page, "0.16.1"), true);
+  assert.equal(isOutdated(page, "0.16.0"), false);
+});
+
+test("without both versions there is nothing to compare", () => {
+  assert.equal(isOutdated("http://ha.local/verdi_static/verdi-panel.js", "0.16.1"), false);
+  assert.equal(isOutdated("http://ha.local/verdi_static/verdi-panel.js?v=0.16.0", undefined), false);
+  assert.equal(isOutdated("http://ha.local/verdi_static/verdi-panel.js?v=0.16.0", null), false);
+  assert.equal(isOutdated("http://ha.local/verdi_static/verdi-panel.js?v=0.16.0", ""), false);
+});
+
+test("the update notice is there in every language", () => {
+  for (const language of ["en", "nl", "fr"]) {
+    assert.ok(label(language, "updated").length > 0);
+    assert.ok(label(language, "reload").length > 0);
+  }
+  assert.notEqual(label("nl", "updated"), label("en", "updated"));
+  assert.notEqual(label("fr", "updated"), label("en", "updated"));
 });

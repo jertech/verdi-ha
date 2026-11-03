@@ -55,6 +55,9 @@ which blocks show, their order and place, and how vehicles, Readiness, personnel
 user has their own settings, per station, with one set for a phone and one for a wide screen. They follow you across
 browsers and the Companion app.
 
+**After an update:** a page that stayed open, as the Companion app keeps it, says "Verdi was updated. Reload to see the
+changes." Press **Reload** to get the new page.
+
 Tap a train to see its positions. To give a vehicle its own icon, set one for its entity under **Settings** > **Devices &
 services** > **Entities**. Names of statuses, vehicles and trains come from your Verdi zone, in the language it's set up
 in. The rest of the page follows your Home Assistant language.

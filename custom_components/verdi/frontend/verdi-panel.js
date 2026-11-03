@@ -10,6 +10,13 @@ export function settingsUrl(page) {
   return url.href;
 }
 
+// HA loads this page as verdi-panel.js?v=<version>. A page left open across an update, as the Companion app does,
+// keeps running: a second load can't define verdi-panel again.
+export function isOutdated(page, installed) {
+  const own = new URL(page).searchParams.get("v");
+  return Boolean(own && installed && own !== installed);
+}
+
 const settings = await import(settingsUrl(import.meta.url));
 
 export const FALLBACK_COLOR = "#D3D3D3";
@@ -67,6 +74,8 @@ const LABELS = {
     problem_paused: "Verdi asked to slow down. It will retry by itself.",
     problem_verdi: "Verdi can't be reached. It will retry by itself.",
     problem_stale: "Some data may be out of date. It will retry by itself.",
+    updated: "Verdi was updated. Reload to see the changes.",
+    reload: "Reload",
   },
   nl: {
     myStatus: "Mijn status",
@@ -116,6 +125,8 @@ const LABELS = {
     problem_paused: "Verdi vroeg om trager te gaan. Er wordt automatisch opnieuw geprobeerd.",
     problem_verdi: "Verdi is niet bereikbaar. Er wordt automatisch opnieuw geprobeerd.",
     problem_stale: "Sommige gegevens zijn mogelijk niet actueel. Er wordt automatisch opnieuw geprobeerd.",
+    updated: "Verdi is bijgewerkt. Herlaad om de wijzigingen te zien.",
+    reload: "Herladen",
   },
   fr: {
     myStatus: "Mon statut",
@@ -165,6 +176,8 @@ const LABELS = {
     problem_paused: "Verdi a demandé de ralentir. Nouvel essai automatique.",
     problem_verdi: "Verdi est injoignable. Nouvel essai automatique.",
     problem_stale: "Certaines données peuvent ne pas être à jour. Nouvel essai automatique.",
+    updated: "Verdi a été mis à jour. Rechargez pour voir les changements.",
+    reload: "Recharger",
   },
 };
 
@@ -543,6 +556,12 @@ const STYLE = `
     background: color-mix(in srgb, var(--problem-color) 12%, var(--card-background-color, #fff));
     color: var(--problem-color); font-weight: 500; overflow-wrap: anywhere; }
   .problem.stale { --problem-color: var(--warning-color, #ffa600); color: var(--primary-text-color, #212121); }
+  .update { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; padding: 10px 12px;
+    border: 1px solid var(--primary-color, #03a9f4); border-radius: 12px; background: var(--card-background-color, #fff);
+    color: var(--primary-text-color, #212121); font-weight: 500; overflow-wrap: anywhere; }
+  .update span { min-width: 0; }
+  .update button { min-height: 40px; padding: 8px 12px; font: inherit; border: 1px solid var(--primary-color, #03a9f4);
+    border-radius: 8px; background: none; color: inherit; cursor: pointer; }
   .view { display: contents; }
   button.pill { font: inherit; cursor: pointer; }
   dialog { box-sizing: border-box; width: min(420px, calc(100vw - 32px)); padding: 16px; border: 0; border-radius: 12px;
@@ -898,6 +917,18 @@ function drawColumn(context, layout, names) {
   return column;
 }
 
+// One line for the whole page, above every station. It never reloads by itself: a dialog may be open.
+function updateNotice(language) {
+  const line = element("div", "update");
+  line.setAttribute("role", "status");
+  const button = element("button", "", label(language, "reload"));
+  button.type = "button";
+  button.dataset.reload = "";
+  button.addEventListener("click", () => location.reload());
+  line.append(element("span", "", label(language, "updated")), button);
+  return line;
+}
+
 function section(context, withHeading) {
   const { data, language, set, wide } = context;
   const nodes = [];
@@ -1160,10 +1191,13 @@ function definePanel() {
     async _load() {
       this._loadedAt = Date.now();
       try {
-        const { sections } = await this._hass.callWS({ type: "verdi/status_page" });
+        const { sections, version } = await this._hass.callWS({ type: "verdi/status_page" });
         // A redraw replaces the buttons, so one every minute would lose a press that spans it.
         if (JSON.stringify(sections) !== JSON.stringify(this._sections)) this._drawn = undefined;
+        const outdated = isOutdated(import.meta.url, version);
+        if (outdated !== this._outdated) this._drawn = undefined;
         this._sections = sections;
+        this._outdated = outdated;
       } catch (err) {
         console.error("verdi/status_page failed", err);
       } finally {
@@ -1202,6 +1236,7 @@ function definePanel() {
       const gear = (data) => gearButton(data, language, (target) => this._openSettings(target));
       if (sections.length === 1) header.append(gear(sections[0]));
       const shared = { states: hass.states, language, open, opened: this._openTrains, toggle, history, gear, wide: this._wide };
+      if (this._outdated) main.append(updateNotice(language));
       for (const data of sections) main.append(...section({ ...shared, data, set: this._setOf(data) }, withHeading));
       if (this._sections && !this._sections.length) main.append(element("div", "muted", label(language, "empty")));
       const active = this.shadowRoot.activeElement?.dataset ?? {};
@@ -1211,6 +1246,7 @@ function definePanel() {
       const target = active.vehicle ?? active.history;
       if (target) this._historyButton(target)?.focus({ preventScroll: true });
       if (active.settings) this._view.querySelector(`[data-settings="${active.settings}"]`)?.focus({ preventScroll: true });
+      if ("reload" in active) this._view.querySelector("[data-reload]")?.focus({ preventScroll: true });
     }
 
     _openSettings(data) {
