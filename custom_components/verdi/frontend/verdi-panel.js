@@ -993,6 +993,7 @@ function pagedBanner(context) {
   if (state?.state !== "on" || !settings.resolve(set).banner) return null;
   const a = state.attributes ?? {};
   const banner = element("div", `paged${wide ? "" : " phone"}`);
+  banner.dataset.entry = data.entry_id;
   banner.dataset.paged = [data.entry_id, a.alarm_time ?? "", a.incident ?? ""].join("|");
   banner.append(element("span", "sr-only", `${label(language, "paged")}: `));
   const say = [];
@@ -1195,7 +1196,7 @@ function definePanel() {
       this._historyTarget = undefined;
       this._settingsTarget = undefined;
       this._minuteTimer = undefined;
-      this._announced = new Set();
+      this._announced = new Map(); // entry_id -> key of the page last announced there
       // A redraw replaces the banner, so a page is announced here, once, and not by the banner itself.
       this._announcer = element("div", "sr-only");
       this._announcer.setAttribute("aria-live", "assertive");
@@ -1291,13 +1292,20 @@ function definePanel() {
       if (this.isConnected) this._timer = setTimeout(() => this._load(), refreshDelay(this._loadedAt, Date.now()));
     }
 
+    // A page is new when its station, alarm time or incident differs; a banner that vanishes and returns is not.
     _announce() {
-      const seen = new Set();
-      for (const banner of this._view.querySelectorAll(".paged")) {
-        seen.add(banner.dataset.paged);
-        if (!this._announced.has(banner.dataset.paged)) this._announcer.textContent = banner.dataset.say;
+      const banners = [...this._view.querySelectorAll(".paged")];
+      if (!banners.length) {
+        this._announcer.textContent = "";
+        return;
       }
-      this._announced = seen;
+      const say = [];
+      for (const banner of banners) {
+        if (this._announced.get(banner.dataset.entry) === banner.dataset.paged) continue;
+        this._announced.set(banner.dataset.entry, banner.dataset.paged);
+        say.push(banner.dataset.say);
+      }
+      if (say.length) this._announcer.textContent = say.join(". ");
     }
 
     // While a banner shows, its minutes count on in place: no redraw, so focus and dialogs stay.
