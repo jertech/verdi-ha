@@ -55,6 +55,10 @@ which blocks show, their order and place, and how vehicles, Readiness, personnel
 user has their own settings, per station, with one set for a phone and one for a wide screen. They follow you across
 browsers and the Companion app.
 
+**While you're paged:** a light red banner at the top of the page shows the incident, the time of the alarm and the
+minutes since, the city, the vehicle with its icon and your function, the station, and whether you've confirmed. The
+page settings' **Paged banner** switch turns it off for that set.
+
 **After an update:** a page that stayed open, as the Companion app keeps it, says "Verdi was updated. Reload to see the
 changes." Press **Reload** to get the new page.
 
