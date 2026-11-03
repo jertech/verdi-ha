@@ -314,7 +314,10 @@ function blockRow(state, name, index, last) {
   const line = node("div", "setting");
   line.dataset.block = name;
   if (fine) {
-    const handle = button("⋮⋮", "handle", () => {});
+    // Not a button: Firefox doesn't start a drag on one.
+    const handle = node("span", "handle", "⋮⋮");
+    handle.tabIndex = 0;
+    handle.setAttribute("role", "button");
     handle.dataset.focus = `handle:${name}`;
     handle.setAttribute("aria-label", `${names[name]}: ${settingsLabel(language, "dragHint")}`);
     handle.addEventListener("keydown", (event) => {
@@ -420,6 +423,7 @@ export function drawSettings(dialog, options) {
       // Nothing here can be used while it runs. A disabled control drops focus to body, where the dialog sees no Escape.
       dialog.focus();
       for (const control of dialog.querySelectorAll("button, input, select")) control.disabled = true;
+      for (const handle of dialog.querySelectorAll(".handle")) handle.removeAttribute("tabindex");
       for (const line of dialog.querySelectorAll(".setting")) line.draggable = false;
       failed = !(await actions.save({ ...draft }, [...edited]));
       if (failed) redraw("save");
@@ -473,6 +477,7 @@ export const SETTINGS_STYLE = `
   .segment { flex: 1 1 auto; padding: 6px 10px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
   .segment[aria-pressed="true"] { background: color-mix(in srgb, var(--primary-color, #03a9f4) 20%, var(--card-background-color, #fff));
     box-shadow: inset 0 0 0 2px var(--primary-color, #03a9f4); color: var(--primary-text-color, #212121); }
+  .segment:focus-visible { outline: 2px solid var(--primary-text-color, #212121); outline-offset: -4px; }
   .segment:disabled { cursor: default; }
   .segment:disabled:not([aria-pressed="true"]) { color: var(--secondary-text-color, #727272); }
   .settings-blocks { display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
@@ -494,7 +499,7 @@ export const SETTINGS_STYLE = `
   .settings-actions button { cursor: pointer; }
   .settings-actions .primary { border-color: var(--primary-color, #03a9f4);
     background: color-mix(in srgb, var(--primary-color, #03a9f4) 20%, var(--card-background-color, #fff)); }
-  dialog.settings :disabled:not(.segment) { opacity: 0.5; cursor: default; }
+  dialog.settings :disabled:not(.segment), dialog.settings .handle:not([tabindex]) { opacity: 0.5; cursor: default; }
   @media (max-width: 480px) {
     dialog.settings { width: 100%; height: 100%; max-height: 100%; margin: 0; border-radius: 0; }
   }

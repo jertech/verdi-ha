@@ -41,7 +41,7 @@ from .const import (
 )
 from .coordinator import VerdiCoordinator, create_fast, enabled
 from .guard import drop_guard
-from .page_settings import DATA as PAGE_SETTINGS
+from .page_settings import async_remove_station
 from .panel import async_hide_panel, async_setup_panel, async_show_panel
 from .personal import create_personal, statistics_store
 from .services import async_setup_services
@@ -161,7 +161,7 @@ async def async_remove_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> No
     await timing_store(hass, entry.entry_id).async_remove()
     ir.async_delete_issue(hass, DOMAIN, f"{ISSUE_MISSING_CONFIG}_{entry.entry_id}")
     last = not hass.config_entries.async_entries(DOMAIN)
-    await hass.data[PAGE_SETTINGS].async_remove_station(entry.entry_id, last=last)
+    await async_remove_station(hass, entry.entry_id, last=last)
     if last:
         async_hide_panel(hass)
 

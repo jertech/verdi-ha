@@ -53,6 +53,7 @@ const LABELS = {
     history: "History",
     train_complete: "Complete",
     train_incomplete: "Incomplete",
+    onIntervention: "On intervention",
     today: "Today",
     yesterday: "Yesterday",
     previous_day: "Previous day",
@@ -101,6 +102,7 @@ const LABELS = {
     history: "Geschiedenis",
     train_complete: "Volledig",
     train_incomplete: "Onvolledig",
+    onIntervention: "Op interventie",
     today: "Vandaag",
     yesterday: "Gisteren",
     previous_day: "Vorige dag",
@@ -149,6 +151,7 @@ const LABELS = {
     history: "Historique",
     train_complete: "Complet",
     train_incomplete: "Incomplet",
+    onIntervention: "Sur intervention",
     today: "Aujourd'hui",
     yesterday: "Hier",
     previous_day: "Jour précédent",
@@ -685,7 +688,7 @@ function trainDetail(id, name, state, language, opened, history) {
   return [element("div", "short-line", `${label(language, "missing")}: ${missing.join(", ")}`)];
 }
 
-function trainChip(id, name, state, opened, toggle) {
+function trainChip(id, name, state, language, opened, toggle) {
   const known = live(state);
   const positions = Object.keys(known ? (state.attributes.positions ?? {}) : {});
   const tone = known ? (state.state === "on" ? "ok" : "short") : "";
@@ -695,6 +698,11 @@ function trainChip(id, name, state, opened, toggle) {
     chip.dataset.train = id;
     chip.setAttribute("aria-expanded", String(opened));
     chip.addEventListener("click", () => toggle(id));
+  }
+  if (known) {
+    const status = label(language, state.state === "on" ? "train_complete" : "train_incomplete");
+    chip.setAttribute("aria-label", `${name}, ${status}`);
+    if (!positions.length) chip.setAttribute("role", "img"); // a plain span's label isn't read out
   }
   return chip;
 }
@@ -732,7 +740,7 @@ function readiness({ data, states, language, opened, toggle, history, view }) {
   block.append(heading(language, "readiness"));
   if (view === "chips") {
     const chips = element("div", "chips");
-    for (const { id, name } of named) chips.append(trainChip(id, name, states[id], opened.has(id), toggle));
+    for (const { id, name } of named) chips.append(trainChip(id, name, states[id], language, opened.has(id), toggle));
     block.append(chips);
     for (const { id, name } of named) {
       if (opened.has(id)) block.append(element("strong", "", name), ...trainDetail(id, name, states[id], language, true, history));
@@ -788,11 +796,15 @@ function vehicleListRow(id, state, title, language, history) {
   node.setAttribute("aria-haspopup", "dialog");
   const name = vehicleName(attributes.friendly_name, title);
   const status = statusText(language, state);
-  node.setAttribute("aria-label", `${name}, ${status}, ${label(language, "open_history")}`);
+  const out = known && attributes.on_intervention ? label(language, "onIntervention") : null;
+  const spoken = [name, status, ...(out ? [out] : []), label(language, "open_history")];
+  node.setAttribute("aria-label", spoken.join(", "));
   node.addEventListener("click", () => history(id, name, false));
   const dot = element("span", "dot");
   dot.style.background = normalizeColor(known ? attributes.color : null);
-  node.append(dot, element("span", "name", name), element("span", "muted", status));
+  node.append(dot, element("span", "name", name));
+  if (out) node.append(element("span", "tag", out));
+  node.append(element("span", "muted", status));
   return node;
 }
 

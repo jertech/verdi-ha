@@ -104,12 +104,18 @@ test("every language has every label", () => {
     "readiness", "statistics", "since", "next", "missing", "last", "available", "preAlert", "garrison",
     "problem_token", "problem_paused", "problem_verdi", "problem_stale",
     "now", "loading", "open_history", "history", "train_complete", "train_incomplete", "today", "yesterday", "previous_day",
-    "next_day", "history_empty", "history_failed",
+    "next_day", "history_empty", "history_failed", "onIntervention",
   ]) {
     for (const language of ["en", "nl", "fr"]) {
       assert.ok(label(language, key), `${language} ${key}`);
     }
   }
+});
+
+test("the on-intervention marker uses Verdi's own words", () => {
+  assert.equal(label("en", "onIntervention"), "On intervention");
+  assert.equal(label("nl", "onIntervention"), "Op interventie");
+  assert.equal(label("fr", "onIntervention"), "Sur intervention");
 });
 
 test("a vehicle's name drops the device name", () => {

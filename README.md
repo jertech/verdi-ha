@@ -160,7 +160,9 @@ What the integration pulls from Verdi and stores in Home Assistant, including th
   the integration;
 - the station and service names of your statistics counters (no values), so their sensors exist right after a
   restart, kept and removed the same way;
-- the account ID from the token, in the entry's settings, to route the relay's tokens to the right entry.
+- the account ID from the token, in the entry's settings, to route the relay's tokens to the right entry;
+- the status page's settings file, local to Home Assistant: layout choices per user and station, removed with the
+  integration.
 
 **Colleagues' names.** With the option "Show colleagues' names" **off** (the default for new setups),
 names are dropped as soon as a response is read: on-duty sensors show *filled* or *open*, and

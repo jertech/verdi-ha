@@ -11,7 +11,6 @@ from typing import Any
 import voluptuous as vol
 from homeassistant.components import websocket_api
 from homeassistant.core import HomeAssistant
-from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.storage import Store
 
 from .const import DOMAIN
@@ -55,6 +54,20 @@ SET_SCHEMA = vol.Schema(
 )
 
 
+def _dicts(value: Any) -> dict[str, Any]:
+    """Only what's a dict: a damaged file loses the broken part, not the page."""
+    if not isinstance(value, dict):
+        return {}
+    return {key: item for key, item in value.items() if isinstance(item, dict)}
+
+
+def _users(value: Any) -> dict[str, dict[str, dict[str, Any]]]:
+    return {
+        user_id: {entry_id: _dicts(sets) for entry_id, sets in _dicts(stations).items()}
+        for user_id, stations in _dicts(value).items()
+    }
+
+
 class PageSettings:
     """Kept in memory, as `verdi/status_page` is a callback and can't wait for a file."""
 
@@ -65,14 +78,16 @@ class PageSettings:
     async def async_load(self) -> None:
         try:
             stored = await self._store.async_load()
-        except HomeAssistantError as err:
-            _LOGGER.warning("Can't read the page settings, using the default page: %s", err)
+        except Exception as err:  # whatever the file holds, the integration starts
+            _LOGGER.warning("Can't read the page settings, using the default page: %r", err)
             return
-        users = (stored or {}).get("users")
-        self.users = users if isinstance(users, dict) else {}
+        users = stored.get("users") if isinstance(stored, dict) else None
+        self.users = _users(users)
+        if stored and self.users != users:
+            _LOGGER.warning("Ignoring the part of the page settings that has the wrong shape")
 
     def read(self, user_id: str | None, entry_id: str) -> dict[str, Any]:
-        return (self.users.get(user_id or "") or {}).get(entry_id) or {}
+        return _dicts(_dicts(self.users.get(user_id or "")).get(entry_id))
 
     async def async_save(self, user_id: str, entry_id: str, sets: dict[str, Any]) -> None:
         stations = self.users.get(user_id) or {}
@@ -90,6 +105,15 @@ class PageSettings:
             for user_id, stations in self.users.items()
         }
         await self._store.async_save({"users": self.users})
+
+
+async def async_remove_station(hass: HomeAssistant, entry_id: str, *, last: bool) -> None:
+    """Also works if the domain never set up, which HA skips when every entry is disabled."""
+    settings = hass.data.get(DATA)
+    if settings is None:
+        settings = PageSettings(hass)
+        await settings.async_load()
+    await settings.async_remove_station(entry_id, last=last)
 
 
 @websocket_api.websocket_command(
