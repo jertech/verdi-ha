@@ -1076,6 +1076,13 @@ function definePanel() {
     }
 
     connectedCallback() {
+      // HA doesn't wait for this module's top-level await, so it may have set these on the element before it was upgraded.
+      for (const name of ["narrow", "hass"]) {
+        if (!Object.hasOwn(this, name)) continue;
+        const value = this[name];
+        delete this[name];
+        this[name] = value;
+      }
       this._resize.observe(this);
       if (this._hass) this._arm();
     }
