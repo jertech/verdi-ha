@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.15.1] - 2026-11-03
+
+### Integration
+- The small tags on the **Verdi (unofficial)** page (pre-alert, garrison, on intervention) are easier to read: normal text
+  colour inside the coloured border.
+
 ## [0.15.0] - 2026-11-03
 
 ### Integration
@@ -419,6 +425,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.15.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.15.1
 [0.15.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.15.0
 [0.14.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.14.1
 [0.14.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.14.0
