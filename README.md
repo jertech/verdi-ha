@@ -5,13 +5,6 @@ service zones (hulpverleningszones). This integration brings your station's Verd
 status into Home Assistant, using your own Verdi account. You can show it on a dashboard, use it in
 automations, or look at it on the integration's own status page.
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jertech/verdi-ha/main/docs/images/status-page-paged-wide-dark.png">
-  <img src="https://raw.githubusercontent.com/jertech/verdi-ha/main/docs/images/status-page-paged-wide-light.png" alt="The Verdi status page while you're paged: a red banner with the incident, then your status, vehicles, readiness, personnel and statistics.">
-</picture>
-
-*The status page while you're paged. All names and places are made up.*
-
 ## What you get
 
 **Your station**
@@ -42,6 +35,13 @@ You can turn each part on or off in the integration's options. The full list is 
 The integration adds a **Verdi (unofficial)** page to the sidebar. It shows your status, readiness,
 vehicles, personnel and statistics in Verdi's own colours, and a red banner while you're paged. Each
 user can choose their own layout. See [status page](https://github.com/jertech/verdi-ha/blob/main/docs/status-page.md).
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jertech/verdi-ha/main/docs/images/status-page-paged-wide-dark.png">
+  <img src="https://raw.githubusercontent.com/jertech/verdi-ha/main/docs/images/status-page-paged-wide-light.png" alt="The Verdi status page while you're paged: a red banner with the incident, then your status, vehicles, readiness, personnel and statistics.">
+</picture>
+
+*The status page while you're paged. All names and places are made up.*
 
 ## How it works
 
