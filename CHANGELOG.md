@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.17.1] - 2026-11-04
+
+### Integration
+- Documentation only: nothing changes in Home Assistant. A shorter README, with the details on their own pages under
+  `docs/` (entities, status page, changing your status with example automations, configuration with the language each
+  part uses, privacy, token relay, Remote Calendar), and screenshots of the status page. This release brings the new
+  README to HACS and the Marketplace, which show the README of the latest release.
+
 ## [0.17.0] - 2026-11-03
 
 ### Integration

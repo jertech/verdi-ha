@@ -6,8 +6,8 @@ status into Home Assistant, using your own Verdi account. You can show it on a d
 automations, or look at it on the integration's own status page.
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/status-page-paged-wide-dark.png">
-  <img src="docs/images/status-page-paged-wide-light.png" alt="The Verdi status page while you're paged: a red banner with the incident, then your status, vehicles, readiness, personnel and statistics.">
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/jertech/verdi-ha/main/docs/images/status-page-paged-wide-dark.png">
+  <img src="https://raw.githubusercontent.com/jertech/verdi-ha/main/docs/images/status-page-paged-wide-light.png" alt="The Verdi status page while you're paged: a red banner with the incident, then your status, vehicles, readiness, personnel and statistics.">
 </picture>
 
 *The status page while you're paged. All names and places are made up.*
@@ -34,14 +34,14 @@ automations, or look at it on the integration's own status page.
 **Optional: change your status.** Add an exception or return to planning from Home Assistant, with
 buttons or from an automation. This is off by default.
 
-You can turn each part on or off in the integration's options. The full list of entities is in
-[docs/entities.md](docs/entities.md).
+You can turn each part on or off in the integration's options. The full list is on the
+[entities](https://github.com/jertech/verdi-ha/blob/main/docs/entities.md) page.
 
 ## Status page
 
 The integration adds a **Verdi (unofficial)** page to the sidebar. It shows your status, readiness,
 vehicles, personnel and statistics in Verdi's own colours, and a red banner while you're paged. Each
-user can choose their own layout. See [docs/status-page.md](docs/status-page.md).
+user can choose their own layout. See [status page](https://github.com/jertech/verdi-ha/blob/main/docs/status-page.md).
 
 ## How it works
 
@@ -56,15 +56,16 @@ Verdi only lets you in through your zone's login, with MFA. So the setup has two
 
 - Home Assistant 2026.4 or later.
 - Home Assistant OS, for the Token Relay app. On other installs, run the
-  [standalone relay](docs/standalone-relay.md) on any machine that can keep a container or service running.
+  [standalone relay](https://github.com/jertech/verdi-ha/blob/main/docs/standalone-relay.md) on any machine that can keep a container or service running.
 - A PC with a screen and Python 3.11 or later, for the one-time login (Windows, macOS or Linux).
 
 ## Installation
 
+<!-- ha-marketplace:exclude-start -->
 ### 1. Install the integration
 
-In **Settings > Marketplace** (Home Assistant 2026.11 or later) or in **HACS**, search for
-**Verdi (unofficial)** and install it. Restart Home Assistant when it asks.
+In **Settings > Marketplace** (Home Assistant 2026.11 or later) or in **HACS** (before 2026.11), search
+for **Verdi (unofficial)** and install it. Restart Home Assistant when it asks.
 
 [![Open your Home Assistant instance and open this repository.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jertech&repository=verdi-ha&category=integration)
 
@@ -76,6 +77,9 @@ Open the menu in the Marketplace or in HACS, choose **Custom repositories**, and
 connection for custom repositories.
 
 </details>
+
+<!-- ha-marketplace:exclude-end -->
+Besides the integration, you need the Token Relay app and a one-time login on a PC.
 
 ### 2. Install the Token Relay app
 
@@ -91,7 +95,7 @@ repository on your PC (**Code > Download ZIP** on GitHub) and open a terminal in
 You need two values:
 
 - your Verdi address, the one you open in the browser, for example `https://yourzone.verdi.cloud`;
-- your tenant name ([how to find it](docs/finding-your-ids.md#tenant-name-for-the-token-relay)).
+- your tenant name ([how to find it](https://github.com/jertech/verdi-ha/blob/main/docs/finding-your-ids.md#tenant-name-for-the-token-relay)).
 
 Linux or macOS:
 
@@ -134,12 +138,12 @@ its log says "Home Assistant has no /api/verdi/token yet". That is expected.
 [![Open your Home Assistant instance and start setting up the Verdi integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=verdi)
 
 Go to **Settings > Devices & services > Add integration > Verdi (unofficial)**. Accept the notice, then
-enter your Verdi address and the IDs of your station ([how to find them](docs/finding-your-ids.md)).
+enter your Verdi address and the IDs of your station ([how to find them](https://github.com/jertech/verdi-ha/blob/main/docs/finding-your-ids.md)).
 
 The app delivers a token within about 90 seconds. Until then the integration shows "retrying setup".
 
 To change what the integration shows and how often it checks, press **Configure** on the integration.
-See [docs/configuration.md](docs/configuration.md).
+See [configuration](https://github.com/jertech/verdi-ha/blob/main/docs/configuration.md).
 
 ## When the login stops working
 
@@ -148,27 +152,27 @@ then asks you to re-authenticate. Repeat steps 3 and 4, and restart the app.
 
 ## More documentation
 
-- [Entities](docs/entities.md): every entity and its attributes
-- [Status page](docs/status-page.md): the page, its layouts and settings
-- [Changing your status](docs/changing-status.md): actions, buttons and example automations
-- [Configuration](docs/configuration.md): all options, and how often the integration polls Verdi
-- [Privacy](docs/privacy.md): what is stored in Home Assistant, and what you should protect
-- [Token relay](docs/token-relay.md): how the token gets to Home Assistant
-- [Standalone relay](docs/standalone-relay.md): without Home Assistant OS
-- [Remote Calendar](docs/remote-calendar.md): subscribe to Verdi's calendar feed instead
-- [Finding your IDs](docs/finding-your-ids.md)
-- [Verdi requests used](docs/endpoints.md)
+- [Entities](https://github.com/jertech/verdi-ha/blob/main/docs/entities.md): every entity and its attributes
+- [Status page](https://github.com/jertech/verdi-ha/blob/main/docs/status-page.md): the page, its layouts and settings
+- [Changing your status](https://github.com/jertech/verdi-ha/blob/main/docs/changing-status.md): actions, buttons and example automations
+- [Configuration](https://github.com/jertech/verdi-ha/blob/main/docs/configuration.md): all options, and how often the integration polls Verdi
+- [Privacy](https://github.com/jertech/verdi-ha/blob/main/docs/privacy.md): what is stored in Home Assistant, and what you should protect
+- [Token relay](https://github.com/jertech/verdi-ha/blob/main/docs/token-relay.md): how the token gets to Home Assistant
+- [Standalone relay](https://github.com/jertech/verdi-ha/blob/main/docs/standalone-relay.md): without Home Assistant OS
+- [Remote Calendar](https://github.com/jertech/verdi-ha/blob/main/docs/remote-calendar.md): subscribe to Verdi's calendar feed instead
+- [Finding your IDs](https://github.com/jertech/verdi-ha/blob/main/docs/finding-your-ids.md)
+- [Verdi requests used](https://github.com/jertech/verdi-ha/blob/main/docs/endpoints.md)
 
 ## Security
 
-Please report vulnerabilities privately; see [SECURITY.md](SECURITY.md). Never post tokens,
+Please report vulnerabilities privately; see [SECURITY.md](https://github.com/jertech/verdi-ha/blob/main/SECURITY.md). Never post tokens,
 `verdi_state.json`, HAR files, screenshots of the browser's network tab, IDs or names in issues.
 
 ## Disclaimer
 
 Unofficial, not affiliated with Cevi or Verdi, not for operational use, uses your own Verdi account
-and its permissions, use at your own risk. See [DISCLAIMER.md](DISCLAIMER.md) and
-[ADDITIONAL_TERMS.md](ADDITIONAL_TERMS.md).
+and its permissions, use at your own risk. See [DISCLAIMER.md](https://github.com/jertech/verdi-ha/blob/main/DISCLAIMER.md) and
+[ADDITIONAL_TERMS.md](https://github.com/jertech/verdi-ha/blob/main/ADDITIONAL_TERMS.md).
 
 ## License
 
@@ -177,4 +181,4 @@ Copyright (C) 2026 jertech and contributors.
 This program is free software: you can redistribute it and/or modify it under the terms of the
 GNU General Public License as published by the Free Software Foundation, either version 3 of the
 License, or (at your option) any later version, with the additional terms in
-[ADDITIONAL_TERMS.md](ADDITIONAL_TERMS.md). See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+[ADDITIONAL_TERMS.md](https://github.com/jertech/verdi-ha/blob/main/ADDITIONAL_TERMS.md). See [LICENSE](https://github.com/jertech/verdi-ha/blob/main/LICENSE) and [NOTICE](https://github.com/jertech/verdi-ha/blob/main/NOTICE).
