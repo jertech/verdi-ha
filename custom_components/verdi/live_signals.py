@@ -84,20 +84,21 @@ class LiveSignals:
             if arguments and _same(arguments[0], self._station_id):
                 return self._mark(reason, "readiness")
         elif name in CHANGES and len(arguments) >= 3:
-            model, guid = arguments[1], arguments[2]
+            model = arguments[1].lower() if isinstance(arguments[1], str) else None
+            guid = arguments[2]
             changed = arguments[3] if len(arguments) > 3 and isinstance(arguments[3], list) else []
-            if model == "Person":
+            if model == "person":
                 if _same(guid, me):
                     return self._mark(reason, "availability", "personnel")
                 if isinstance(guid, str) and guid.lower() in self._persons():
                     return self._mark(reason, "personnel")
-            elif model == "Vehicle":
+            elif model == "vehicle":
                 if isinstance(guid, str) and guid.lower() in self._vehicles():
                     return self._mark(reason, "vehicles")
-            elif model == "Intervention":
+            elif model == "intervention":
                 if name == "receivecreated":
                     return self._burst(reason)
-                if "DateStarted" in changed:
+                if any(_same(prop, "DateStarted") for prop in changed):
                     return self._mark(reason, "paged")
         elif name == "receiveinterventionattendanceconfirmation":
             if _same(_first(arguments).get("personId"), me):

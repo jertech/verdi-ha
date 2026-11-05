@@ -458,3 +458,38 @@ def test_hub_is_documented():
     channels = re.search(r"^Channels: (.+)$", doc, flags=re.MULTILINE)
     assert channels is not None
     assert re.findall(r"`([^`]+)`", channels.group(1)) == list(LIVE_CHANNELS)
+
+
+async def test_backoff_starts_over_only_after_a_stable_connection(hub, session):
+    hub.script = [[("acks",), ("close",)] for _ in range(3)]
+    now, lasted = [0.0], iter([0, 299, 300])  # how long each connection stays up on the fake clock
+    states, sleeps = [], Sleeps(limit=3)
+
+    def on_state(up: bool) -> None:
+        states.append(up)
+        if up:
+            now[0] += next(lasted)
+
+    client = make(session, hub, sleeps, states=states, clock=lambda: now[0])
+    client._on_state = on_state
+    await drive(client, sleeps)
+    assert states == [True, False] * 3
+    assert sleeps.seen[1:4] == [4, 15, 4]  # short, 299 s: the next step; 300 s: from the start
+
+
+async def test_reconnect_request_starts_the_backoff_over(hub, session, monkeypatch):
+    monkeypatch.setattr(live, "LIVE_KEEPALIVE", 0.05)
+    hub.script = [[("acks",), ("close",)], [("acks",)]]
+    states, sleeps = [], Sleeps(limit=2)
+    client = make(session, hub, sleeps, states=states)
+    task = asyncio.ensure_future(client.run())
+    try:
+        await until(lambda: states == [True, False, True])
+        client.reconnect()
+        await until(lambda: len(sleeps.seen) >= 3)
+        assert client.last_close == "reconnect"
+        assert sleeps.seen[1:3] == [4, 4]  # without the reset the second would be 15
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task

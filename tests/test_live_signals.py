@@ -229,3 +229,66 @@ async def test_announced_and_off_tick_changes_do_not_count(hass: HomeAssistant, 
         live.handle("ReceivePersonAvailabilityChange", [{"stationId": "station-1"}])
     live.fetched("personnel", new, old)  # announced by the notice before it
     assert live.unannounced == 0
+
+
+async def test_model_names_and_properties_ignore_case(hass: HomeAssistant, config_entry, api, real_live):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "person", "me-1", []])
+    assert _reason(station.personal, "availability") == "live:receivechanged"
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "VEHICLE", "v1", []])
+    assert _reason(station, "vehicles") == "live:receivechanged"
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "intervention", "i1", ["dateStarted"]])
+    assert _reason(station.fast, "paged") == "live:receivechanged"
+    assert live.dropped == 0
+
+
+async def test_pre_alert_end_marks_pre_alerts_and_personnel(
+    hass: HomeAssistant, config_entry, api, real_live
+):
+    live = await _live(hass, config_entry, options={"pre_alert": True})
+    station = config_entry.runtime_data
+    live.handle("ReceivePreAlertEnded", [{}])
+    assert _reason(station.personal, "pre_alerts") == "live:receiveprealertended"
+    assert _reason(station, "personnel") == "live:receiveprealertended"
+    assert live.marks == {"pre_alerts": 1, "personnel": 1}
+
+
+async def test_each_roster_fetch_moves_the_boundary_mark(
+    hass: HomeAssistant, config_entry, api, real_live, freezer
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    schedule = station.lookups["personnel"].schedule
+    with patch.object(station, "data", {**station.data, "roster": []}):
+        live.state(True)
+    boundary = dt_util.now() + timedelta(hours=1)
+    live.fetched("roster", [{"current": {"end": boundary}, "next": None}], [])
+    assert schedule.next_due(dt_util.now()) == boundary + timedelta(seconds=75)
+    sooner = dt_util.now() + timedelta(minutes=20)
+    live.fetched("roster", [{"current": None, "next": {"start": sooner}}], [])
+    assert schedule.next_due(dt_util.now()) == sooner + timedelta(seconds=75)
+    live.state(False)
+    live.fetched("roster", [{"current": {"end": dt_util.now() + timedelta(minutes=5)}, "next": None}], [])
+    assert schedule.next_due(dt_util.now()) == sooner + timedelta(seconds=75)  # not connected: no mark
+
+
+async def test_an_unchanged_tick_or_a_new_connection_ends_the_streak(
+    hass: HomeAssistant, config_entry, api, real_live
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    live.state(True)
+    old = station.data["personnel"]
+    new = {**old, "persons": [{**p, "availability": "Changed"} for p in old["persons"]]}
+    station.lookups["personnel"].schedule.last_reason = TICK
+    live.fetched("personnel", new, old)
+    live.fetched("personnel", new, new)  # a tick with nothing new
+    live.fetched("personnel", new, old)
+    live.state(False)
+    station.lookups["personnel"].schedule.last_reason = TICK
+    live.state(True)
+    station.lookups["personnel"].schedule.last_reason = TICK
+    live.fetched("personnel", new, old)
+    assert live.unannounced == 3
+    live.client.reconnect.assert_not_called()
