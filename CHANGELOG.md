@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.18.3] - 2026-11-05
+
+### Integration
+- Live updates: when the connection comes up, personnel, vehicles and readiness are fetched again even if they were
+  fetched seconds before. A change in the moment before the connection was up has no notice from Verdi, so it showed
+  only at the next station check (up to 5 minutes later) and was counted as unannounced. Your current page is still
+  fetched again only when its last check is more than a minute old.
+
 ## [0.18.2] - 2026-11-05
 
 ### Integration
@@ -479,6 +487,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.18.3]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.3
 [0.18.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.2
 [0.18.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.1
 [0.18.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.0

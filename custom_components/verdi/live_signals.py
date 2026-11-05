@@ -28,7 +28,7 @@ from .const import (
     CONF_STATION_ID,
     LIVE_BURST_SECONDS,
     LIVE_BURST_TICK,
-    LIVE_CATCH_UP_AGE,
+    LIVE_PAGED_CATCH_UP_AGE,
     LIVE_UNANNOUNCED_LIMIT,
 )
 from .coordinator import FastCoordinator, LookupCoordinator, VerdiCoordinator, readiness_inputs, roster_change
@@ -199,17 +199,21 @@ class LiveSignals:
         self._station.async_update_listeners()
 
     def _catch_up(self) -> None:
+        """Fetch what Verdi may have changed before the connection was up: a change in that moment has
+        no notice, and while connected the station's next tick is minutes away. So the station's lookups
+        always; the page only when older than LIVE_PAGED_CATCH_UP_AGE, since its tick is a minute and a
+        run on its lane holds the next notice's fetch for HA's 10 s refresh cooldown."""
         now = dt_util.now()
-        stale = []
+        keys = []
         for key in CATCH_UP:
             lookup = self._station.lane(key).lookups.get(key)
             if lookup is None:
                 continue
             last = lookup.schedule.last_fetch
-            if last is None or now - last >= timedelta(seconds=LIVE_CATCH_UP_AGE):
-                stale.append(key)
-        if stale:
-            self._mark("live:connected", *stale)
+            if key != "paged" or last is None or now - last >= timedelta(seconds=LIVE_PAGED_CATCH_UP_AGE):
+                keys.append(key)
+        if keys:
+            self._mark("live:connected", *keys)
 
     def _roster_marks(self, roster: Any) -> None:
         """Verdi may not announce a scheduled change at your station: fetch at the roster's next boundary."""

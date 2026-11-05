@@ -33,6 +33,8 @@ OWN_STATION = {
 async def live_hub(monkeypatch):
     monkeypatch.setattr(live, "LIVE_START_DELAY", (0, 0))
     monkeypatch.setattr(live, "LIVE_BACKOFF", (0.05,))
+    # The catch-up on connect starts HA's 10 s refresh cooldown; the notice right after it would wait.
+    monkeypatch.setattr("homeassistant.helpers.update_coordinator.REQUEST_REFRESH_DEFAULT_COOLDOWN", 0.05)
     hub = Hub(channels=len(LIVE_CHANNELS))
     await hub.start()
     yield hub
@@ -78,7 +80,7 @@ async def test_the_real_client_runs_inside_home_assistant(hass: HomeAssistant, e
         assert live_hub.negotiations == [f"Bearer {get_store(hass).get(entry.entry_id)}"]
         assert entry.runtime_data.pace_name == "live"
         calls.clear()
-        await until(lambda: signals.marks["personnel"] == 1)
+        await until(lambda: signals.events["receivepersonavailabilitychange"] == 1)
         await until(lambda: PERSONNEL in [c[1] for c in calls])
         assert (
             entry.runtime_data.lookups["personnel"].schedule.last_reason
