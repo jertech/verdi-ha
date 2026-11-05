@@ -208,6 +208,7 @@
         "state": {
           "normal": "Normal",
           "intervention": "Intervention",
+          "live": "Live",
           "backoff": "Backoff"
         }
       }

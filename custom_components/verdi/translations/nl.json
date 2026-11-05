@@ -208,6 +208,7 @@
         "state": {
           "normal": "Normaal",
           "intervention": "Interventie",
+          "live": "Live",
           "backoff": "Uitstel"
         }
       }
