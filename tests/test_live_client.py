@@ -5,13 +5,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from contextlib import suppress
+from pathlib import Path
 
 import aiohttp
 import pytest
 
 from custom_components.verdi import live
-from custom_components.verdi.const import LIVE_CHANNELS
+from custom_components.verdi.const import LIVE_CHANNELS, LIVE_ROUTE
 from custom_components.verdi.guard import Guard
 from custom_components.verdi.live import LiveClient
 from tests.conftest import MidRandom
@@ -306,3 +308,12 @@ async def test_logs_never_hold_the_url_or_token(hub, session, caplog):
 async def test_only_subscribe_all_is_sent():
     with pytest.raises(ValueError):
         await LiveClient._send(None, None, "Invoke", "x")  # type: ignore[arg-type]
+
+
+def test_hub_is_documented():
+    doc = (Path(__file__).resolve().parent.parent / "docs" / "endpoints.md").read_text(encoding="utf-8")
+    rows = set(re.findall(r"^\|\s*(?:Negotiate|WebSocket)\s*\|\s*`([^`]+)`", doc, flags=re.MULTILINE))
+    assert rows == {f"{LIVE_ROUTE}/negotiate", LIVE_ROUTE}
+    channels = re.search(r"^Channels: (.+)$", doc, flags=re.MULTILINE)
+    assert channels is not None
+    assert re.findall(r"`([^`]+)`", channels.group(1)) == list(LIVE_CHANNELS)
