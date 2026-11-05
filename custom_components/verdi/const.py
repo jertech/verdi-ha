@@ -133,6 +133,35 @@ CALL_GAP = (0.2, 1.0)  # seconds between the calls of one run
 STATISTICS_MAX_DELAY = 600  # a burst of triggers delays statistics at most this long
 TIMING_SAVE_DELAY = 5  # seconds; the timing log is saved this long after a record changes
 DAILY_OFFSET_MAX = 2700  # per-entry seconds after 00:05 for the daily statistics refresh
+
+# Live updates (live.py, live_signals.py): Verdi's change notices over the hub the web interface uses.
+CONF_LIVE_UPDATES = "live_updates"  # on unless switched off
+LIVE_ROUTE = "platform/liveupdates"
+LIVE_CHANNELS = (
+    "Person",
+    "Vehicle",
+    "Intervention",
+    "PersonAvailabilityChange",
+    "StationReadinessChanged",
+    "InterventionPreAlert",
+    "InterventionAttendanceConfirmation",
+    "GarrisonCrewAttendanceConfirmation",
+)
+LIVE_START_DELAY = (0, 30)  # seconds before the first connection
+LIVE_KEEPALIVE = 15  # seconds between pings
+LIVE_SERVER_TIMEOUT = 30  # seconds without anything from Verdi: the connection is dead
+LIVE_BACKOFF = (4, 15, 30, 60, 120, 300)  # seconds between attempts, each ±LIVE_BACKOFF_JITTER
+LIVE_BACKOFF_JITTER = 0.2
+LIVE_STABLE = 300  # a connection this long starts the backoff over
+LIVE_NOT_FOUND_RETRY = 1800  # seconds after a 404 or other 4xx on negotiate
+LIVE_DOWN_WARN = 900  # warn once after this long without a connection
+LIVE_BACK_INFO = 300  # say it's back when it was down longer than this
+LIVE_STATION_TICK = 300  # the station's tick while connected (never faster than the option)
+LIVE_FAST_TICK = 60  # the fast lane's tick while connected
+LIVE_BURST_TICK = 10  # the fast lane's tick during a Paged burst
+LIVE_BURST_SECONDS = 90  # how long a burst lasts after a new intervention
+LIVE_CATCH_UP_AGE = 60  # on (re)connect, fetch what is older than this
+LIVE_UNANNOUNCED_LIMIT = 2  # unannounced changes on consecutive ticks before a reconnect
 DAILY_JITTER = 900  # plus up to this many seconds per day: between 00:05 and 01:05
 MIN_WAKE = 5  # seconds; a coordinator never wakes sooner
 IDLE_WAKE = 3600  # seconds; wake this often when nothing is due at all
