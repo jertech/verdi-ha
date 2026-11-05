@@ -98,8 +98,9 @@ def predictable(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def no_live(request, monkeypatch):
-    """Live updates stay off in tests unless a test asks for real_live: no connection to a made-up Verdi."""
-    if "real_live" not in request.fixturenames:
+    """Live updates stay off in tests unless a test asks for real_live or live_hub (test_live_run.py):
+    no connection to a made-up Verdi."""
+    if not {"real_live", "live_hub"} & set(request.fixturenames):
         monkeypatch.setattr("custom_components.verdi.async_setup_live", lambda *args, **kwargs: None)
 
 

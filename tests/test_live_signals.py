@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
+from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.coordinator import readiness_inputs
 from custom_components.verdi.schedule import TICK
@@ -292,3 +293,44 @@ async def test_an_unchanged_tick_or_a_new_connection_ends_the_streak(
     live.fetched("personnel", new, old)
     assert live.unannounced == 3
     live.client.reconnect.assert_not_called()
+
+
+async def test_a_boundary_mark_wakes_at_the_boundary_not_now(
+    hass: HomeAssistant, config_entry, api, real_live, freezer
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    boundary = dt_util.now() + timedelta(hours=1)
+    at = boundary + timedelta(seconds=75)
+    woken = []
+    with patch.object(live, "_wake", woken.append):
+        with patch.object(
+            station, "data", {**station.data, "roster": [{"current": {"end": boundary}, "next": None}]}
+        ):
+            live.state(True)
+        assert woken == []  # no run now: it would hold the next Paged fetch for the refresh cooldown
+        freezer.move_to(at - timedelta(seconds=1))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+        assert station not in woken
+        freezer.move_to(at)
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+        assert station in woken
+
+
+async def test_unload_cancels_a_boundary_wake(hass: HomeAssistant, config_entry, api, real_live, freezer):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    boundary = dt_util.now() + timedelta(hours=1)
+    woken = []
+    with patch.object(live, "_wake", woken.append):
+        with patch.object(
+            station, "data", {**station.data, "roster": [{"current": {"end": boundary}, "next": None}]}
+        ):
+            live.state(True)
+        assert await hass.config_entries.async_unload(config_entry.entry_id)
+        freezer.move_to(boundary + timedelta(minutes=5))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert woken == []

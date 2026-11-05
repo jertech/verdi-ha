@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.18.2] - 2026-11-05
+
+### Integration
+- Live updates: the check planned for your roster's next shift change now waits for that moment. Before, planning it
+  started an empty update at once, and a page notice in the next 10 seconds then waited for it.
+- A lookup that failed and was tried again no longer forgets a fetch planned for later, such as at the next shift
+  change.
+
 ## [0.18.1] - 2026-11-05
 
 ### Integration
@@ -471,6 +479,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.18.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.2
 [0.18.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.1
 [0.18.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.0
 [0.17.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.17.1
