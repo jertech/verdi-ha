@@ -95,6 +95,7 @@ class Signals:
         self._my_name: str | None = None
         self._timing_failed = False
         self._pause_pending = False  # non-pageable during a page: pause once the page ends
+        self.live: Any = None  # LiveSignals when live updates are on (set by live_signals.async_setup_live)
         station.on_fetched, station.on_run = self._station_fetched, self._station_run
         if personal is not None:
             personal.on_fetched = self._personal_fetched
@@ -186,6 +187,8 @@ class Signals:
     def _station_fetched(self, key: str, new: Any, old: Any) -> None:
         # Fires for the station and for the fast lane, so a moved lookup keeps its triggers.
         self._record(key, new)
+        if self.live is not None:
+            self.live.fetched(key, new, old)
         if key == "personnel":
             self._own_name = self._own_name_of(new)
             self._set_pageability()

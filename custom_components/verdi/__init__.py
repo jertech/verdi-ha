@@ -41,6 +41,7 @@ from .const import (
 )
 from .coordinator import VerdiCoordinator, create_fast, enabled
 from .guard import drop_guard
+from .live_signals import async_setup_live
 from .page_settings import async_remove_station
 from .panel import async_hide_panel, async_setup_panel, async_show_panel
 from .personal import create_personal, statistics_store
@@ -137,6 +138,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: VerdiConfigEntry) -> boo
     coordinator.fast = fast
     coordinator.timing, coordinator.timing_store = timing, store
     signals.start()
+    coordinator.live_updates = async_setup_live(hass, entry, coordinator, signals)
     entry.runtime_data = coordinator
     async_track_vehicles(hass, entry, coordinator.lane("vehicles"))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
