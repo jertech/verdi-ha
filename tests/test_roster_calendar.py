@@ -5,11 +5,11 @@ from datetime import timedelta
 from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import VerdiUnavailable
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
+from tests.ha import async_fire_time_changed
 
 EVENTS = "planning/functioncalendar/events/commands"
 URL = "/api/calendars/calendar.verdi_roster?start=2099-06-14T00:00:00Z&end=2099-06-17T00:00:00Z"

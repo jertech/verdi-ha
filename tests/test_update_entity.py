@@ -10,7 +10,6 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.entity_platform import async_get_platforms
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import VerdiApi
 from custom_components.verdi.coordinator import Lookup, LookupCoordinator
@@ -19,6 +18,7 @@ from custom_components.verdi.schedule import LookupSchedule
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import BASE_URL, MidRandom, fake_command, make_token, setup_with_token
+from tests.ha import async_fire_time_changed
 
 
 def _make(hass, entry, lookups) -> LookupCoordinator:

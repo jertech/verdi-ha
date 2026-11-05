@@ -10,11 +10,11 @@ from homeassistant.auth.const import GROUP_ID_USER
 from homeassistant.const import STATE_UNAVAILABLE
 from homeassistant.core import Context, State
 from homeassistant.exceptions import HomeAssistantError, Unauthorized
-from pytest_homeassistant_custom_component.common import MockUser, mock_restore_cache
 
 from custom_components.verdi.api import VerdiApi
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
+from tests.ha import MockUser, mock_restore_cache
 
 ON = {"status_changes": True}
 

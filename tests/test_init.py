@@ -10,7 +10,6 @@ from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.verdi.api import VerdiAuthError
 from custom_components.verdi.const import CONF_STATION_ID, DOMAIN, TOKEN_GRACE_SECONDS
@@ -19,6 +18,7 @@ from custom_components.verdi.sensor import MyAvailabilitySensor, PersonnelSensor
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import DATA, MidRandom, fake_command, make_token, setup_with_token
+from tests.ha import MockConfigEntry, async_fire_time_changed
 
 
 async def test_setup_creates_entities(hass: HomeAssistant, config_entry, mock_api):

@@ -8,13 +8,13 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
 from custom_components.verdi.const import CONF_FAST_LANE, DAILY_JITTER, DAILY_OFFSET_MAX
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import ALL_OFF, MidRandom, fake_command, make_token, setup_with_token
+from tests.ha import async_fire_time_changed
 
 INTERVENTION = "GetPersonCurrentInterventionInformationCommand"
 AVAILABILITY = "GetPersonCurrentAvailabilityCarouselInformationCommand"

@@ -7,10 +7,10 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
+from tests.ha import async_fire_time_changed
 
 READINESS, PERSONNEL = "configuration/readinesses/commands", "configuration/persons/commands"
 VEHICLES, TEAMS, ROSTER = (

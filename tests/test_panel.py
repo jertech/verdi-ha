@@ -11,7 +11,6 @@ from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 from homeassistant.loader import async_get_integration
-from pytest_homeassistant_custom_component.common import MockConfigEntry, async_fire_time_changed
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError, VerdiUnavailable
 from custom_components.verdi.const import DOMAIN
@@ -19,6 +18,7 @@ from custom_components.verdi.panel import _problem, status_page
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import ALL_OFF, DATA, fake_command, make_token, setup_with_token
+from tests.ha import MockConfigEntry, async_fire_time_changed
 
 ON = {"status_changes": True}
 PERSONNEL = "configuration/persons/commands"
