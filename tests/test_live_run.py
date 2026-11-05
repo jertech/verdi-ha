@@ -9,13 +9,13 @@ import asyncio
 import pytest
 from homeassistant.config_entries import SOURCE_USER, ConfigEntryState
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi import live
 from custom_components.verdi.const import CONF_BASE_URL, DOMAIN, LIVE_CHANNELS
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import DATA, fake_command, setup_with_token
+from tests.ha import MockConfigEntry
 from tests.live_hub import Hub
 
 pytestmark = pytest.mark.usefixtures("socket_enabled")  # the fake hub listens on 127.0.0.1

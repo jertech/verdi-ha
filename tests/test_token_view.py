@@ -7,11 +7,11 @@ import pytest
 from homeassistant.config_entries import SOURCE_REAUTH, ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
 from custom_components.verdi.token import accept_token, get_store
 from tests.conftest import DATA, SUB, make_token, setup_with_token
+from tests.ha import MockConfigEntry
 
 URL = "/api/verdi/token"
 

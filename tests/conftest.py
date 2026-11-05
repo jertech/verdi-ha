@@ -12,7 +12,6 @@ from unittest.mock import patch
 import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi.api import APP_ROUTE
 from custom_components.verdi.const import (
@@ -27,6 +26,7 @@ from custom_components.verdi.const import (
 )
 from custom_components.verdi.token import get_store
 from tests import responses as r
+from tests.ha import MockConfigEntry
 
 VERDI = "https://zone.verdi.example"
 

@@ -9,12 +9,12 @@ from unittest.mock import patch
 from freezegun.api import FrozenDateTimeFactory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.api import VerdiError
 from custom_components.verdi.const import CONF_FAST_LANE
 from custom_components.verdi.panel import status_page
 from custom_components.verdi.token import get_store
+from tests.ha import async_fire_time_changed
 
 from . import responses as r
 from .conftest import fake_command, make_token, setup_with_token

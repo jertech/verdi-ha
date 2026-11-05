@@ -9,12 +9,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
 from custom_components.verdi.coordinator import readiness_inputs
 from custom_components.verdi.schedule import TICK
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
+from tests.ha import async_fire_time_changed
 
 PERSONNEL = "PersonGetGroupedWidgetsCommand"
 

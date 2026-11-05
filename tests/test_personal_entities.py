@@ -6,14 +6,14 @@ from unittest.mock import patch
 
 from homeassistant.core import HomeAssistant, State
 from homeassistant.helpers import entity_registry as er
-from pytest_homeassistant_custom_component.common import (
-    async_fire_time_changed,
-    mock_restore_cache_with_extra_data,
-)
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
 from tests import responses as r
 from tests.conftest import ALL_OFF, fake_command, setup_with_token
+from tests.ha import (
+    async_fire_time_changed,
+    mock_restore_cache_with_extra_data,
+)
 
 STATS = "AppGetPersonStatisticsCommand"
 

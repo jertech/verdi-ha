@@ -11,16 +11,16 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
-from pytest_homeassistant_custom_component.common import async_fire_time_changed
-from pytest_homeassistant_custom_component.components.diagnostics import (
-    get_diagnostics_for_config_entry,
-)
 
 from custom_components.verdi.api import VerdiApi, VerdiRefused
 from custom_components.verdi.const import CONF_FAST_LANE, CONF_PAGED, CONF_WATCHED_VEHICLES
 from custom_components.verdi.diagnostics import async_get_config_entry_diagnostics
 from tests import responses as r
 from tests.conftest import ALL_OFF, BASE_URL, DATA, VERDI, fake_command, setup_with_token
+from tests.ha import (
+    async_fire_time_changed,
+    get_diagnostics_for_config_entry,
+)
 
 NAME_PARTS = ("Alex", "Example", "Sam", "Sample", "Robin", "Test")
 

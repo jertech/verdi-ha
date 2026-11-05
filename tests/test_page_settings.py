@@ -1,16 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """The status page's settings: stored per user, station and width."""
 
-from unittest.mock import patch
-
 import pytest
 from homeassistant.config_entries import ConfigEntryDisabler, ConfigEntryState
-from homeassistant.helpers.storage import Store, get_internal_store_manager
-from pytest_homeassistant_custom_component.common import MockConfigEntry
+from homeassistant.helpers.storage import get_internal_store_manager
 
 from custom_components.verdi.const import DOMAIN
 from custom_components.verdi.page_settings import DATA, STORE_KEY, PageSettings
 from tests.conftest import setup_with_token
+from tests.ha import MockConfigEntry, real_store_files
 
 BORD = {"preset": "bord", "changes": {}}
 LIST_VIEW = {"preset": "overzicht", "changes": {"blocks": {"vehicles": {"view": "list"}}}}
@@ -161,8 +159,8 @@ async def test_a_real_file_of_the_wrong_shape_loads_as_empty(hass, tmp_path, con
     (tmp_path / ".storage").mkdir()
     (tmp_path / ".storage" / STORE_KEY).write_text(content)
     get_internal_store_manager(hass).async_invalidate(STORE_KEY)
-    settings = PageSettings(hass)
-    with patch.object(Store, "_async_load", Store._async_load_data):
+    with real_store_files():
+        settings = PageSettings(hass)
         await settings.async_load()
     assert settings.users == {}
     assert "page settings" in caplog.text

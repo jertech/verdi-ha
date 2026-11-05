@@ -7,13 +7,13 @@ import pytest
 from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType, section
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi.api import VerdiAuthError, VerdiError, VerdiUnavailable
 from custom_components.verdi.const import CONF_ACCOUNT_SUB, DOMAIN
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import BASE_URL, DATA, SUB, make_token, setup_with_token
+from tests.ha import MockConfigEntry
 
 
 def gid(n: int) -> str:

@@ -7,7 +7,6 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
-from pytest_homeassistant_custom_component.common import MockConfigEntry
 
 from custom_components.verdi import parse
 from custom_components.verdi.api import VerdiError, VerdiUnavailable
@@ -16,6 +15,7 @@ from custom_components.verdi.coordinator import Availabilities
 from custom_components.verdi.guard import Guard
 from tests import responses as r
 from tests.conftest import DATA, fake_command, setup_with_token
+from tests.ha import MockConfigEntry
 from tests.test_guard import Clock
 
 LIST = "domaindata/person/availabilities/displayitems"
