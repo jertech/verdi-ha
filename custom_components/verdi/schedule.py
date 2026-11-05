@@ -158,10 +158,15 @@ class LookupSchedule:
             self.mark_due(RETRY, at, replace=True)
 
     def diagnostics(self, now: datetime) -> dict[str, Any]:
+        """Times in now's zone: a moment Verdi sent in UTC reads like the rest."""
         due = self.next_due(now)
+
+        def shown(moment: datetime | None) -> str | None:
+            return moment.astimezone(now.tzinfo).isoformat() if moment else None
+
         return {
             "calls_today": self.calls_today if self._day == now.date() else 0,
-            "last_fetch": self.last_fetch.isoformat() if self.last_fetch else None,
+            "last_fetch": shown(self.last_fetch),
             "last_reason": self.last_reason,
-            "next_due": due.isoformat() if due else None,
+            "next_due": shown(due),
         }
