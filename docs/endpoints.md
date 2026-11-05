@@ -39,3 +39,16 @@ page while Paged is in the Fast lane (the default).
 
 The token relay additionally opens the web login (`<your Verdi address>/auth/connect/authorize`)
 with the same parameters the web app uses, and reads the token from the redirect.
+
+## Live updates
+
+With **Live updates from Verdi** on (the default), the integration also keeps one connection open to the live-updates
+hub the Verdi web interface uses. It only subscribes to change notices and never sends anything else on it. Paths are
+relative to the same address as above.
+
+| Kind | Path | Used for |
+|------|------|----------|
+| Negotiate | `platform/liveupdates/negotiate` | Start of a connection (`negotiateVersion=1`, the token as a Bearer header) |
+| WebSocket | `platform/liveupdates` | The connection (the token as `access_token`, as the web interface sends it); one `SubscribeAll` per channel |
+
+Channels: `Person`, `Vehicle`, `Intervention`, `PersonAvailabilityChange`, `StationReadinessChanged`, `InterventionPreAlert`, `InterventionAttendanceConfirmation`, `GarrisonCrewAttendanceConfirmation`

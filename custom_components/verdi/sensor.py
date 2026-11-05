@@ -270,7 +270,7 @@ class TokenExpirySensor(VerdiEntity, SensorEntity):
 
 
 class PaceSensor(VerdiEntity, SensorEntity):
-    """How fast the integration is polling now: normal, intervention or backoff."""
+    """How fast the integration is polling now: normal, intervention, live or backoff."""
 
     coordinator: VerdiCoordinator
     _attr_translation_key = "pace"

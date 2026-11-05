@@ -111,7 +111,11 @@
               "availability_safety": "My availability (minutes, at least 5)",
               "alerts_safety": "Pre-alert and garrison (minutes, at least 10)",
               "events_interval": "My calendars (minutes, at least 10)",
-              "statistics_interval": "Statistics (hours, at least 1; also daily after midnight and after an intervention)"
+              "statistics_interval": "Statistics (hours, at least 1; also daily after midnight and after an intervention)",
+              "live_updates": "Live updates from Verdi"
+            },
+            "data_description": {
+              "live_updates": "Verdi tells Home Assistant when something changes, and polling slows down while the connection is up. Off: polling only, as before."
             }
           }
         }
@@ -161,6 +165,9 @@
       "readiness": {
         "name": "Readiness {train}"
       },
+      "live_updates": {
+        "name": "Live updates"
+      },
       "vehicle_on_intervention": {
         "name": "{vehicle} on intervention"
       },
@@ -208,6 +215,7 @@
         "state": {
           "normal": "Normal",
           "intervention": "Intervention",
+          "live": "Live",
           "backoff": "Backoff"
         }
       }

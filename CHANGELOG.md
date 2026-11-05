@@ -5,6 +5,19 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.18.0] - 2026-11-05
+
+### Integration
+- **Live updates from Verdi** (on by default): the integration keeps one connection open to Verdi's live updates, the
+  same the web interface uses. Verdi says when something changes at your station, for you or for your station's
+  vehicles, and the integration fetches it right away: changes show within seconds instead of up to a minute.
+- While that connection is up it polls far less: the station every 5 minutes, your current page every minute (every
+  10 seconds for a minute and a half after a new intervention in your zone). When it drops, polling goes back to the
+  normal pace at once. Switch it off under the options' **Safety intervals**.
+- A diagnostic **Live updates** sensor shows whether the connection is up, and the Pace sensor has a new state,
+  **Live**. Diagnostics count the notices by kind; the timing log notes for each page how long before it Verdi
+  announced the intervention.
+
 ## [0.17.1] - 2026-11-04
 
 ### Integration
@@ -451,6 +464,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.18.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.0
 [0.17.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.17.0
 [0.16.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.16.0
 [0.15.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.15.1

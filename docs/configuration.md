@@ -71,6 +71,14 @@ time between two lookups when nothing does.
 
 Statistics are also fetched once a day after midnight and after an intervention.
 
+**Live updates from Verdi** (on by default) keeps one connection open to Verdi's live updates, the same the web
+interface uses. Verdi then says when something changes at your station, for you or for your station's vehicles, and the
+integration fetches that right away, so changes show within seconds. While the connection is up it polls far less: the
+station every 5 minutes instead of every minute (also during an intervention), and your current page every minute
+instead of every 15 seconds (every 10 seconds for a minute and a half after a new intervention in your zone). A slower
+interval you set yourself is kept. When the connection drops, polling goes back to the normal pace at once. Switch it
+off to poll only, as before.
+
 ## Language
 
 The integration speaks Dutch, French and English. Any other language gets English.
@@ -95,7 +103,11 @@ When Verdi has trouble or asks to slow down, the integration slows down by itsel
 than 30 calls a minute per Verdi entry. The options refuse settings that would go above 24 calls a minute
 during an intervention.
 
-The `sensor.<name>_pace` diagnostic sensor shows the current pace (normal, intervention or backoff). It's
+With live updates connected, a day at the defaults takes roughly a third of the calls: the station's tick and the
+current page are polled less, and a change is fetched when Verdi announces it. When the connection is down, the
+numbers above apply.
+
+The `sensor.<name>_pace` diagnostic sensor shows the current pace (normal, intervention, live or backoff). It's
 disabled by default.
 
 The requests it makes are listed in [endpoints.md](endpoints.md).

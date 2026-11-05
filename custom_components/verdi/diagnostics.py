@@ -82,6 +82,11 @@ async def async_get_config_entry_diagnostics(hass: HomeAssistant, entry: VerdiCo
         },
         "guard": coordinator.guard.diagnostics() if coordinator else None,
         "timing": coordinator.timing.diagnostics() if coordinator and coordinator.timing else None,
+        "live": (
+            coordinator.live_updates.diagnostics()
+            if coordinator and getattr(coordinator, "live_updates", None) is not None
+            else None
+        ),
         "writes": (
             coordinator.writer.diagnostics()
             if coordinator and getattr(coordinator, "writer", None) is not None

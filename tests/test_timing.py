@@ -472,3 +472,34 @@ def test_keys_union_is_capped():
     log.paged(at(15), PAGE, [f"a{i}" for i in range(40)])
     log.paged(at(30), PAGE, [f"b{i}" for i in range(40)])
     assert len(log.page["keys"]) == 60
+
+
+LIVE_T0 = datetime(2026, 11, 5, 9, 33, 34, tzinfo=UTC)
+LIVE_PAGE = {"alarm_time": "2026-11-05T09:33:30Z"}
+
+
+def _page_after(notice: datetime | None) -> TimingLog:
+    log = TimingLog()
+    log.paged(LIVE_T0 - timedelta(seconds=15), None, [])
+    if notice is not None:
+        log.live_intervention(notice)
+    log.paged(LIVE_T0, dict(LIVE_PAGE), [])
+    return log
+
+
+def test_page_notes_the_live_notice_before_it():
+    assert _page_after(LIVE_T0 - timedelta(seconds=6.5)).page["live_intervention_s"] == 6.5
+
+
+def test_page_without_a_recent_notice():
+    assert _page_after(None).page["live_intervention_s"] is None
+    assert _page_after(LIVE_T0 - timedelta(seconds=121)).page["live_intervention_s"] is None
+    assert _page_after(LIVE_T0 + timedelta(seconds=1)).page["live_intervention_s"] is None
+
+
+def test_older_page_record_without_the_key_still_loads():
+    old = {k: v for k, v in _page_after(None).page.items() if k != "live_intervention_s"}
+    log = TimingLog()
+    log.load({"page": old, "pages": [old]})
+    assert log.page is not None and "live_intervention_s" not in log.page
+    assert log.pages[0] == old

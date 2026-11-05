@@ -49,6 +49,9 @@ from .const import (
     FEATURES,
     IDLE_WAKE,
     INTERVALS,
+    LIVE_BURST_TICK,
+    LIVE_FAST_TICK,
+    LIVE_STATION_TICK,
     MIN_WAKE,
     REJECTED_WINDOW,
 )
@@ -317,6 +320,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._rejected_logged = False
         self.on_fetched: FetchHook | None = None
         self.on_run: RunHook | None = None
+        self.live_connected = False  # live_signals.py: Verdi's live updates are connected
 
     @property
     def failing(self) -> frozenset[str]:
@@ -340,6 +344,27 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def schedule_diagnostics(self, now: datetime) -> dict[str, Any]:
         return {key: lookup.schedule.diagnostics(now) for key, lookup in self.lookups.items()}
+
+    def _live_pace(self, current: tuple[float, float]) -> tuple[float, float]:
+        """The tick while live updates are connected; unchanged here, slower on the station and fast lane."""
+        return current
+
+    def tick_seconds(self) -> float | None:
+        """The tick in seconds now, live updates included; None without a tick."""
+        if (current := self._pace()) is None:
+            return None
+        return (self._live_pace(current) if self.live_connected else current)[0]
+
+    def pull_tick(self, seconds: float) -> None:
+        """The next tick at most this far away. Takes effect at the next run; the caller requests one."""
+        at = dt_util.now() + timedelta(seconds=seconds)
+        if self._tick_at is not None and at < self._tick_at:
+            self._tick_at = at
+
+    def live_dropped(self) -> None:
+        """Live updates dropped: the next tick at most one normal tick away."""
+        if (current := self._pace()) is not None:
+            self.pull_tick(current[0])
 
     def _refresh_token(self) -> None:
         """Pick up the newest pushed token before each poll."""
@@ -454,6 +479,8 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if self.on_run:
             self.on_run(data, previous)
         if tick and (current := self._pace()):
+            if self.live_connected:
+                current = self._live_pace(current)
             self._tick_at = now + timedelta(seconds=jittered(current[0], self.rng, current[1]))
         self.update_interval = self._next_interval(now)
         if blocked and not previous:
@@ -557,6 +584,8 @@ class VerdiCoordinator(LookupCoordinator):
         self.writer: Any = None
         self.timing: TimingLog | None = None
         self.timing_store: Store[dict[str, Any]] | None = None
+        # The LiveSignals when live updates are on; set in __init__.py (Any avoids an import cycle).
+        self.live_updates: Any = None
 
     def lane(self, key: str) -> LookupCoordinator:
         """The coordinator that fetches this lookup: the fast lane may have taken it over."""
@@ -580,10 +609,15 @@ class VerdiCoordinator(LookupCoordinator):
         key = CONF_INTERVENTION_INTERVAL if self.intervention else CONF_SCAN_INTERVAL
         return pace(self.config_entry.options, key)
 
+    def _live_pace(self, current: tuple[float, float]) -> tuple[float, float]:
+        return max(current[0], float(LIVE_STATION_TICK)), current[1]
+
     @property
     def pace_name(self) -> str:
         if self.guard.backing_off:
             return "backoff"
+        if self.live_connected:
+            return "live"
         return "intervention" if self.intervention else "normal"
 
     def _fetched(self, key: str, new: Any, old: Any) -> None:
@@ -618,6 +652,7 @@ class FastCoordinator(LookupCoordinator):
         self.station = station
         self.paused = False
         self.page_keys: list[str] = []
+        self.burst_until: datetime | None = None  # live_signals.py: tick fast until then
         super().__init__(
             hass,
             entry,
@@ -640,6 +675,11 @@ class FastCoordinator(LookupCoordinator):
         if not self._active():
             return None
         return pace(self.config_entry.options, CONF_FAST_INTERVAL)
+
+    def _live_pace(self, current: tuple[float, float]) -> tuple[float, float]:
+        if self.burst_until is not None and dt_util.now() < self.burst_until:
+            return float(LIVE_BURST_TICK), float(LIVE_BURST_TICK)
+        return max(current[0], float(LIVE_FAST_TICK)), current[1]
 
     def _fetched(self, key: str, new: Any, old: Any) -> None:
         if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):

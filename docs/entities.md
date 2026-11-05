@@ -52,4 +52,5 @@ Only with **Change my status** on. See [changing your status](changing-status.md
 | Entity | What it shows |
 |--------|---------------|
 | `sensor.<name>_token_expires` | When the current token expires. |
-| `sensor.<name>_pace` | How fast the integration polls: normal, intervention or backoff. Disabled by default. |
+| `sensor.<name>_pace` | How fast the integration polls: normal, intervention, live (live updates connected) or backoff. Disabled by default. |
+| `binary_sensor.<name>_live_updates` | On while the live updates connection to Verdi is up. Attributes: since when, reconnects today, the last notice, and changes polling found that Verdi hadn't announced. Only with "Live updates from Verdi" on. |

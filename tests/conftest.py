@@ -96,6 +96,23 @@ def predictable(monkeypatch):
     monkeypatch.setattr("custom_components.verdi.coordinator.CALL_GAP", (0.0, 0.0))
 
 
+@pytest.fixture(autouse=True)
+def no_live(request, monkeypatch):
+    """Live updates stay off in tests unless a test asks for real_live: no connection to a made-up Verdi."""
+    if "real_live" not in request.fixturenames:
+        monkeypatch.setattr("custom_components.verdi.async_setup_live", lambda *args, **kwargs: None)
+
+
+@pytest.fixture
+def real_live(monkeypatch):
+    """Live updates set up as in production, but the client never connects: tests drive LiveSignals."""
+
+    async def idle(self) -> None:
+        return None
+
+    monkeypatch.setattr("custom_components.verdi.live.LiveClient.run", idle)
+
+
 ALL_OFF = dict.fromkeys(
     ("my_availability", "paged", "pre_alert", "garrison", "my_events", "statistics"), False
 )

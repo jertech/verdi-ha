@@ -22,6 +22,7 @@ JOIN = timedelta(minutes=10)  # rejoin after a close; how far back an earlier ri
 PAGE_TIMEOUT = timedelta(hours=6)
 STATION_TIMEOUT = timedelta(hours=3)
 PAGE_FIELDS = ("station", "crew_function", "vehicle", "alarm_time", "incident", "confirmation")
+LIVE_WINDOW = timedelta(seconds=120)  # a new-intervention notice this long before a page counts for it
 
 Record = dict[str, Any]
 
@@ -93,6 +94,7 @@ class TimingLog:
         self._saved_intervention: Record | None = None
         self._vehicles: tuple[bool, datetime] | None = None
         self._counts: list[tuple[datetime, int, bool]] = []  # (time, count, list changed)
+        self._live_intervention: datetime | None = None  # memory only: the latest new-intervention notice
 
     # Saved state and diagnostics.
 
@@ -133,6 +135,16 @@ class TimingLog:
         }
 
     # Inputs.
+
+    def live_intervention(self, now: datetime) -> None:
+        """Verdi's live updates announced a new intervention (anywhere in the zone)."""
+        self._live_intervention = now
+
+    def _live_seconds(self, now: datetime) -> float | None:
+        at = self._live_intervention
+        if at is None or not timedelta(0) <= now - at <= LIVE_WINDOW:
+            return None
+        return round((now - at).total_seconds(), 1)
 
     def paging(self, paused: bool) -> None:
         """A resume makes the next paged fetch a fresh baseline, so paged_on_after never points
@@ -178,6 +190,7 @@ class TimingLog:
                 "alarm_time": alarm,
                 "paged_on": _iso(now),
                 "paged_on_after": _iso(prev[1]) if prev else None,
+                "live_intervention_s": self._live_seconds(now),
                 "fields": {name: page.get(name) is not None for name in PAGE_FIELDS},
                 "confirmation_at": _iso(now) if page.get("confirmation") is not None else None,
                 "keys": sorted(set(keys))[:KEYS_MAX],
@@ -356,6 +369,7 @@ class TimingLog:
             "alarm_time": None,
             "paged_on": None,
             "paged_on_after": None,
+            "live_intervention_s": None,
             "paged_off": None,
             "own_on": None,
             "own_on_after": None,

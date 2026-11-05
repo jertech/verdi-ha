@@ -58,6 +58,14 @@ The token and the app's login state give access to your Verdi account.
 - The app keeps its login state (`verdi_state.json`) in its own data folder. That folder is part of Home
   Assistant backups. **Keep your backups encrypted** and store the encryption key safely.
 
+## Live updates
+
+With **Live updates from Verdi** on (the default), the integration keeps one connection open to Verdi's live updates,
+as the Verdi web interface does, with your token. Verdi sends change notices for your whole zone. Each holds only IDs
+and the kind of change ("a person changed", "a vehicle changed", "a new intervention"), never names or contents. The
+integration uses the notices about your station, yourself and your station's vehicles to decide what to fetch, and drops
+the rest. It stores none of them; diagnostics only count them by kind.
+
 ## Diagnostics
 
 A diagnostics download contains counts, settings, lookup times, the token's expiry, and the times of your

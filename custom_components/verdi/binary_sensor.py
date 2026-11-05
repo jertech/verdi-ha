@@ -8,13 +8,15 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any
 
-from homeassistant.components.binary_sensor import BinarySensorEntity
+from homeassistant.components.binary_sensor import BinarySensorDeviceClass, BinarySensorEntity
+from homeassistant.const import EntityCategory
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
 
 from . import VerdiConfigEntry
 from .coordinator import LookupCoordinator
 from .entity import VerdiEntity, device_info, find
+from .live_signals import LiveSignals
 
 PARALLEL_UPDATES = 0
 
@@ -75,6 +77,8 @@ async def async_setup_entry(
             )
     if (f := getattr(c, "fast", None)) is not None and "paged" in f.lookups:
         entities.append(PagedBinarySensor(f))
+    if (live := getattr(c, "live_updates", None)) is not None:
+        entities.append(LiveUpdatesBinarySensor(c, live))
     async_add_entities(entities)
 
 
@@ -173,3 +177,26 @@ class PagedBinarySensor(VerdiEntity, BinarySensorEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         return self._data or None
+
+
+class LiveUpdatesBinarySensor(VerdiEntity, BinarySensorEntity):
+    """On while Verdi's live updates are connected. Only when the option is on."""
+
+    _attr_translation_key = "live_updates"
+    _attr_device_class = BinarySensorDeviceClass.CONNECTIVITY
+    _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _unrecorded_attributes = frozenset({"since", "reconnects_today", "last_event", "unannounced_changes"})
+
+    def __init__(self, coordinator: LookupCoordinator, live: LiveSignals) -> None:
+        super().__init__(coordinator)
+        self._live = live
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_live_updates"
+        self._attr_device_info = device_info(coordinator.config_entry)
+
+    @property
+    def is_on(self) -> bool:
+        return self._live.connected
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        return self._live.attributes()

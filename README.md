@@ -47,8 +47,9 @@ user can choose their own layout. See [status page](https://github.com/jertech/v
 
 Verdi only lets you in through your zone's login, with MFA. So the setup has two parts:
 
-- The **integration** reads your data from Verdi: every minute by default, every 30 seconds during
-  an intervention. It only reads, unless you turn on "Change my status".
+- The **integration** reads your data from Verdi. Verdi's live updates tell it when something changes, so it fetches
+  that at once; besides that it polls every minute by default, every 30 seconds during an intervention, and less while
+  live updates are connected. It only reads, unless you turn on "Change my status".
 - The **Verdi Token Relay** app keeps you logged in and hands the integration a fresh token. You log
   in once on a PC; after that the app renews the login itself.
 
