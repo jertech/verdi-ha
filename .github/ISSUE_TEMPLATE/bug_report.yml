@@ -19,15 +19,22 @@ body:
   - type: input
     id: version
     attributes:
-      label: Integration and app version
-      placeholder: "0.5.0"
+      label: Integration version
+      description: Settings > Devices & services > Verdi (unofficial).
+      placeholder: "0.18.3"
     validations:
       required: true
+  - type: input
+    id: relay
+    attributes:
+      label: Token Relay version
+      description: The app's version, or "standalone" with the image tag, or "none".
+      placeholder: "1.0.0"
   - type: input
     id: ha
     attributes:
       label: Home Assistant version and installation type
-      placeholder: "2026.10.2, Home Assistant OS"
+      placeholder: "2026.11.0, Home Assistant OS"
     validations:
       required: true
   - type: textarea
@@ -41,3 +48,11 @@ body:
     attributes:
       label: Relevant log lines (redacted)
       render: text
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostics (optional)
+      description: >-
+        Settings > Devices & services > Verdi (unofficial) > the three dots > Download diagnostics.
+        Identifiers are removed, but read it through before you paste it.
+      render: json
