@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.18.4] - 2026-11-05
+
+### Integration
+- Diagnostics show every time in Home Assistant's time zone. The token's expiry and times Verdi sends in UTC (such as
+  the next team rotation) were shown in UTC.
+
 ## [0.18.3] - 2026-11-05
 
 ### Integration
@@ -487,6 +493,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.18.4]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.4
 [0.18.3]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.3
 [0.18.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.2
 [0.18.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.1

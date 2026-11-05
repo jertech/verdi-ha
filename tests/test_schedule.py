@@ -2,7 +2,7 @@
 """LookupSchedule: when a lookup is due, and the randomness that spreads the load."""
 
 import random
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 from custom_components.verdi.schedule import (
     RETRY,
@@ -183,3 +183,14 @@ def test_a_retry_still_replaces_a_sooner_mark():
     s.failed(NOW, TICK, timedelta(minutes=5))
     assert s.next_due(NOW) == NOW + timedelta(minutes=5)
     assert s.reason(NOW + timedelta(seconds=30)) is None
+
+
+def test_diagnostics_show_times_in_the_zone_of_now():
+    """Verdi may send a moment in UTC; diagnostics show every time like now (local in Home Assistant)."""
+    local = timezone(timedelta(hours=1))
+    now = NOW.astimezone(local)
+    s = LookupSchedule(next_change=lambda value, now: earliest_after([value], now), known_delay=(0, 0))
+    fetched(s, now, "2026-06-15T17:00:00+00:00", STARTUP)
+    diagnostics = s.diagnostics(now)
+    assert diagnostics["next_due"] == "2026-06-15T18:00:00+01:00"
+    assert diagnostics["last_fetch"] == now.isoformat()

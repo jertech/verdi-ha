@@ -11,6 +11,7 @@ import pytest
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.setup import async_setup_component
+from homeassistant.util import dt as dt_util
 
 from custom_components.verdi.api import VerdiApi, VerdiRefused
 from custom_components.verdi.const import CONF_FAST_LANE, CONF_PAGED, CONF_WATCHED_VEHICLES
@@ -233,3 +234,22 @@ async def test_diagnostics_hold_no_feedback_or_ids(hass, config_entry, mock_api)
 async def test_diagnostics_without_status_changes(hass, config_entry, mock_api):
     await setup_with_token(hass, config_entry)
     assert (await async_get_config_entry_diagnostics(hass, config_entry))["writes"] is None
+
+
+async def test_diagnostics_times_are_local(hass: HomeAssistant, config_entry, mock_api, hass_client):
+    """The token's expiry and the schedules read in Home Assistant's time zone, like every other time."""
+    await hass.config.async_set_time_zone("Europe/Brussels")
+    await setup_with_token(hass, config_entry)
+    diag = await get_diagnostics_for_config_entry(hass, hass_client, config_entry)
+    offset = dt_util.now().strftime("%z")
+    offset = f"{offset[:3]}:{offset[3:]}"
+    times = [diag["token"]["expires"]] + [
+        moment
+        for lane in diag["schedules"].values()
+        if lane
+        for lookup in lane.values()
+        for moment in (lookup["last_fetch"], lookup["next_due"])
+        if moment
+    ]
+    assert times
+    assert all(t.endswith(offset) for t in times), times
