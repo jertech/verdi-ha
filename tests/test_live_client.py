@@ -282,6 +282,147 @@ async def test_down_for_15_minutes_warns_once(hub, session, caplog):
     assert "15 minutes" in warnings[0].getMessage()
 
 
+async def _reconnect_after(hub, session, caplog, down_for: float):
+    """Connect, lose the connection, and come back `down_for` seconds later on a fake clock."""
+    caplog.set_level(logging.DEBUG)
+    hub.script = [[("acks",), ("close",)], [("acks",)]]
+    now = [0.0]
+    calls = [0]
+
+    async def sleep(seconds: float) -> None:
+        calls[0] += 1
+        now[0] += down_for if calls[0] == 2 else seconds  # the first is the start delay
+        if calls[0] > 2:
+            await asyncio.Event().wait()
+        await asyncio.sleep(0)
+
+    client = make(session, hub, sleep, clock=lambda: now[0])
+    task = asyncio.ensure_future(client.run())
+    try:
+        await until(lambda: client.connects == 2)
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+    return [r for r in caplog.records if r.name.startswith("custom_components.verdi")]
+
+
+async def test_connected_again_is_quiet_within_a_normal_backoff(hub, session, caplog):
+    ours = await _reconnect_after(hub, session, caplog, 330)
+    again = [r for r in ours if "connected again" in r.getMessage()]
+    assert again
+    assert all(r.levelno == logging.DEBUG for r in again)
+
+
+async def test_connected_again_is_info_after_a_long_outage(hub, session, caplog):
+    ours = await _reconnect_after(hub, session, caplog, 400)
+    again = [r for r in ours if "connected again" in r.getMessage()]
+    assert [r.levelno for r in again] == [logging.INFO]
+
+
+async def _run_past_15_minutes(hub, session, caplog):
+    now = [0.0]
+    sleeps = Sleeps(limit=6)
+
+    async def sleep(seconds: float) -> None:
+        now[0] += seconds  # 404: every 1800 s, well past 900 s
+        await sleeps(seconds)
+
+    client = make(session, hub, sleep, clock=lambda: now[0])
+    task = asyncio.ensure_future(client.run())
+    try:
+        await asyncio.wait_for(sleeps.done.wait(), 10)
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+    return [
+        r for r in caplog.records if r.levelno == logging.WARNING and r.name.startswith("custom_components")
+    ]
+
+
+async def test_a_404_run_warns_once_not_twice(hub, session, caplog):
+    hub.negotiate_status = 404
+    warnings = await _run_past_15_minutes(hub, session, caplog)
+    assert len(warnings) == 1
+    assert "HTTP 404" in warnings[0].getMessage()
+
+
+async def test_a_401_run_never_warns_it_is_down(hub, session, caplog):
+    hub.negotiate_status = 401
+    now = [0.0]
+    sleeps = Sleeps(limit=1)
+
+    async def sleep(seconds: float) -> None:
+        now[0] += seconds
+        await sleeps(seconds)
+
+    client = make(session, hub, sleep, clock=lambda: now[0])
+    task = asyncio.ensure_future(client.run())
+    try:
+        await until(lambda: client.ends["auth"] == 1)
+        now[0] += 1000
+        client.token_pushed()
+        await until(lambda: client.ends["auth"] == 2)
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+    assert not [r for r in caplog.records if r.levelno == logging.WARNING]
+
+
+async def test_a_raising_on_state_does_not_stop_run(hub, session, caplog):
+    hub.script = [[("acks",), ("close",)], [("acks",)]]
+    calls = []
+
+    def boom(connected: bool) -> None:
+        calls.append(connected)
+        raise RuntimeError("boom-message")
+
+    client = LiveClient(
+        session, hub.url(), lambda: TOKEN, Guard(MidRandom()), lambda t, a: None, boom, MidRandom(),
+        sleep=Sleeps(limit=5),
+    )  # fmt: skip
+    task = asyncio.ensure_future(client.run())
+    try:
+        await until(lambda: client.connects == 2)  # it reconnected after the failing callbacks
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1  # once per kind
+    assert "RuntimeError" in warnings[0].getMessage()
+    assert "boom-message" not in caplog.text
+    assert len(calls) >= 3
+
+
+async def test_a_raising_on_event_does_not_drop_the_connection(hub, session, caplog):
+    hub.script = [[("acks",), ("send", EVENT), ("send", EVENT), ("sleep", 0.2)]]
+    seen = []
+
+    def boom(target, args) -> None:
+        seen.append(target)
+        raise ValueError("boom-message")
+
+    client = LiveClient(
+        session, hub.url(), lambda: TOKEN, Guard(MidRandom()), boom, lambda c: None, MidRandom(),
+        sleep=Sleeps(limit=5),
+    )  # fmt: skip
+    task = asyncio.ensure_future(client.run())
+    try:
+        await until(lambda: len(seen) == 2)
+        assert client.connected
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+    assert client.ends["error"] == 0
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == 1 and "ValueError" in warnings[0].getMessage()
+    assert "boom-message" not in caplog.text
+
+
 async def test_logs_never_hold_the_url_or_token(hub, session, caplog):
     caplog.set_level(logging.DEBUG)
     hub.negotiate_body = {**hub.negotiate_body, "connectionToken": "wrong"}  # the socket answers 404

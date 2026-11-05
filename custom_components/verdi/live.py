@@ -276,7 +276,9 @@ class LiveClient:
             elif kind == 1 and isinstance(data.get("target"), str):
                 arguments = data.get("arguments")
                 self.last_event = dt_util.now()
-                self._on_event(data["target"], arguments if isinstance(arguments, list) else [])
+                self._call(
+                    "event", self._on_event, data["target"], arguments if isinstance(arguments, list) else []
+                )
             elif kind == 7:
                 raise LiveEnded(SERVER_CLOSE)
 
@@ -292,13 +294,18 @@ class LiveClient:
             if self._reconnects_day != today:
                 self._reconnects_day, self._reconnects = today, 0
             self._reconnects += 1
-            if down_for > LIVE_BACK_INFO or DOWN in self._warned:
-                _LOGGER.info("Verdi live updates connected again after %d minutes", int(down_for // 60))
+            # A flapping connection waits up to the longest backoff each time: that is not news.
+            level = (
+                logging.INFO
+                if DOWN in self._warned or down_for > LIVE_BACK_INFO * (1 + LIVE_BACKOFF_JITTER)
+                else logging.DEBUG
+            )
+            _LOGGER.log(level, "Verdi live updates connected again after %d minutes", int(down_for // 60))
         self._ever = True
         self._warned.discard(DOWN)
         self.connected, self.since, self._connected_at = True, dt_util.now(), now
         self.connects += 1
-        self._on_state(True)
+        self._call("state", self._on_state, True)
 
     def _down(self, end: LiveEnded) -> None:
         self.ends[end.kind] += 1
@@ -310,12 +317,29 @@ class LiveClient:
                 self._step = 0
             self.connected, self.since, self.last_close = False, dt_util.now(), end.kind
             self._down_since = now
-            self._on_state(False)
-        elif now - self._down_since >= LIVE_DOWN_WARN and DOWN not in self._warned:
+            self._call("state", self._on_state, False)
+        elif (
+            now - self._down_since >= LIVE_DOWN_WARN
+            and DOWN not in self._warned
+            and NOT_FOUND not in self._warned  # that warning said it already
+            and end.kind not in (AUTH, NO_TOKEN)  # these wait for a token push; the REST polls report it
+        ):
             self._warned.add(DOWN)
             _LOGGER.warning(
                 "Verdi live updates have been down for %d minutes; polling at the normal pace until back",
                 LIVE_DOWN_WARN // 60,
+            )
+
+    def _call(self, kind: str, callback: Callable[..., None], *args: Any) -> None:
+        """Run a callback; its failure must not end the connection, and never logs its message."""
+        try:
+            callback(*args)
+        except Exception as err:
+            self._warn_once(
+                f"callback-{kind}",
+                "Verdi live updates: the %s callback failed (%s)",
+                kind,
+                type(err).__name__,
             )
 
     def _warn_once(self, kind: str, message: str, *args: Any) -> None:

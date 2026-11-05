@@ -171,6 +171,22 @@ async def test_disconnect_returns_to_normal_ticks(hass: HomeAssistant, config_en
     assert station._tick_at == dt_util.now() + timedelta(seconds=normal)
 
 
+async def test_disconnect_marks_every_lane_before_waking_any(
+    hass: HomeAssistant, config_entry, api, real_live
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    assert station.fast is not None
+    live.state(True)
+    flags = []
+    with patch.object(
+        live, "_wake", lambda c: flags.append((station.live_connected, station.fast.live_connected))
+    ):
+        live.state(False)
+    assert flags
+    assert all(f == (False, False) for f in flags)
+
+
 async def test_roster_boundary_marks_personnel(hass: HomeAssistant, config_entry, api, real_live, freezer):
     live = await _live(hass, config_entry)
     station = config_entry.runtime_data

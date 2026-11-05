@@ -157,9 +157,11 @@ class LiveSignals:
     @callback
     def state(self, connected: bool) -> None:
         self.connected = connected
-        for coordinator in (c for c in (self._station, self._station.fast) if c is not None):
+        coordinators = [c for c in (self._station, self._station.fast) if c is not None]
+        for coordinator in coordinators:
             coordinator.live_connected = connected
-            if not connected:
+        if not connected:
+            for coordinator in coordinators:
                 coordinator.live_dropped()
                 self._wake(coordinator)
         if connected:
