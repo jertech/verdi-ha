@@ -39,9 +39,35 @@ Prefer an `--env-file` with permissions `600` over putting `HA_TOKEN` on the com
 
 ## 3b. systemd
 
-Copy `verdi_token_relay/verdi_token_relay.py` to `/opt/verdi/`, and put the settings in
-`/etc/verdi-token-relay.env` (`VERDI_URL`, `VERDI_TENANT`, `HA_URL`, `HA_TOKEN`, `VERDI_STATE`, and optionally
-`VERDI_CULTURE` and `HA_ENTRY_ID`), readable only by root (`chmod 600`).
+The relay runs as its own system user, `verdi`. It needs Python 3.11 or later. Run these from the folder of this
+repository, with `verdi_state.json` from step 2 next to it:
+
+```sh
+sudo useradd --system --create-home --shell /usr/sbin/nologin verdi
+sudo mkdir -p /opt/verdi
+sudo cp verdi_token_relay/verdi_token_relay.py /opt/verdi/
+sudo python3 -m venv /opt/verdi/venv
+sudo /opt/verdi/venv/bin/pip install playwright==1.64.1
+sudo PLAYWRIGHT_BROWSERS_PATH=/opt/verdi/browsers /opt/verdi/venv/bin/playwright install --with-deps chromium
+sudo install -d -o verdi -g verdi -m 700 /var/lib/verdi-token-relay
+sudo install -o verdi -g verdi -m 600 verdi_state.json* /var/lib/verdi-token-relay/
+```
+
+`PLAYWRIGHT_BROWSERS_PATH` puts the browser where the `verdi` user finds it; without it, Playwright installs it in
+root's home folder and the relay can't start it.
+
+Put the settings in `/etc/verdi-token-relay.env`, readable only by root (`chmod 600`):
+
+```ini
+VERDI_URL=https://yourzone.verdi.cloud
+VERDI_TENANT=YourTenant
+HA_URL=http://homeassistant.local:8123
+HA_TOKEN=<long-lived token of the dedicated user>
+VERDI_STATE=/var/lib/verdi-token-relay/verdi_state.json
+PLAYWRIGHT_BROWSERS_PATH=/opt/verdi/browsers
+```
+
+Add `VERDI_CULTURE` and `HA_ENTRY_ID` if you need them.
 
 ```ini
 # /etc/systemd/system/verdi-token-relay.service
@@ -61,7 +87,8 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-The venv needs `pip install playwright==1.64.1 && playwright install --with-deps chromium`.
+Then `sudo systemctl daemon-reload && sudo systemctl enable --now verdi-token-relay`, and follow the log with
+`journalctl -u verdi-token-relay -f`.
 
 ## Several Verdi entries
 
