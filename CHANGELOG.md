@@ -5,6 +5,13 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.18.1] - 2026-11-05
+
+### Integration
+- Live updates: Verdi's notices are matched whatever the case of the kind of change (person, vehicle, intervention)
+  and of the changed field that says an intervention started. Before, a notice written differently was dropped and the
+  change only showed at the next poll.
+
 ## [0.18.0] - 2026-11-05
 
 ### Integration
@@ -464,7 +471,9 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.18.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.1
 [0.18.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.0
+[0.17.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.17.1
 [0.17.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.17.0
 [0.16.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.16.0
 [0.15.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.15.1
