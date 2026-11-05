@@ -240,6 +240,24 @@ async def test_reconnect_request_and_reset(hub, session, monkeypatch):
             await task
 
 
+async def test_reconnect_request_does_not_outlive_its_connection(hub, session):
+    hub.script = [[("acks",), ("sleep", 0.3), ("close",)], [("acks",)]]
+    states, sleeps = [], Sleeps(limit=3)
+    client = make(session, hub, sleeps, states=states)
+    task = asyncio.ensure_future(client.run())
+    try:
+        await until(lambda: states == [True])
+        client.reconnect()  # the hub closes before the client's next loop check
+        await until(lambda: states == [True, False, True])
+        await asyncio.sleep(0.3)
+        assert states == [True, False, True]  # the second connection stays up
+        assert "reconnect" not in client.ends
+    finally:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+
+
 async def test_down_for_15_minutes_warns_once(hub, session, caplog):
     hub.negotiate_status = 503
     now = [0.0]

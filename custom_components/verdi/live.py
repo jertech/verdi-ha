@@ -213,6 +213,7 @@ class LiveClient:
         return connection
 
     async def _listen(self, ws: aiohttp.ClientWebSocketResponse) -> None:
+        self._drop = False  # a reconnect request only applies to the connection it was made on
         await ws.send_str(HANDSHAKE)
         try:
             first = await ws.receive(timeout=LIVE_SERVER_TIMEOUT)
