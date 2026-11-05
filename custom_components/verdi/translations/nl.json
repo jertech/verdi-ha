@@ -111,7 +111,11 @@
               "availability_safety": "Mijn beschikbaarheid (minuten, minstens 5)",
               "alerts_safety": "Vooralarm en herbestaffing (minuten, minstens 10)",
               "events_interval": "Mijn kalenders (minuten, minstens 10)",
-              "statistics_interval": "Statistieken (uren, minstens 1; ook dagelijks na middernacht en na een interventie)"
+              "statistics_interval": "Statistieken (uren, minstens 1; ook dagelijks na middernacht en na een interventie)",
+              "live_updates": "Live-updates van Verdi"
+            },
+            "data_description": {
+              "live_updates": "Verdi meldt meteen wanneer er iets verandert, en er wordt minder opgevraagd zolang de verbinding open is. Uit: alleen opvragen, zoals voorheen."
             }
           }
         }
@@ -160,6 +164,9 @@
     "binary_sensor": {
       "readiness": {
         "name": "Paraatheid {train}"
+      },
+      "live_updates": {
+        "name": "Live-updates"
       },
       "vehicle_on_intervention": {
         "name": "{vehicle} op interventie"

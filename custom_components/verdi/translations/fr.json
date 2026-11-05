@@ -111,7 +111,11 @@
               "availability_safety": "Ma disponibilité (minutes, au moins 5)",
               "alerts_safety": "Pré-alerte et effectif en caserne (minutes, au moins 10)",
               "events_interval": "Mes calendriers (minutes, au moins 10)",
-              "statistics_interval": "Statistiques (heures, au moins 1 ; aussi chaque jour après minuit et après une intervention)"
+              "statistics_interval": "Statistiques (heures, au moins 1 ; aussi chaque jour après minuit et après une intervention)",
+              "live_updates": "Mises à jour en direct de Verdi"
+            },
+            "data_description": {
+              "live_updates": "Verdi signale aussitôt chaque changement, et les interrogations ralentissent tant que la connexion est ouverte. Désactivé : interrogations seules, comme avant."
             }
           }
         }
@@ -160,6 +164,9 @@
     "binary_sensor": {
       "readiness": {
         "name": "Disponibilité de départs {train}"
+      },
+      "live_updates": {
+        "name": "Mises à jour en direct"
       },
       "vehicle_on_intervention": {
         "name": "{vehicle} sur intervention"

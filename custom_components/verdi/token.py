@@ -169,3 +169,6 @@ def accept_token(hass: HomeAssistant, entry: ConfigEntry, token: str, new_sub: s
         entry.runtime_data.api.set_token(token)
         # Coordinators only notify on data changes; the expiry sensor reads the token.
         entry.runtime_data.async_update_listeners()
+        live = getattr(entry.runtime_data, "live_updates", None)
+        if live is not None and live.client is not None:
+            live.client.token_pushed()  # a client waiting for a token tries again now

@@ -54,6 +54,7 @@ from .const import (
     CONF_FUNCTION_CALENDAR_ID,
     CONF_GARRISON,
     CONF_INTERVENTION_INTERVAL,
+    CONF_LIVE_UPDATES,
     CONF_MY_AVAILABILITY,
     CONF_MY_EVENTS,
     CONF_NON_PAGEABLE,
@@ -308,6 +309,7 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
                 options[key] = max(int(options[key]), INTERVALS[key][1])
             options[CONF_WATCHED_VEHICLES] = [str(v) for v in options.get(CONF_WATCHED_VEHICLES) or []]
             options[CONF_NON_PAGEABLE] = [str(v) for v in options.get(CONF_NON_PAGEABLE) or []]
+            options[CONF_LIVE_UPDATES] = bool(options.get(CONF_LIVE_UPDATES, True))
             chosen = options.get(CONF_FAST_LANE) or []
             options[CONF_FAST_LANE] = [str(v) for v in chosen if v in FAST_LANE_CHOICES]
             known = {o["value"] for o in self._availabilities()}
@@ -402,7 +404,15 @@ class VerdiOptionsFlow(OptionsFlowWithReload):
             vol.Required(FAST_LANE): section(vol.Schema(lane), {"collapsed": False}),
             vol.Required(OWN_DATA): section(vol.Schema(own), {"collapsed": False}),
             vol.Required(SAFETY): section(
-                vol.Schema(dict(number(key) for key in SAFETY_INTERVALS)), {"collapsed": True}
+                vol.Schema(
+                    {
+                        **dict(number(key) for key in SAFETY_INTERVALS),
+                        vol.Required(
+                            CONF_LIVE_UPDATES, default=bool(options.get(CONF_LIVE_UPDATES, True))
+                        ): BooleanSelector(),
+                    }
+                ),
+                {"collapsed": True},
             ),
         }
         return self.async_show_form(

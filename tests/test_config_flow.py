@@ -212,6 +212,7 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
             "alerts_safety": 60,
             "events_interval": 60,
             "statistics_interval": 24,
+            "live_updates": True,
         },
     }
     safety = next(v for k, v in schema.schema.items() if str(k) == "safety")
@@ -267,6 +268,7 @@ async def test_options_form(hass: HomeAssistant, config_entry, mock_api):
         "alerts_safety": 10,
         "events_interval": 10,
         "statistics_interval": 1,
+        "live_updates": True,
     }
     assert all(
         isinstance(v, int) for k, v in config_entry.options.items() if k.endswith(("interval", "safety"))
