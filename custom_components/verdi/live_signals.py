@@ -11,12 +11,14 @@ While the connection is up the coordinators tick slower (coordinator.py); when i
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.event import async_track_point_in_utc_time
 from homeassistant.util import dt as dt_util
 
 from .const import (
@@ -57,6 +59,7 @@ class LiveSignals:
         self.unannounced = 0
         self._announced: set[str] = set()
         self._streak: Counter[str] = Counter()
+        self._timers: dict[tuple[int, datetime], Callable[[], None]] = {}
         self._day: date | None = None
         self.events: Counter[str] = Counter()
         self.marks: Counter[str] = Counter()
@@ -137,13 +140,36 @@ class LiveSignals:
             if coordinator not in woken:
                 woken.append(coordinator)
         for coordinator in woken:
-            self._wake(coordinator)
+            if at is None:
+                self._wake(coordinator)
+            else:
+                self._wake_at(coordinator, at)
         return bool(woken)
 
     def _wake(self, coordinator: LookupCoordinator) -> None:
         self._entry.async_create_background_task(
             self._hass, coordinator.async_request_refresh(), "verdi live refresh"
         )
+
+    def _wake_at(self, coordinator: LookupCoordinator, at: datetime) -> None:
+        """Wake at the mark's time, not now: a run now fetches nothing and its refresh cooldown would hold
+        the next notice's fetch (a page) for up to 10 s."""
+        key = (id(coordinator), at)
+        if key in self._timers:
+            return
+
+        @callback
+        def fire(_now: datetime) -> None:
+            self._timers.pop(key, None)
+            self._wake(coordinator)
+
+        self._timers[key] = async_track_point_in_utc_time(self._hass, fire, at)
+
+    @callback
+    def shutdown(self) -> None:
+        for cancel in self._timers.values():
+            cancel()
+        self._timers.clear()
 
     def _persons(self) -> set[str]:
         personnel = (self._station.lane("personnel").data or {}).get("personnel") or {}
@@ -276,5 +302,6 @@ def async_setup_live(
         station.rng,
     )
     signals.live = live
+    entry.async_on_unload(live.shutdown)
     entry.async_create_background_task(hass, live.client.run(), "verdi live updates")
     return live

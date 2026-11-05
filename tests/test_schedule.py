@@ -154,3 +154,32 @@ def test_a_failed_tick_lookup_waits_for_the_next_tick():
     assert s.next_due(NOW) is None
     assert s.reason(NOW + timedelta(minutes=1)) is None
     assert s.reason(NOW + timedelta(minutes=1), tick=True) == TICK
+
+
+def test_a_retry_keeps_a_later_mark():
+    s = LookupSchedule(safety=timedelta(hours=6))
+    fetched(s, NOW, 1, STARTUP)
+    boundary = NOW + timedelta(hours=1)
+    s.mark_due("live:roster", boundary)
+    s.start(NOW + timedelta(minutes=1))
+    s.failed(NOW + timedelta(minutes=1), TICK, timedelta(minutes=5))
+    assert s.next_due(NOW) == NOW + timedelta(minutes=6)
+    assert s.reason(NOW + timedelta(minutes=6)) == RETRY
+    s.start(NOW + timedelta(minutes=6))
+    s.failed(NOW + timedelta(minutes=6), RETRY, timedelta(minutes=5))  # fails again: still kept
+    s.start(NOW + timedelta(minutes=11))
+    fetched(s, NOW + timedelta(minutes=11), 1, RETRY)
+    assert s.next_due(NOW + timedelta(minutes=11)) == boundary
+    assert s.reason(boundary) == "live:roster"
+    s.start(boundary)
+    fetched(s, boundary, 1, "live:roster")
+    assert s.next_due(boundary) == boundary + timedelta(hours=6)  # used up: only the safety interval
+
+
+def test_a_retry_still_replaces_a_sooner_mark():
+    s = LookupSchedule()
+    fetched(s, NOW, 1, STARTUP)
+    s.mark_due("trigger:a", NOW + timedelta(seconds=30))
+    s.failed(NOW, TICK, timedelta(minutes=5))
+    assert s.next_due(NOW) == NOW + timedelta(minutes=5)
+    assert s.reason(NOW + timedelta(seconds=30)) is None

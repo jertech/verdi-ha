@@ -75,6 +75,8 @@ class LookupSchedule:
     _now_reason: str | None = STARTUP
     _later: datetime | None = None
     _later_reason: str | None = None
+    _held: datetime | None = None  # a later mark a retry moved aside, still due at its time
+    _held_reason: str | None = None
     _known_at: datetime | None = None
     _safety_at: datetime | None = None
     _day: date | None = field(default=None, repr=False)
@@ -98,6 +100,8 @@ class LookupSchedule:
             return TICK
         if self._later and self._later <= now:
             return self._later_reason
+        if self._held and self._held <= now:
+            return self._held_reason
         if self._known_at and self._known_at <= now:
             return TIME
         if self._safety_at and self._safety_at <= now:
@@ -108,7 +112,7 @@ class LookupSchedule:
         """When the lookup is due next, apart from ticks; now if it already is."""
         if self._now_reason:
             return now
-        return min((t for t in (self._later, self._known_at, self._safety_at) if t), default=None)
+        return min((t for t in (self._later, self._held, self._known_at, self._safety_at) if t), default=None)
 
     def start(self, now: datetime) -> None:
         """A fetch starts. Times that have come are used up, so a failure doesn't leave the
@@ -116,6 +120,8 @@ class LookupSchedule:
         self._now_reason = None
         if self._later and self._later <= now:
             self._later = self._later_reason = None
+        if self._held and self._held <= now:
+            self._held = self._held_reason = None
         if self._known_at and self._known_at <= now:
             self._known_at = None
         if self._safety_at and self._safety_at <= now:
@@ -140,7 +146,16 @@ class LookupSchedule:
     def failed(self, now: datetime, reason: str, retry: timedelta) -> None:
         self._count(now, reason)
         if not self.always:  # the next tick fetches it anyway
-            self.mark_due(RETRY, now + retry, replace=True)
+            at = now + retry
+            later = self._later
+            if (
+                later
+                and later > at
+                and self._later_reason != RETRY
+                and (self._held is None or later < self._held)
+            ):
+                self._held, self._held_reason = later, self._later_reason
+            self.mark_due(RETRY, at, replace=True)
 
     def diagnostics(self, now: datetime) -> dict[str, Any]:
         due = self.next_due(now)
