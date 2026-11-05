@@ -145,19 +145,37 @@ async def test_marks_follow_a_lookup_to_the_fast_lane(hass: HomeAssistant, confi
     assert _reason(fast, "vehicles") == "live:receivechanged"
 
 
-async def test_connect_catches_up_what_is_old(hass: HomeAssistant, config_entry, api, real_live, freezer):
+async def test_connect_catches_up_the_station_and_an_old_page(
+    hass: HomeAssistant, config_entry, api, real_live, freezer
+):
+    """The station even when just fetched: a change just before the connection was up has no notice."""
     live = await _live(hass, config_entry)
     station = config_entry.runtime_data
+    with patch.object(live, "_wake"):
+        live.state(True)
+        assert station.live_connected and station.fast.live_connected
+        assert _reason(station, "personnel") == "live:connected"
+        assert _reason(station, "vehicles") == "live:connected"
+        assert _reason(station, "readiness") == "live:connected"
+        assert station.fast.lookups["paged"].schedule.reason(dt_util.now()) is None  # fetched seconds ago
+        live.state(False)
+        freezer.tick(timedelta(seconds=61))
+        live.state(True)
+        assert _reason(station.fast, "paged") == "live:connected"
+
+
+async def test_a_change_before_the_connection_is_not_unannounced(
+    hass: HomeAssistant, config_entry, api, real_live
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    old = station.data["personnel"]
+    new = {**old, "persons": [{**p, "availability": "Changed"} for p in old["persons"]]}
     live.state(True)
-    assert station.live_connected and station.fast.live_connected
-    assert live.marks == {}  # everything was fetched seconds ago
-    live.state(False)
-    freezer.tick(timedelta(seconds=61))
-    live.state(True)
-    assert _reason(station, "personnel") == "live:connected"
-    assert _reason(station, "vehicles") == "live:connected"
-    assert _reason(station, "readiness") == "live:connected"
-    assert _reason(station.fast, "paged") == "live:connected"
+    schedule = station.lookups["personnel"].schedule
+    assert schedule.last_reason == "live:connected"  # the catch-up fetched it (tasks start eagerly)
+    live.fetched("personnel", new, old)  # that catch-up fetch found the change made before the connection
+    assert live.unannounced == 0
 
 
 async def test_disconnect_returns_to_normal_ticks(hass: HomeAssistant, config_entry, api, real_live, freezer):
@@ -288,10 +306,10 @@ async def test_an_unchanged_tick_or_a_new_connection_ends_the_streak(
     live.fetched("personnel", new, old)
     live.state(False)
     station.lookups["personnel"].schedule.last_reason = TICK
-    live.state(True)
+    live.state(True)  # its catch-up fetch of personnel is announced, so it never adds to the streak
     station.lookups["personnel"].schedule.last_reason = TICK
     live.fetched("personnel", new, old)
-    assert live.unannounced == 3
+    assert live.unannounced == 2
     live.client.reconnect.assert_not_called()
 
 
@@ -304,10 +322,9 @@ async def test_a_boundary_mark_wakes_at_the_boundary_not_now(
     at = boundary + timedelta(seconds=75)
     woken = []
     with patch.object(live, "_wake", woken.append):
-        with patch.object(
-            station, "data", {**station.data, "roster": [{"current": {"end": boundary}, "next": None}]}
-        ):
-            live.state(True)
+        live.state(True)
+        woken.clear()  # the catch-up's own wakes
+        live._roster_marks([{"current": {"end": boundary}, "next": None}])
         assert woken == []  # no run now: it would hold the next Paged fetch for the refresh cooldown
         freezer.move_to(at - timedelta(seconds=1))
         async_fire_time_changed(hass)
@@ -321,14 +338,12 @@ async def test_a_boundary_mark_wakes_at_the_boundary_not_now(
 
 async def test_unload_cancels_a_boundary_wake(hass: HomeAssistant, config_entry, api, real_live, freezer):
     live = await _live(hass, config_entry)
-    station = config_entry.runtime_data
     boundary = dt_util.now() + timedelta(hours=1)
     woken = []
     with patch.object(live, "_wake", woken.append):
-        with patch.object(
-            station, "data", {**station.data, "roster": [{"current": {"end": boundary}, "next": None}]}
-        ):
-            live.state(True)
+        live.state(True)
+        woken.clear()  # the catch-up's own wakes
+        live._roster_marks([{"current": {"end": boundary}, "next": None}])
         assert await hass.config_entries.async_unload(config_entry.entry_id)
         freezer.move_to(boundary + timedelta(minutes=5))
         async_fire_time_changed(hass)
