@@ -1,9 +1,12 @@
 # Verdi HA (unofficial)
 
 Verdi is Cevi's alerting and dispatching software for the fire service, used by the Belgian emergency
-service zones (hulpverleningszones). This integration brings your station's Verdi data and your own
-status into Home Assistant, using your own Verdi account. You can show it on a dashboard, use it in
-automations, or look at it on the integration's own status page.
+service zones (hulpverleningszones). Zones that use Verdi include Hulpverleningszone Meetjesland,
+Hulpverleningszone Westhoek, Hulpverleningszone Midwest, Hulpverleningszone Fluvia and
+Hulpverleningszone 1 West-Vlaanderen; these zones use Verdi itself and are not involved in this
+integration. This integration brings your station's Verdi data and your own status into Home
+Assistant, using your own Verdi account. You can show it on a dashboard, use it in automations, or
+look at it on the integration's own status page.
 
 ## What you get
 
