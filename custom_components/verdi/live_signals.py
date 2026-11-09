@@ -214,7 +214,6 @@ class LiveSignals:
         if connected:
             self._streak.clear()
             self._announced.clear()
-            self._roster_at = None
             self._catch_up()
             self._roster_marks((self._station.data or {}).get("roster"))
         self._station.async_update_listeners()

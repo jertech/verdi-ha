@@ -427,6 +427,35 @@ async def test_a_roster_edit_without_a_function_calendar(hass: HomeAssistant, ap
     assert live.marks["roster"] == 1
 
 
+async def test_a_roster_edit_after_a_reconnect_joins_the_pending_fetch(
+    hass: HomeAssistant, config_entry, api, real_live, freezer
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    live.state(True)
+    await hass.async_block_till_done()  # the catch-up's fetches
+    api.clear()
+    live.handle("ReceiveCreated", [T, CAL, EMPTY])
+    at = dt_util.now() + timedelta(seconds=10)  # the middle of LIVE_ROSTER_DELAY (5, 15)
+    live.state(False)
+    live.state(True)
+    await hass.async_block_till_done()  # the drop's wake and the catch-up
+    live.handle("ReceiveDeleted", [T, CAL, "e-1"])  # the same burst, just after the reconnect
+    assert live.marks["roster"] == 1
+    assert live.dropped == 0
+    assert station.lookups["roster"].schedule._later == at
+    api.clear()
+    freezer.move_to(at)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    freezer.tick(11)  # past HA's 10 s refresh cooldown, should the wake have waited for it
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    names = [c[1] for c in api]
+    assert names.count(ROSTER) == 1
+    assert names.count(CALENDAR) == 1
+
+
 async def test_deleted_person_or_vehicle_is_still_dropped(hass: HomeAssistant, config_entry, api, real_live):
     live = await _live(hass, config_entry)
     live.handle("ReceiveDeleted", [T, "Person", "ME-1"])
@@ -464,4 +493,4 @@ async def test_a_burst_after_a_fetch_that_ran_early_is_fetched(
         async_fire_time_changed(hass)
         await hass.async_block_till_done()
     assert [c[1] for c in api].count(ROSTER) == 2
-    assert live.marks["roster"] == 3  # the reconnect reopened the window, so the notice at 4 s counted
+    assert live.marks["roster"] == 2  # the notice at 4 s, after the reconnect, joined the pending fetch
