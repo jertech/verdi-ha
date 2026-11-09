@@ -5,6 +5,16 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.19.0] - 2026-11-09
+
+### Integration
+- Live updates: while the connection is up, the station (personnel and vehicles) is checked every 15 minutes instead
+  of every 5, readiness at least every hour, and your availability, the roster and the roster calendar at least every
+  2 hours. Verdi announces those changes, so they still show within seconds. A slower interval you set yourself is
+  kept; when the connection drops, everything goes back to your settings at once.
+- Live updates: a roster change in your zone fetches the roster and the roster calendar again within seconds. Verdi
+  doesn't say which station's roster changed, so every change in the zone counts.
+
 ## [0.18.4] - 2026-11-05
 
 ### Integration
@@ -493,6 +503,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.19.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.0
 [0.18.4]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.4
 [0.18.3]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.3
 [0.18.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.2
