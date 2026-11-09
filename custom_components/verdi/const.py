@@ -157,6 +157,8 @@ LIVE_NOT_FOUND_RETRY = 1800  # seconds after a 404 or other 4xx on negotiate
 LIVE_DOWN_WARN = 900  # warn once after this long without a connection
 LIVE_BACK_INFO = 300  # say it's back when it was down longer than this
 LIVE_STATION_TICK = 900  # the station's tick while connected (never faster than the option)
+# Safety intervals while connected, in minutes like their options; never shorter than the option.
+LIVE_SAFETY = {CONF_READINESS_SAFETY: 60, CONF_AVAILABILITY_SAFETY: 120, CONF_ROSTER_SAFETY: 120}
 LIVE_FAST_TICK = 60  # the fast lane's tick while connected
 LIVE_BURST_TICK = 10  # the fast lane's tick during a Paged burst
 LIVE_BURST_SECONDS = 90  # how long a burst lasts after a new intervention

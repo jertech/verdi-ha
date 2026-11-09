@@ -11,7 +11,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
 from custom_components.verdi.coordinator import readiness_inputs
-from custom_components.verdi.schedule import TICK
+from custom_components.verdi.schedule import MANUAL, TICK
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
 from tests.ha import async_fire_time_changed
@@ -349,3 +349,19 @@ async def test_unload_cancels_a_boundary_wake(hass: HomeAssistant, config_entry,
         async_fire_time_changed(hass)
         await hass.async_block_till_done()
     assert woken == []
+
+
+async def test_personal_follows_the_connection(hass: HomeAssistant, config_entry, api, real_live, freezer):
+    live = await _live(hass, config_entry)
+    personal = config_entry.runtime_data.personal
+    assert personal is not None
+    schedule = personal.lookups["availability"].schedule
+    live.state(True)
+    assert personal.live_connected
+    personal.mark_due("availability", MANUAL)
+    await personal.async_refresh()
+    assert schedule._safety_at == dt_util.now() + timedelta(hours=2)
+    live.state(False)
+    assert not personal.live_connected
+    assert schedule._safety_at == dt_util.now() + timedelta(minutes=30)  # the default option
+    assert personal.lookups["events"].schedule.live_safety is None

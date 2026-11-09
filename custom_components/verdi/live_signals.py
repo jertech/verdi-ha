@@ -5,7 +5,8 @@
 
 Verdi's notices hold IDs only and come for the whole zone. Only those about the entry's station, your
 own person and the station's vehicles count; the value is always fetched over REST, through the guard.
-While the connection is up the coordinators tick slower (coordinator.py); when it drops, as before.
+While the connection is up the coordinators tick slower and some safety intervals are longer (coordinator.py,
+schedule.py); when it drops, as before.
 """
 
 from __future__ import annotations
@@ -184,7 +185,8 @@ class LiveSignals:
     @callback
     def state(self, connected: bool) -> None:
         self.connected = connected
-        coordinators = [c for c in (self._station, self._station.fast) if c is not None]
+        station = self._station
+        coordinators = [c for c in (station, station.fast, station.personal) if c is not None]
         for coordinator in coordinators:
             coordinator.live_connected = connected
         if not connected:

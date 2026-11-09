@@ -51,6 +51,7 @@ from .const import (
     INTERVALS,
     LIVE_BURST_TICK,
     LIVE_FAST_TICK,
+    LIVE_SAFETY,
     LIVE_STATION_TICK,
     MIN_WAKE,
     REJECTED_WINDOW,
@@ -98,8 +99,14 @@ def request_language(hass: HomeAssistant) -> str:
 
 
 def safety_schedule(options: Mapping[str, Any], key: str, **kwargs: Any) -> LookupSchedule:
-    """A schedule with a safety interval option."""
-    return LookupSchedule(safety=interval(options, key), safety_minimum=minimum(key), **kwargs)
+    """A schedule with a safety interval option, and its longer value while live updates are connected."""
+    live = LIVE_SAFETY.get(key)
+    return LookupSchedule(
+        safety=interval(options, key),
+        safety_minimum=minimum(key),
+        live_safety=timedelta(seconds=live * INTERVALS[key][3]) if live else None,
+        **kwargs,
+    )
 
 
 def readiness_inputs(key: str, value: Any) -> list[tuple[str, ...]] | None:
@@ -362,7 +369,11 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._tick_at = at
 
     def live_dropped(self) -> None:
-        """Live updates dropped: the next tick at most one normal tick away."""
+        """Live updates dropped: the next tick at most one normal tick away, each safety at most one normal
+        safety away."""
+        now = dt_util.now()
+        for lookup in self.lookups.values():
+            lookup.schedule.live_dropped(now, self.rng)
         if (current := self._pace()) is not None:
             self.pull_tick(current[0])
 
@@ -460,7 +471,7 @@ class LookupCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             else:
                 self.guard.succeeded()
                 self._rejected_logged = False
-                lookup.schedule.fetched(now, value, reason, self.rng)
+                lookup.schedule.fetched(now, value, reason, self.rng, live=self.live_connected)
                 if key in self._failing:
                     _LOGGER.info("Verdi lookup %s works again", key)
                 old, data[key] = data[key], value

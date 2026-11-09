@@ -11,6 +11,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from custom_components.verdi.api import VerdiUnavailable
+from custom_components.verdi.schedule import MANUAL
 from tests.conftest import setup_with_token
 
 
@@ -107,3 +108,25 @@ async def test_pace_name_live(hass: HomeAssistant, config_entry, mock_api):
     c.async_update_listeners()
     await hass.async_block_till_done()
     assert hass.states.get("sensor.verdi_pace").state == "live"
+
+
+async def test_safety_is_longer_while_live_and_back_on_a_drop(
+    hass: HomeAssistant, config_entry, mock_api, freezer
+):
+    await setup_with_token(hass, config_entry, options={"readiness_safety": 10, "roster_safety": 30})
+    c = config_entry.runtime_data
+    c.on_run = None
+    c.live_connected = True
+    for key in ("readiness", "roster", "roster_calendar"):
+        c.mark_due(key, MANUAL)
+    await c.async_refresh()
+    now = dt_util.now()
+    assert c.lookups["readiness"].schedule._safety_at == now + timedelta(minutes=60)
+    assert c.lookups["roster"].schedule._safety_at == now + timedelta(minutes=120)
+    assert c.lookups["roster_calendar"].schedule._safety_at == now + timedelta(minutes=120)
+    assert c.lookups["teams"].schedule.live_safety is None
+    c.live_connected = False
+    c.live_dropped()
+    assert c.lookups["readiness"].schedule._safety_at == now + timedelta(minutes=10)
+    assert c.lookups["roster"].schedule._safety_at == now + timedelta(minutes=30)
+    assert c.lookups["roster_calendar"].schedule._safety_at == now + timedelta(minutes=30)
