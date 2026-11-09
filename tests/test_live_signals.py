@@ -364,8 +364,12 @@ async def test_personal_follows_the_connection(hass: HomeAssistant, config_entry
     personal.mark_due("availability", MANUAL)
     await personal.async_refresh()
     assert schedule._safety_at == dt_util.now() + timedelta(hours=2)
+    personal.update_interval = timedelta(hours=2)  # as planned for the connection
     live.state(False)
+    await hass.async_block_till_done()
     assert not personal.live_connected
+    assert personal.update_interval is not None
+    assert personal.update_interval <= timedelta(minutes=30)  # the drop's wake re-planned the coordinator
     assert schedule._safety_at == dt_util.now() + timedelta(minutes=30)  # the default option
     assert personal.lookups["events"].schedule.live_safety is None
 
@@ -429,3 +433,35 @@ async def test_deleted_person_or_vehicle_is_still_dropped(hass: HomeAssistant, c
     live.handle("ReceiveDeleted", [T, "Vehicle", "V1"])
     assert live.dropped == 2
     assert live.marks == {}
+
+
+async def test_a_burst_after_a_fetch_that_ran_early_is_fetched(
+    hass: HomeAssistant, config_entry, api, real_live, freezer
+):
+    live = await _live(hass, config_entry)
+    live.state(True)
+    await hass.async_block_till_done()
+    freezer.move_to(dt_util.now() + timedelta(seconds=30))  # past any cooldown
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    t0 = dt_util.now()
+    api.clear()
+    live.handle("ReceiveCreated", [T, CAL, EMPTY])  # the roster is marked for t0 + 10 s
+    freezer.move_to(t0 + timedelta(seconds=1))
+    live.state(False)
+    live.state(True)  # a reconnect inside the window: the mark stays
+    freezer.move_to(t0 + timedelta(seconds=4))
+    live.handle("ReceiveChanged", [T, CAL, "e-1", ["End"]])  # absorbed by the mark that stays
+    for seconds in (10, 11, 12):
+        freezer.move_to(t0 + timedelta(seconds=seconds))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert [c[1] for c in api].count(ROSTER) == 1
+    freezer.move_to(t0 + timedelta(seconds=13))
+    live.handle("ReceiveCreated", [T, CAL, EMPTY])  # a new burst, after that fetch
+    for seconds in (20, 30, 45):
+        freezer.move_to(t0 + timedelta(seconds=seconds))
+        async_fire_time_changed(hass)
+        await hass.async_block_till_done()
+    assert [c[1] for c in api].count(ROSTER) == 2
+    assert live.marks["roster"] == 3  # the reconnect reopened the window, so the notice at 4 s counted

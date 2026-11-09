@@ -227,3 +227,19 @@ def test_live_dropped_pulls_a_long_safety_back():
     none.fetched(NOW, 1, TICK, RNG)
     none.live_dropped(NOW, RNG)
     assert none.next_due(NOW) is None
+
+
+class LowRandom(random.Random):
+    """Always the bottom of the range: the jitter is as small as it gets."""
+
+    def uniform(self, a: float, b: float) -> float:
+        return a
+
+
+def test_live_dropped_leaves_a_lookup_without_a_live_value_alone():
+    s = LookupSchedule(safety=timedelta(minutes=10))
+    s.start(NOW)
+    s.fetched(NOW, 1, SAFETY, RNG)
+    kept = s.next_due(NOW)
+    s.live_dropped(NOW, LowRandom())  # a jittered safety from now would be 9 min: still not moved
+    assert s.next_due(NOW) == kept == NOW + timedelta(minutes=10)

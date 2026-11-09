@@ -146,8 +146,9 @@ class LookupSchedule:
         self._known_at = change + timedelta(seconds=rng.uniform(*self.known_delay)) if change else None
 
     def live_dropped(self, now: datetime, rng: random.Random) -> None:
-        """Live updates dropped: a safety planned for the connection is at most one normal safety away."""
-        if not self.safety or self._safety_at is None:
+        """Live updates dropped: a safety planned for the connection is at most one normal safety away.
+        A lookup without a live safety was not planned for the connection and stays as it is."""
+        if not self.safety or self._safety_at is None or self.live_safety is None:
             return
         at = now + timedelta(seconds=jittered(self.safety.total_seconds(), rng, self.safety_minimum))
         self._safety_at = min(self._safety_at, at)

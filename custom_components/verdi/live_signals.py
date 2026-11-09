@@ -251,6 +251,7 @@ class LiveSignals:
     @callback
     def fetched(self, key: str, new: Any, old: Any) -> None:
         if key == "roster":
+            self._roster_at = None  # a roster fetch answers every notice before it
             if self.connected:
                 self._roster_marks(new)
             return

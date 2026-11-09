@@ -57,7 +57,7 @@ remove events in the availability calendar**. Both are off by default. See
 ### Safety intervals
 
 Most lookups only run when something signals a change (see below). The safety interval is the longest
-time between two lookups when nothing does.
+time between two lookups when nothing does (longer while live updates are connected, see below).
 
 | Lookup | Default | Minimum |
 |--------|---------|---------|

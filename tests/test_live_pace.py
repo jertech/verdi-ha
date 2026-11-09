@@ -125,8 +125,10 @@ async def test_safety_is_longer_while_live_and_back_on_a_drop(
     assert c.lookups["roster"].schedule._safety_at == now + timedelta(minutes=120)
     assert c.lookups["roster_calendar"].schedule._safety_at == now + timedelta(minutes=120)
     assert c.lookups["teams"].schedule.live_safety is None
+    teams_at = c.lookups["teams"].schedule._safety_at
     c.live_connected = False
     c.live_dropped()
+    assert c.lookups["teams"].schedule._safety_at == teams_at
     assert c.lookups["readiness"].schedule._safety_at == now + timedelta(minutes=10)
     assert c.lookups["roster"].schedule._safety_at == now + timedelta(minutes=30)
     assert c.lookups["roster_calendar"].schedule._safety_at == now + timedelta(minutes=30)
