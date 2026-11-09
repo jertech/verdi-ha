@@ -5,6 +5,14 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.19.1] - 2026-11-09
+
+### Integration
+- Roster calendar: a calendar view shows a roster change as soon as the integration has fetched it. Before, a range
+  you had already opened was kept for up to 5 minutes.
+- Diagnostics: the count of roster refreshes (`marks_today`) no longer counts one too many when a roster change arrives
+  right after live updates reconnect. The roster itself was always fetched correctly.
+
 ## [0.19.0] - 2026-11-09
 
 ### Integration
@@ -503,6 +511,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.19.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.1
 [0.19.0]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.0
 [0.18.4]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.4
 [0.18.3]: https://github.com/jertech/verdi-ha/releases/tag/v0.18.3

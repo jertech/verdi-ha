@@ -105,3 +105,28 @@ async def test_no_view_calls_during_a_backoff(hass: HomeAssistant, config_entry,
         resp = await client.get(URL)
         assert await resp.json() == []
     assert calls == []
+
+
+async def test_a_roster_calendar_fetch_refreshes_the_views(
+    hass: HomeAssistant, config_entry, hass_client, freezer
+):
+    calls: list = []
+    command, user = patched(r.all_ok(), calls)
+    with command, user:
+        await setup_with_token(hass, config_entry)
+        # The client's access token is valid around the real now: move the clock only a little.
+        client = await hass_client()
+
+        def views() -> int:
+            return sum(1 for c in calls if c[0] == EVENTS)
+
+        await client.get(URL)
+        await client.get(URL)
+        base = views()  # the second view came from memory
+        freezer.tick(timedelta(seconds=2))
+        await config_entry.runtime_data.async_refresh_lookup("roster_calendar")  # as after a roster edit
+        assert views() == base + 1  # the poll itself
+        await client.get(URL)
+        assert views() == base + 2  # saved before that fetch: asked again
+        await client.get(URL)
+        assert views() == base + 2  # saved after it: from memory

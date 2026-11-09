@@ -49,7 +49,8 @@ def _to_event(item: dict[str, Any]) -> CalendarEvent | None:
 
 class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
     """Shifts of the function calendar. Current and next come from the station's polls; a
-    calendar view asks Verdi for its range, served from memory for a few minutes."""
+    calendar view asks Verdi for its range, served from memory for a few minutes or until the roster
+    calendar is polled again."""
 
     coordinator: VerdiCoordinator
     lookup = "roster_calendar"
@@ -61,7 +62,13 @@ class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
         self._calendar_id = entry.data[CONF_FUNCTION_CALENDAR_ID]
         self._attr_unique_id = f"{entry.entry_id}_roster_calendar"
         self._attr_device_info = device_info(entry)
-        self._cache: dict[tuple[datetime, datetime], tuple[float, list[CalendarEvent]]] = {}
+        self._cache: dict[tuple[datetime, datetime], tuple[float, datetime | None, list[CalendarEvent]]] = {}
+
+    def _fetched(self) -> datetime | None:
+        """When the roster calendar was last polled: a roster edit is fetched that way, so a view saved
+        before it may miss the edit."""
+        lookup = self.coordinator.lookups.get("roster_calendar")
+        return lookup.schedule.last_fetch if lookup else None
 
     def _events(self, items: list[dict[str, Any]]) -> list[CalendarEvent]:
         roster = (self.coordinator.data or {}).get("roster") or []
@@ -77,24 +84,25 @@ class VerdiRosterCalendar(VerdiEntity, CalendarEntity):
     ) -> list[CalendarEvent]:
         key = (start_date, end_date)
         cached = self._cache.get(key)
-        if cached and time.monotonic() - cached[0] < CALENDAR_CACHE:
-            return cached[1]
+        fetched = self._fetched()
+        if cached and cached[1] == fetched and time.monotonic() - cached[0] < CALENDAR_CACHE:
+            return cached[2]
         guard = self.coordinator.guard
         if not guard.can_call():
-            return cached[1] if cached else []
+            return cached[2] if cached else []
         guard.record_call()
         try:
             data = await self.coordinator.api.calendar_events(self._calendar_id, start_date, end_date)
         except VerdiUnavailable as err:
             guard.wait(err.retry_after)  # only a failed station tick backs off
-            return cached[1] if cached else []
+            return cached[2] if cached else []
         except VerdiError:  # an auth error is for the coordinator's 401 window
-            return cached[1] if cached else []
+            return cached[2] if cached else []
         guard.succeeded()
         events = self._events(parse.calendar_events(data, names=self.coordinator.show_names))
         if key not in self._cache and len(self._cache) >= 8:
             self._cache.pop(next(iter(self._cache)))
-        self._cache[key] = (time.monotonic(), events)
+        self._cache[key] = (time.monotonic(), fetched, events)
         return events
 
     @property
