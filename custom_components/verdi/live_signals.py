@@ -30,6 +30,7 @@ from .const import (
     LIVE_BURST_SECONDS,
     LIVE_BURST_TICK,
     LIVE_PAGED_CATCH_UP_AGE,
+    LIVE_ROSTER_DELAY,
     LIVE_UNANNOUNCED_LIMIT,
 )
 from .coordinator import FastCoordinator, LookupCoordinator, VerdiCoordinator, readiness_inputs, roster_change
@@ -41,6 +42,7 @@ PERSONAL = ("availability", "pre_alerts", "garrison")
 CATCH_UP = ("personnel", "vehicles", "readiness", "paged")
 CHECKED = ("personnel", "vehicles")
 CHANGES = ("receivechanged", "receivecreated")
+ROSTER_EDITS = ("receivecreated", "receivechanged", "receivedeleted")
 
 
 def _same(a: Any, b: Any) -> bool:
@@ -59,6 +61,7 @@ class LiveSignals:
         self.connected = False
         self.unannounced = 0
         self._announced: set[str] = set()
+        self._roster_at: datetime | None = None
         self._streak: Counter[str] = Counter()
         self._timers: dict[tuple[int, datetime], Callable[[], None]] = {}
         self._day: date | None = None
@@ -81,6 +84,8 @@ class LiveSignals:
         """Mark what the notice is about. False when it isn't about this station, you or its vehicles."""
         reason = f"live:{name}"
         me = self._station.person.value
+        if name in ROSTER_EDITS and len(arguments) >= 2 and _same(arguments[1], "FunctionCalendarEvent"):
+            return self._roster_edit(reason)
         if name == "receivepersonavailabilitychange":
             if _same(_first(arguments).get("stationId"), self._station_id):
                 return self._mark(reason, "personnel")
@@ -125,6 +130,19 @@ class LiveSignals:
         fast.pull_tick(LIVE_BURST_TICK)
         self.bursts += 1
         return self._mark(reason, "paged")
+
+    def _roster_edit(self, reason: str) -> bool:
+        """A roster in the zone changed; Verdi doesn't say which. Fetch the roster and its calendar once,
+        shortly after the first notice: a planner's edit comes as a burst of notices in the same second."""
+        now = dt_util.now()
+        if self._roster_at is not None and now < self._roster_at:
+            return True  # that fetch is still to come
+        at = now + timedelta(seconds=self._station.rng.uniform(*LIVE_ROSTER_DELAY))
+        if not self._mark(reason, "roster", "roster_calendar", at=at):
+            return False
+        self._roster_at = at
+        self.marks["roster"] += 1
+        return True
 
     def _coordinator(self, key: str) -> LookupCoordinator | None:
         return self._station.personal if key in PERSONAL else self._station.lane(key)
@@ -196,6 +214,7 @@ class LiveSignals:
         if connected:
             self._streak.clear()
             self._announced.clear()
+            self._roster_at = None
             self._catch_up()
             self._roster_marks((self._station.data or {}).get("roster"))
         self._station.async_update_listeners()

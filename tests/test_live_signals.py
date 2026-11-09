@@ -3,18 +3,21 @@
 
 from __future__ import annotations
 
+import uuid
 from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
+from homeassistant.config_entries import SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.util import dt as dt_util
 
+from custom_components.verdi.const import DOMAIN
 from custom_components.verdi.coordinator import readiness_inputs
 from custom_components.verdi.schedule import MANUAL, TICK
 from tests import responses as r
-from tests.conftest import fake_command, setup_with_token
-from tests.ha import async_fire_time_changed
+from tests.conftest import DATA, fake_command, setup_with_token
+from tests.ha import MockConfigEntry, async_fire_time_changed
 
 PERSONNEL = "PersonGetGroupedWidgetsCommand"
 
@@ -365,3 +368,64 @@ async def test_personal_follows_the_connection(hass: HomeAssistant, config_entry
     assert not personal.live_connected
     assert schedule._safety_at == dt_util.now() + timedelta(minutes=30)  # the default option
     assert personal.lookups["events"].schedule.live_safety is None
+
+
+CAL = "FunctionCalendarEvent"
+T = "2026-01-01T00:00:00Z"
+EMPTY = str(uuid.UUID(int=0))  # the empty guid Verdi sends with a Created; built, so no literal in the repo
+ROSTER = "FunctionCalendarPlanningWidgetCommand"
+CALENDAR = "FunctionCalendarEventGetForCalendarCommand"
+
+
+async def test_a_roster_edit_burst_fetches_the_roster_once(
+    hass: HomeAssistant, config_entry, api, real_live, freezer
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    live.state(True)
+    await hass.async_block_till_done()  # the catch-up's fetches
+    api.clear()
+    live.handle("ReceiveCreated", [T, CAL, EMPTY])
+    live.handle("ReceiveChanged", [T, CAL, "e-1", ["End", "Start"]])
+    live.handle("receiveDeleted", [T, "functionCalendarEvent", "e-2"])
+    at = dt_util.now() + timedelta(seconds=10)  # the middle of LIVE_ROSTER_DELAY (5, 15)
+    for key in ("roster", "roster_calendar"):
+        schedule = station.lookups[key].schedule
+        assert (schedule._later, schedule._later_reason) == (at, "live:receivecreated")
+    assert live.marks["roster"] == 1
+    assert live.dropped == 0
+    await hass.async_block_till_done()
+    assert api == []  # nothing before the burst is over
+    freezer.move_to(at)
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    freezer.tick(11)  # past HA's 10 s refresh cooldown, should the wake have waited for it
+    async_fire_time_changed(hass)
+    await hass.async_block_till_done()
+    names = [c[1] for c in api]
+    assert names.count(ROSTER) == 1
+    assert names.count(CALENDAR) == 1
+    live.handle("ReceiveChanged", [T, CAL, "e-3", ["End"]])  # a later burst
+    assert station.lookups["roster"].schedule._later == dt_util.now() + timedelta(seconds=10)
+    assert live.marks["roster"] == 2
+
+
+async def test_a_roster_edit_without_a_function_calendar(hass: HomeAssistant, api, real_live):
+    data = {k: v for k, v in DATA.items() if k != "function_calendar_id"}
+    entry = MockConfigEntry(
+        domain=DOMAIN, version=4, unique_id="station-1", title="Verdi", data=data, source=SOURCE_USER
+    )
+    live = await _live(hass, entry)
+    station = entry.runtime_data
+    assert "roster_calendar" not in station.lookups
+    live.handle("ReceiveCreated", [T, CAL, EMPTY])
+    assert station.lookups["roster"].schedule._later_reason == "live:receivecreated"
+    assert live.marks["roster"] == 1
+
+
+async def test_deleted_person_or_vehicle_is_still_dropped(hass: HomeAssistant, config_entry, api, real_live):
+    live = await _live(hass, config_entry)
+    live.handle("ReceiveDeleted", [T, "Person", "ME-1"])
+    live.handle("ReceiveDeleted", [T, "Vehicle", "V1"])
+    assert live.dropped == 2
+    assert live.marks == {}
