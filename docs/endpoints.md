@@ -51,4 +51,4 @@ relative to the same address as above.
 | Negotiate | `platform/liveupdates/negotiate` | Start of a connection (`negotiateVersion=1`, the token as a Bearer header) |
 | WebSocket | `platform/liveupdates` | The connection (the token as `access_token`, as the web interface sends it); one `SubscribeAll` per channel |
 
-Channels: `Person`, `Vehicle`, `Intervention`, `PersonAvailabilityChange`, `StationReadinessChanged`, `InterventionPreAlert`, `InterventionAttendanceConfirmation`, `GarrisonCrewAttendanceConfirmation`
+Channels: `Person`, `Vehicle`, `Intervention`, `PersonAvailabilityChange`, `StationReadinessChanged`, `InterventionPreAlert`, `InterventionAttendanceConfirmation`, `GarrisonCrewAttendanceConfirmation`, `FunctionCalendarEvent`

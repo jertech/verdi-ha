@@ -67,6 +67,7 @@ class LookupSchedule:
     always: bool = False
     safety: timedelta | None = None
     safety_minimum: float = 0.0
+    live_safety: timedelta | None = None
     next_change: NextChange | None = None
     known_delay: tuple[float, float] = BOUNDARY_DELAY
     last_fetch: datetime | None = None
@@ -133,15 +134,24 @@ class LookupSchedule:
         self.calls_today += 1
         self.last_fetch, self.last_reason = now, reason
 
-    def fetched(self, now: datetime, value: Any, reason: str, rng: random.Random) -> None:
+    def fetched(self, now: datetime, value: Any, reason: str, rng: random.Random, live: bool = False) -> None:
         self._count(now, reason)
         if self._later_reason == RETRY:
             self._later = self._later_reason = None
         if self.safety:
-            seconds = jittered(self.safety.total_seconds(), rng, self.safety_minimum)
+            safety = max(self.safety, self.live_safety) if live and self.live_safety else self.safety
+            seconds = jittered(safety.total_seconds(), rng, self.safety_minimum)
             self._safety_at = now + timedelta(seconds=seconds)
         change = self.next_change(value, now) if self.next_change and value is not None else None
         self._known_at = change + timedelta(seconds=rng.uniform(*self.known_delay)) if change else None
+
+    def live_dropped(self, now: datetime, rng: random.Random) -> None:
+        """Live updates dropped: a safety planned for the connection is at most one normal safety away.
+        A lookup without a live safety was not planned for the connection and stays as it is."""
+        if not self.safety or self._safety_at is None or self.live_safety is None:
+            return
+        at = now + timedelta(seconds=jittered(self.safety.total_seconds(), rng, self.safety_minimum))
+        self._safety_at = min(self._safety_at, at)
 
     def failed(self, now: datetime, reason: str, retry: timedelta) -> None:
         self._count(now, reason)

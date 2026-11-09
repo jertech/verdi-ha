@@ -60,11 +60,12 @@ The token and the app's login state give access to your Verdi account.
 
 ## Live updates
 
-With **Live updates from Verdi** on (the default), the integration keeps one connection open to Verdi's live updates,
-as the Verdi web interface does, with your token. Verdi sends change notices for your whole zone. Each holds only IDs
-and the kind of change ("a person changed", "a vehicle changed", "a new intervention"), never names or contents. The
-integration uses the notices about your station, yourself and your station's vehicles to decide what to fetch, and drops
-the rest. It stores none of them; diagnostics only count them by kind.
+With **Live updates from Verdi** on (the default), the integration keeps one connection open to Verdi's live updates, as
+the Verdi web interface does, with your token. Verdi sends change notices for your whole zone. Each holds only IDs and
+the kind of change ("a person changed", "a vehicle changed", "a new intervention"), never names or contents. The
+integration uses the notices about your station, yourself and your station's vehicles to decide what to fetch, and the
+notices that a roster in your zone changed (they don't say which station) to fetch your roster again. It drops the rest.
+It stores none of them; diagnostics only count them by kind.
 
 ## Diagnostics
 

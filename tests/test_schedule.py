@@ -194,3 +194,52 @@ def test_diagnostics_show_times_in_the_zone_of_now():
     diagnostics = s.diagnostics(now)
     assert diagnostics["next_due"] == "2026-06-15T18:00:00+01:00"
     assert diagnostics["last_fetch"] == now.isoformat()
+
+
+def test_live_safety_is_the_slower_of_option_and_live_value():
+    s = LookupSchedule(safety=timedelta(minutes=10), live_safety=timedelta(minutes=60))
+    s.start(NOW)
+    s.fetched(NOW, 1, SAFETY, RNG, live=True)
+    assert s.next_due(NOW) == NOW + timedelta(minutes=60)
+    fetched(s, NOW, 1, SAFETY)  # not live: the option
+    assert s.next_due(NOW) == NOW + timedelta(minutes=10)
+    slow = LookupSchedule(safety=timedelta(minutes=90), live_safety=timedelta(minutes=60))
+    slow.start(NOW)
+    slow.fetched(NOW, 1, SAFETY, RNG, live=True)
+    assert slow.next_due(NOW) == NOW + timedelta(minutes=90)
+    plain = LookupSchedule(safety=timedelta(minutes=10))
+    plain.start(NOW)
+    plain.fetched(NOW, 1, SAFETY, RNG, live=True)
+    assert plain.next_due(NOW) == NOW + timedelta(minutes=10)
+
+
+def test_live_dropped_pulls_a_long_safety_back():
+    s = LookupSchedule(safety=timedelta(minutes=10), live_safety=timedelta(minutes=60))
+    s.start(NOW)
+    s.fetched(NOW, 1, SAFETY, RNG, live=True)
+    later = NOW + timedelta(minutes=5)
+    s.live_dropped(later, RNG)
+    assert s.next_due(later) == later + timedelta(minutes=10)
+    s.live_dropped(later + timedelta(minutes=8), RNG)  # 2 min left: nearer than a normal safety, kept
+    assert s.next_due(later) == later + timedelta(minutes=10)
+    none = LookupSchedule(always=True)
+    none.start(NOW)
+    none.fetched(NOW, 1, TICK, RNG)
+    none.live_dropped(NOW, RNG)
+    assert none.next_due(NOW) is None
+
+
+class LowRandom(random.Random):
+    """Always the bottom of the range: the jitter is as small as it gets."""
+
+    def uniform(self, a: float, b: float) -> float:
+        return a
+
+
+def test_live_dropped_leaves_a_lookup_without_a_live_value_alone():
+    s = LookupSchedule(safety=timedelta(minutes=10))
+    s.start(NOW)
+    s.fetched(NOW, 1, SAFETY, RNG)
+    kept = s.next_due(NOW)
+    s.live_dropped(NOW, LowRandom())  # a jittered safety from now would be 9 min: still not moved
+    assert s.next_due(NOW) == kept == NOW + timedelta(minutes=10)

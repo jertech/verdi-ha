@@ -11,6 +11,7 @@ from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
 from custom_components.verdi.api import VerdiUnavailable
+from custom_components.verdi.schedule import MANUAL
 from tests.conftest import setup_with_token
 
 
@@ -20,7 +21,7 @@ async def _tick(coordinator) -> timedelta:
     return coordinator._tick_at - dt_util.now()
 
 
-async def test_station_ticks_every_five_minutes_while_live(
+async def test_station_ticks_every_fifteen_minutes_while_live(
     hass: HomeAssistant, config_entry, mock_api, freezer
 ):
     await setup_with_token(hass, config_entry)
@@ -29,19 +30,19 @@ async def test_station_ticks_every_five_minutes_while_live(
     c.intervention = False
     assert await _tick(c) == timedelta(seconds=60)
     c.live_connected = True
-    assert await _tick(c) == timedelta(seconds=300)
+    assert await _tick(c) == timedelta(seconds=900)
     c.intervention = True
-    assert await _tick(c) == timedelta(seconds=300)
-    assert c.tick_seconds() == 300
+    assert await _tick(c) == timedelta(seconds=900)
+    assert c.tick_seconds() == 900
 
 
 async def test_a_slower_option_is_kept_while_live(hass: HomeAssistant, config_entry, mock_api, freezer):
-    await setup_with_token(hass, config_entry, options={"scan_interval": 600})
+    await setup_with_token(hass, config_entry, options={"scan_interval": 1200})
     c = config_entry.runtime_data
     c.on_run = None  # signals.py would set the flag from the fixture's running intervention
     c.intervention = False
     c.live_connected = True
-    assert await _tick(c) == timedelta(seconds=600)
+    assert await _tick(c) == timedelta(seconds=1200)
 
 
 async def test_fast_lane_ticks_every_minute_and_bursts(hass: HomeAssistant, config_entry, mock_api, freezer):
@@ -107,3 +108,27 @@ async def test_pace_name_live(hass: HomeAssistant, config_entry, mock_api):
     c.async_update_listeners()
     await hass.async_block_till_done()
     assert hass.states.get("sensor.verdi_pace").state == "live"
+
+
+async def test_safety_is_longer_while_live_and_back_on_a_drop(
+    hass: HomeAssistant, config_entry, mock_api, freezer
+):
+    await setup_with_token(hass, config_entry, options={"readiness_safety": 10, "roster_safety": 30})
+    c = config_entry.runtime_data
+    c.on_run = None
+    c.live_connected = True
+    for key in ("readiness", "roster", "roster_calendar"):
+        c.mark_due(key, MANUAL)
+    await c.async_refresh()
+    now = dt_util.now()
+    assert c.lookups["readiness"].schedule._safety_at == now + timedelta(minutes=60)
+    assert c.lookups["roster"].schedule._safety_at == now + timedelta(minutes=120)
+    assert c.lookups["roster_calendar"].schedule._safety_at == now + timedelta(minutes=120)
+    assert c.lookups["teams"].schedule.live_safety is None
+    teams_at = c.lookups["teams"].schedule._safety_at
+    c.live_connected = False
+    c.live_dropped()
+    assert c.lookups["teams"].schedule._safety_at == teams_at
+    assert c.lookups["readiness"].schedule._safety_at == now + timedelta(minutes=10)
+    assert c.lookups["roster"].schedule._safety_at == now + timedelta(minutes=30)
+    assert c.lookups["roster_calendar"].schedule._safety_at == now + timedelta(minutes=30)

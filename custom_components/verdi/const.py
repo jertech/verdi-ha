@@ -146,6 +146,7 @@ LIVE_CHANNELS = (
     "InterventionPreAlert",
     "InterventionAttendanceConfirmation",
     "GarrisonCrewAttendanceConfirmation",
+    "FunctionCalendarEvent",
 )
 LIVE_START_DELAY = (0, 30)  # seconds before the first connection
 LIVE_KEEPALIVE = 15  # seconds between pings
@@ -156,10 +157,13 @@ LIVE_STABLE = 300  # a connection this long starts the backoff over
 LIVE_NOT_FOUND_RETRY = 1800  # seconds after a 404 or other 4xx on negotiate
 LIVE_DOWN_WARN = 900  # warn once after this long without a connection
 LIVE_BACK_INFO = 300  # say it's back when it was down longer than this
-LIVE_STATION_TICK = 300  # the station's tick while connected (never faster than the option)
+LIVE_STATION_TICK = 900  # the station's tick while connected (never faster than the option)
+# Safety intervals while connected, in minutes like their options; never shorter than the option.
+LIVE_SAFETY = {CONF_READINESS_SAFETY: 60, CONF_AVAILABILITY_SAFETY: 120, CONF_ROSTER_SAFETY: 120}
 LIVE_FAST_TICK = 60  # the fast lane's tick while connected
 LIVE_BURST_TICK = 10  # the fast lane's tick during a Paged burst
 LIVE_BURST_SECONDS = 90  # how long a burst lasts after a new intervention
+LIVE_ROSTER_DELAY = (5, 15)  # seconds from a roster-edit notice to the roster fetch; a burst gets one fetch
 LIVE_PAGED_CATCH_UP_AGE = 60  # on (re)connect, the page only when older (a run there holds the next for 10 s)
 LIVE_UNANNOUNCED_LIMIT = 2  # unannounced changes on consecutive ticks before a reconnect
 DAILY_JITTER = 900  # plus up to this many seconds per day: between 00:05 and 01:05
