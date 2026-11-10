@@ -545,6 +545,9 @@ async def test_a_restart_just_before_the_end_fetches_soon(hass: HomeAssistant, c
     await tick(hass, freezer, 31)  # 12:00:31
     assert count(calls, EVENTS) == 1
     assert events_schedule(config_entry).last_reason == AHEAD
+    await tick(hass, freezer, 29)  # 12:01:00
+    await minutes(hass, freezer, 5)  # 12:06:00: the startup fetch (12:05:30) still ran
+    assert count(calls, EVENTS) == 2
 
 
 async def test_an_events_fetch_inside_the_window_clears_the_slot(
@@ -563,13 +566,43 @@ async def test_an_events_fetch_inside_the_window_clears_the_slot(
     assert count(calls, EVENTS) == 0
 
 
+async def test_an_early_events_fetch_doesnt_lose_the_fetch_before_the_end(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T13:25:00Z")  # window from 13:10, planned at 13:12:30
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # 12:05:30 startup fetch
+    await minutes(hass, freezer, 6)  # 12:11:30
+    await config_entry.runtime_data.personal.async_refresh_lookup("events")  # safety now inside the window
+    await hass.async_block_till_done()
+    await minutes(hass, freezer, 53)  # 13:04:30: availability at 12:30 and 13:00 saw that safety
+    await config_entry.runtime_data.personal.async_refresh_lookup("events")  # moves the safety past the end
+    await hass.async_block_till_done()
+    calls.clear()
+    await tick(hass, freezer, 481)  # 13:12:31
+    assert count(calls, EVENTS) == 1
+    assert events_schedule(config_entry).last_reason == AHEAD
+    await minutes(hass, freezer, 13)  # 13:25:31
+    assert count(calls, EVENTS) == 1
+
+
 async def test_no_end_no_slot(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _, _ = api
+    ends(responses, "2026-06-15T13:00:00Z")
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # the startup events fetch (12:05:30)
+    assert events_schedule(config_entry).ahead_at is not None
+    responses[APP_ROUTE][AVAILABILITY] = {k: v for k, v in r.CAROUSEL.items() if k != "globalAvailability"}
+    await minutes(hass, freezer, 26)  # 12:31:30: the availability safety (12:30) gets the empty answer
+    assert events_schedule(config_entry).ahead_at is None
+
+
+async def test_a_null_end_no_slot(hass: HomeAssistant, config_entry, api, freezer):
     responses, _, _ = api
     ends(responses, None)
     await start(hass, config_entry, freezer)
-    assert events_schedule(config_entry).ahead_at is None
-    responses[APP_ROUTE][AVAILABILITY] = {k: v for k, v in r.CAROUSEL.items() if k != "globalAvailability"}
-    await minutes(hass, freezer, 31)  # the availability safety (12:30) gets the empty answer
+    await tick(hass, freezer, 330)
     assert events_schedule(config_entry).ahead_at is None
 
 
