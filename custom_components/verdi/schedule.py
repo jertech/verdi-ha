@@ -80,7 +80,7 @@ class LookupSchedule:
     _later_reason: str | None = None
     _held: datetime | None = None  # a later mark a retry moved aside, still due at its time
     _held_reason: str | None = None
-    ahead_at: datetime | None = None  # one fetch planned before a known moment; replaced, never merged
+    ahead_at: datetime | None = None  # see set_ahead
     _known_at: datetime | None = None
     _safety_at: datetime | None = None
     _day: date | None = field(default=None, repr=False)
