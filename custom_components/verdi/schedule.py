@@ -19,6 +19,7 @@ from .const import BOUNDARY_DELAY, JITTER
 
 # Why a lookup ran, as shown in diagnostics. Triggers use "trigger:<name>".
 STARTUP, TICK, TIME, SAFETY, RETRY, MANUAL = "startup", "tick", "time", "safety", "retry", "manual"
+AHEAD = "ahead"  # fetched shortly before a known moment, so the data is fresh then
 
 type NextChange = Callable[[Any, datetime], datetime | None]
 
@@ -62,6 +63,7 @@ class LookupSchedule:
     always: fetched on every tick of its coordinator. safety: longest time between fetches,
     varied per run but never below safety_minimum seconds. next_change: reads from the lookup's
     value when it changes next; the lookup is due known_delay seconds (random) after that.
+    ahead_at: one fetch planned before a known moment (see set_ahead).
     """
 
     always: bool = False
@@ -78,6 +80,7 @@ class LookupSchedule:
     _later_reason: str | None = None
     _held: datetime | None = None  # a later mark a retry moved aside, still due at its time
     _held_reason: str | None = None
+    ahead_at: datetime | None = None  # one fetch planned before a known moment; replaced, never merged
     _known_at: datetime | None = None
     _safety_at: datetime | None = None
     _day: date | None = field(default=None, repr=False)
@@ -93,6 +96,11 @@ class LookupSchedule:
         elif replace or self._later is None or at < self._later:
             self._later, self._later_reason = at, reason
 
+    def set_ahead(self, at: datetime | None) -> None:
+        """Due at `at`, in a slot of its own: it replaces the previous one, and other marks and fetches
+        before it leave it alone. None clears it."""
+        self.ahead_at = at
+
     def reason(self, now: datetime, tick: bool = False) -> str | None:
         """Why the lookup is due now, or None."""
         if self._now_reason:
@@ -103,6 +111,8 @@ class LookupSchedule:
             return self._later_reason
         if self._held and self._held <= now:
             return self._held_reason
+        if self.ahead_at and self.ahead_at <= now:
+            return AHEAD
         if self._known_at and self._known_at <= now:
             return TIME
         if self._safety_at and self._safety_at <= now:
@@ -113,7 +123,10 @@ class LookupSchedule:
         """When the lookup is due next, apart from ticks; now if it already is."""
         if self._now_reason:
             return now
-        return min((t for t in (self._later, self._held, self._known_at, self._safety_at) if t), default=None)
+        return min(
+            (t for t in (self._later, self._held, self.ahead_at, self._known_at, self._safety_at) if t),
+            default=None,
+        )
 
     def start(self, now: datetime) -> None:
         """A fetch starts. Times that have come are used up, so a failure doesn't leave the
@@ -123,6 +136,8 @@ class LookupSchedule:
             self._later = self._later_reason = None
         if self._held and self._held <= now:
             self._held = self._held_reason = None
+        if self.ahead_at and self.ahead_at <= now:
+            self.ahead_at = None
         if self._known_at and self._known_at <= now:
             self._known_at = None
         if self._safety_at and self._safety_at <= now:

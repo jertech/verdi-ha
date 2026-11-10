@@ -30,6 +30,8 @@ from .const import (
     DAILY_JITTER,
     DAILY_OFFSET_MAX,
     DOMAIN,
+    EVENTS_AHEAD,
+    EVENTS_FRESH,
     PERSONAL_RETRY_SECONDS,
     STATISTICS_AFTER_INTERVENTION,
     STATISTICS_DAILY_AT,
@@ -88,6 +90,7 @@ class Signals:
         self._ready = self._marked = False
         self._stats_first: datetime | None = None
         self._retry_at: datetime | None = None
+        self._end: datetime | None = None  # the end of your current status, from the last availability
         self._unsub_daily: CALLBACK_TYPE | None = None
         self._stopped = False
         self._pageable = True
@@ -346,6 +349,33 @@ class Signals:
             self._set_pageability()  # My availability is the fallback when the own line is missing
             if old is not None and new != old:
                 self._mark("events", "trigger:availability", self._later())
+            self._end = new.get("end") if isinstance(new, dict) else None
+            self._plan_ahead()
+        elif key == "events":
+            self._plan_ahead()
+
+    def _plan_ahead(self) -> None:
+        """Your events again 10-15 minutes before your current status ends, so the next status is
+        current then: Verdi announces no change to your own planning. Runs after every availability
+        and events fetch, so an early events fetch never leaves the window without one."""
+        events = self._personal.lookups.get("events") if self._personal is not None else None
+        if events is None:
+            return
+        schedule = events.schedule
+        schedule.set_ahead(None)
+        end, now = self._end, dt_util.now()
+        if end is None or end <= now:
+            return
+        window = end - timedelta(seconds=EVENTS_FRESH)
+        if schedule.last_fetch is not None and schedule.last_fetch >= window:
+            return  # last_fetch is the last try (a failed fetch counts; it has its own retry)
+        due = schedule.next_due(now)
+        if due is not None and window <= due <= end:
+            return  # the startup fetch, a trigger or the safety is due in the window anyway
+        # Drawn again on each plan, always 10-15 min before the end (or soon when that has passed),
+        # so re-planning never adds a fetch.
+        at = end - timedelta(seconds=self._station.rng.uniform(*EVENTS_AHEAD))
+        schedule.set_ahead(at if at > now else self._later())
 
     def _schedule_daily(self, first_day: date | None = None) -> None:
         hour, minute = STATISTICS_DAILY_AT

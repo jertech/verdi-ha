@@ -34,8 +34,9 @@ anything up for it.
 ## What's on it
 
 - **My status:** your current availability and until when. Your next status shows when your planning has
-  one for the moment the current one ends; a status from a recurring planning doesn't show there. The
-  pre-alert and garrison tags show here when those options are on.
+  one for the moment the current one ends; a status from a recurring planning doesn't show there. Your planning is
+  fetched again 10 to 15 minutes before your current status ends, so a change you made in the Verdi app shows there
+  by then. The pre-alert and garrison tags show here when those options are on.
 - **Readiness:** each vehicle train and whether it's complete. Tap a train to see its positions.
 - **Vehicles:** the status of each vehicle.
 - **Personnel:** how many people have each availability.

@@ -5,6 +5,7 @@ import random
 from datetime import UTC, datetime, timedelta, timezone
 
 from custom_components.verdi.schedule import (
+    AHEAD,
     RETRY,
     SAFETY,
     STARTUP,
@@ -243,3 +244,52 @@ def test_live_dropped_leaves_a_lookup_without_a_live_value_alone():
     kept = s.next_due(NOW)
     s.live_dropped(NOW, LowRandom())  # a jittered safety from now would be 9 min: still not moved
     assert s.next_due(NOW) == kept == NOW + timedelta(minutes=10)
+
+
+def test_ahead_has_its_own_slot():
+    s = LookupSchedule(safety=timedelta(hours=1))
+    s.start_at(NOW + timedelta(minutes=5))
+    s.set_ahead(NOW + timedelta(minutes=40))
+    assert s.next_due(NOW) == NOW + timedelta(minutes=5)
+    assert s.reason(NOW + timedelta(minutes=5)) == STARTUP
+    fetched(s, NOW + timedelta(minutes=5), 1, STARTUP)
+    assert s.ahead_at == NOW + timedelta(minutes=40)  # the startup fetch left it in place
+    assert s.next_due(NOW + timedelta(minutes=5)) == NOW + timedelta(minutes=40)
+    assert s.reason(NOW + timedelta(minutes=39)) is None
+    assert s.reason(NOW + timedelta(minutes=40)) == AHEAD
+    fetched(s, NOW + timedelta(minutes=40), 1, AHEAD)
+    assert s.ahead_at is None
+    assert s.diagnostics(NOW + timedelta(minutes=40))["last_reason"] == AHEAD
+
+
+def test_set_ahead_replaces_and_none_clears():
+    s = LookupSchedule()
+    fetched(s, NOW, 1, STARTUP)
+    s.set_ahead(NOW + timedelta(minutes=30))
+    s.set_ahead(NOW + timedelta(minutes=50))  # a later time replaces too, unlike mark_due
+    assert s.next_due(NOW) == NOW + timedelta(minutes=50)
+    s.set_ahead(NOW + timedelta(minutes=20))
+    assert s.next_due(NOW) == NOW + timedelta(minutes=20)
+    s.set_ahead(None)
+    assert s.next_due(NOW) is None
+    assert s.reason(NOW + timedelta(hours=2)) is None
+
+
+def test_a_mark_comes_before_ahead_at_the_same_time():
+    s = LookupSchedule()
+    fetched(s, NOW, 1, STARTUP)
+    s.set_ahead(NOW + timedelta(minutes=10))
+    s.mark_due("trigger:a", NOW + timedelta(minutes=10))
+    assert s.reason(NOW + timedelta(minutes=10)) == "trigger:a"
+
+
+def test_a_failed_ahead_fetch_retries_normally():
+    s = LookupSchedule(safety=timedelta(hours=1))
+    fetched(s, NOW, 1, STARTUP)
+    s.set_ahead(NOW + timedelta(minutes=10))
+    at = NOW + timedelta(minutes=10)
+    s.start(at)
+    s.failed(at, AHEAD, timedelta(minutes=5))
+    assert s.ahead_at is None
+    assert s.reason(at + timedelta(minutes=1)) is None
+    assert s.reason(at + timedelta(minutes=5)) == RETRY

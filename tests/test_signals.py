@@ -3,7 +3,7 @@
 
 import copy
 import zlib
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from unittest.mock import patch
 
 import pytest
@@ -11,6 +11,7 @@ from homeassistant.core import HomeAssistant
 
 from custom_components.verdi.api import APP_ROUTE, VerdiError
 from custom_components.verdi.const import CONF_FAST_LANE, DAILY_JITTER, DAILY_OFFSET_MAX
+from custom_components.verdi.schedule import AHEAD
 from custom_components.verdi.token import get_store
 from tests import responses as r
 from tests.conftest import ALL_OFF, MidRandom, fake_command, make_token, setup_with_token
@@ -443,3 +444,184 @@ async def test_paged_on_refreshes_your_own_data(hass: HomeAssistant, config_entr
     assert count(calls, STATS) == 0
     await tick(hass, freezer, 151)  # 120 s after the page, plus the trigger delay
     assert count(calls, STATS) == 1
+
+
+SENSOR = "sensor.verdi_my_availability"
+
+
+def ends(responses: dict, at: str | None, name: str = "Available 5 min") -> None:
+    """Your current status: its name and its end."""
+    responses[APP_ROUTE][AVAILABILITY] = {
+        **r.CAROUSEL,
+        "globalAvailability": {**r.CAROUSEL["globalAvailability"], "availabilityName": name, "end": at},
+    }
+
+
+def events_schedule(entry):
+    return entry.runtime_data.personal.lookups["events"].schedule
+
+
+async def minutes(hass: HomeAssistant, freezer, n: int) -> None:
+    for _ in range(n):
+        await tick(hass, freezer, 60)
+
+
+def with_alert_at_three(responses: dict) -> None:
+    """You add a status for 15:00-17:00 local (13:00-15:00 UTC) in the Verdi app."""
+    upcoming = copy.deepcopy(r.UPCOMING)
+    base = upcoming["groups"][0]["items"][0]  # the long "Not available" single
+    upcoming["groups"][0]["items"].append(
+        {
+            **base,
+            "guid": "ev-new",
+            "title": "Alert 5 min",
+            "startDate": "2026-06-15T15:00:00+02:00",
+            "endDate": "2026-06-15T17:00:00+02:00",
+        }
+    )
+    responses[APP_ROUTE][EVENTS] = upcoming
+
+
+async def test_events_fetched_again_before_your_status_ends(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T13:00:00Z")  # start() puts the clock at 12:00 UTC
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # 12:05:30: the events' startup fetch
+    assert count(calls, EVENTS) == 1
+    assert hass.states.get(SENSOR).attributes["next_status"] == "Not available"
+    with_alert_at_three(responses)  # nothing announces it
+    await minutes(hass, freezer, 41)  # 12:46:30
+    assert count(calls, EVENTS) == 1
+    assert hass.states.get(SENSOR).attributes["next_status"] == "Not available"
+    await tick(hass, freezer, 61)  # 12:47:31; due 12:47:30 = 13:00 - 750 s
+    assert count(calls, EVENTS) == 2
+    assert events_schedule(config_entry).last_reason == AHEAD
+    assert hass.states.get(SENSOR).attributes["next_status"] == "Alert 5 min"
+
+
+async def test_the_fetch_before_the_end_moves_with_the_end(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T13:00:00Z")
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # 12:05:30
+    assert events_schedule(config_entry).ahead_at == datetime(2026, 6, 15, 12, 47, 30, tzinfo=UTC)
+    ends(responses, "2026-06-15T14:00:00Z", name="Not available")  # a new status, ending later
+    await minutes(hass, freezer, 45)  # 12:50:30; the availability safety (12:30) saw it
+    assert count(calls, EVENTS) == 2  # startup + the change trigger (12:30:30); nothing at 12:47:30
+    assert events_schedule(config_entry).last_reason == "trigger:availability"
+    assert events_schedule(config_entry).ahead_at == datetime(2026, 6, 15, 13, 47, 30, tzinfo=UTC)
+    await minutes(hass, freezer, 57)  # 13:47:30
+    await tick(hass, freezer, 1)  # 13:47:31
+    assert count(calls, EVENTS) == 4  # + the hourly safety (13:30:30) + ahead (13:47:30)
+    assert events_schedule(config_entry).last_reason == AHEAD
+
+
+async def test_a_status_that_just_changed_and_ends_soon_is_fetched_once(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, calls, _ = api
+    await start(hass, config_entry, freezer)  # the fixture's status ends 21:59 UTC
+    await tick(hass, freezer, 330)  # 12:05:30
+    ends(responses, "2026-06-15T12:40:00Z", name="Not available")
+    await minutes(hass, freezer, 36)  # 12:41:30; availability safety 12:30 saw the change
+    assert count(calls, EVENTS) == 2  # startup + the change trigger (12:30:30) only
+    assert events_schedule(config_entry).ahead_at is None
+
+
+async def test_a_restart_inside_the_window_adds_no_fetch(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T12:15:00Z")
+    await start(hass, config_entry, freezer)
+    assert events_schedule(config_entry).ahead_at is None  # the startup fetch (12:05:30) is inside the window
+    await minutes(hass, freezer, 16)  # 12:16
+    assert count(calls, EVENTS) == 1
+
+
+async def test_a_restart_just_before_the_end_fetches_soon(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T12:03:00Z")  # before the startup fetch (12:05:30)
+    await start(hass, config_entry, freezer)
+    assert events_schedule(config_entry).ahead_at == datetime(2026, 6, 15, 12, 0, 30, tzinfo=UTC)
+    await tick(hass, freezer, 31)  # 12:00:31
+    assert count(calls, EVENTS) == 1
+    assert events_schedule(config_entry).last_reason == AHEAD
+    await tick(hass, freezer, 29)  # 12:01:00
+    await minutes(hass, freezer, 5)  # 12:06:00: the startup fetch (12:05:30) still ran
+    assert count(calls, EVENTS) == 2
+
+
+async def test_an_events_fetch_inside_the_window_clears_the_slot(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T13:00:00Z")
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # 12:05:30
+    await minutes(hass, freezer, 40)  # 12:45:30: inside the window (from 12:45)
+    await config_entry.runtime_data.personal.async_refresh_lookup("events")
+    await hass.async_block_till_done()
+    assert events_schedule(config_entry).ahead_at is None
+    calls.clear()
+    await minutes(hass, freezer, 14)  # 12:59:30
+    assert count(calls, EVENTS) == 0
+
+
+async def test_an_early_events_fetch_doesnt_lose_the_fetch_before_the_end(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T13:25:00Z")  # window from 13:10, planned at 13:12:30
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # 12:05:30 startup fetch
+    await minutes(hass, freezer, 6)  # 12:11:30
+    await config_entry.runtime_data.personal.async_refresh_lookup("events")  # safety now inside the window
+    await hass.async_block_till_done()
+    await minutes(hass, freezer, 53)  # 13:04:30: availability at 12:30 and 13:00 saw that safety
+    await config_entry.runtime_data.personal.async_refresh_lookup("events")  # moves the safety past the end
+    await hass.async_block_till_done()
+    calls.clear()
+    await tick(hass, freezer, 481)  # 13:12:31
+    assert count(calls, EVENTS) == 1
+    assert events_schedule(config_entry).last_reason == AHEAD
+    await minutes(hass, freezer, 13)  # 13:25:31
+    assert count(calls, EVENTS) == 1
+
+
+async def test_no_end_no_slot(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _, _ = api
+    ends(responses, "2026-06-15T13:00:00Z")
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # the startup events fetch (12:05:30)
+    assert events_schedule(config_entry).ahead_at is not None
+    responses[APP_ROUTE][AVAILABILITY] = {k: v for k, v in r.CAROUSEL.items() if k != "globalAvailability"}
+    await minutes(hass, freezer, 26)  # 12:31:30: the availability safety (12:30) gets the empty answer
+    assert events_schedule(config_entry).ahead_at is None
+
+
+async def test_a_null_end_no_slot(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _, _ = api
+    ends(responses, None)
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)
+    assert events_schedule(config_entry).ahead_at is None
+
+
+async def test_events_off_no_slot_no_error(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    ends(responses, "2026-06-15T12:20:00Z")
+    await start(hass, config_entry, freezer, options={"my_events": False})
+    await minutes(hass, freezer, 21)
+    assert count(calls, EVENTS) == 0
+    assert hass.states.get(SENSOR).state == "Available 5 min"
+
+
+async def test_a_far_end_leaves_the_hourly_fetch_alone(hass: HomeAssistant, config_entry, api, freezer):
+    responses, _, _ = api
+    ends(responses, "2027-06-30T08:00:00Z")
+    await start(hass, config_entry, freezer)
+    await tick(hass, freezer, 330)  # 12:05:30
+    schedule = events_schedule(config_entry)
+    assert schedule.ahead_at == datetime(2027, 6, 30, 7, 47, 30, tzinfo=UTC)
+    assert schedule.next_due(datetime(2026, 6, 15, 12, 5, 30, tzinfo=UTC)) == datetime(
+        2026, 6, 15, 13, 5, 30, tzinfo=UTC
+    )
