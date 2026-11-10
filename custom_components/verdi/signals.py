@@ -30,6 +30,8 @@ from .const import (
     DAILY_JITTER,
     DAILY_OFFSET_MAX,
     DOMAIN,
+    EVENTS_AHEAD,
+    EVENTS_FRESH,
     PERSONAL_RETRY_SECONDS,
     STATISTICS_AFTER_INTERVENTION,
     STATISTICS_DAILY_AT,
@@ -88,6 +90,7 @@ class Signals:
         self._ready = self._marked = False
         self._stats_first: datetime | None = None
         self._retry_at: datetime | None = None
+        self._ahead_end: datetime | None = None  # the end the events' ahead fetch is planned for
         self._unsub_daily: CALLBACK_TYPE | None = None
         self._stopped = False
         self._pageable = True
@@ -346,6 +349,40 @@ class Signals:
             self._set_pageability()  # My availability is the fallback when the own line is missing
             if old is not None and new != old:
                 self._mark("events", "trigger:availability", self._later())
+            self._plan_ahead(new)
+        elif key == "events":
+            self._events_fetched()
+
+    def _plan_ahead(self, availability: Any) -> None:
+        """Your events again 10-15 minutes before your current status ends, so the next status is
+        current then: Verdi announces no change to your own planning."""
+        events = self._personal.lookups.get("events") if self._personal is not None else None
+        if events is None:
+            return
+        schedule = events.schedule
+        schedule.set_ahead(None)
+        self._ahead_end = None
+        end = availability.get("end") if isinstance(availability, dict) else None
+        now = dt_util.now()
+        if end is None or end <= now:
+            return
+        window = end - timedelta(seconds=EVENTS_FRESH)
+        if schedule.last_fetch is not None and schedule.last_fetch >= window:
+            return  # already fetched for this end
+        due = schedule.next_due(now)
+        if due is not None and window <= due <= end:
+            return  # the startup fetch, a trigger or the safety is due in the window anyway
+        at = end - timedelta(seconds=self._station.rng.uniform(*EVENTS_AHEAD))
+        schedule.set_ahead(at if at > now else self._later())
+        self._ahead_end = end
+
+    def _events_fetched(self) -> None:
+        """Events fetched inside the window before the end: the planned fetch isn't needed any more."""
+        if self._ahead_end is None or self._personal is None:
+            return
+        if dt_util.now() >= self._ahead_end - timedelta(seconds=EVENTS_FRESH):
+            self._personal.lookups["events"].schedule.set_ahead(None)
+            self._ahead_end = None
 
     def _schedule_daily(self, first_day: date | None = None) -> None:
         hour, minute = STATISTICS_DAILY_AT
