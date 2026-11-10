@@ -354,10 +354,11 @@ class Signals:
         elif key == "events":
             self._plan_ahead()
 
+    @callback
     def _plan_ahead(self) -> None:
         """Your events again 10-15 minutes before your current status ends, so the next status is
-        current then: Verdi announces no change to your own planning. Runs after every availability
-        and events fetch, so an early events fetch never leaves the window without one."""
+        current then: Verdi announces no change to your own planning. Runs after every successful
+        availability and events fetch, so an early events fetch never leaves the window without one."""
         events = self._personal.lookups.get("events") if self._personal is not None else None
         if events is None:
             return

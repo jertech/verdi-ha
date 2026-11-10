@@ -69,8 +69,10 @@ time between two lookups when nothing does (longer while live updates are connec
 | My calendars | 60 min | 10 min |
 | Statistics | 24 h | 1 h |
 
-Statistics are also fetched once a day after midnight and after an intervention. Your calendars are also fetched 10 to
-15 minutes before your current status ends, so the next status on the status page is current then.
+Statistics are also fetched once a day after midnight and after an intervention.
+
+Your calendars are also fetched 10 to 15 minutes before your current status ends, so the next status on the status
+page is current then.
 
 **Live updates from Verdi** (on by default) keeps one connection open to Verdi's live updates, the same the web
 interface uses. Verdi then says when something changes at your station, for you or for your station's vehicles, and the
