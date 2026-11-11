@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-FROM python:3.13-slim-bookworm
+FROM python:3.15-slim-bookworm
 
 # Playwright is pinned; Dependabot proposes updates, and the image is rebuilt for
 # Chromium security releases.
