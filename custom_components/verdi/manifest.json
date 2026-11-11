@@ -6,8 +6,8 @@
   "dependencies": ["frontend", "http", "panel_custom", "websocket_api"],
   "documentation": "https://github.com/jertech/verdi-ha",
   "integration_type": "service",
-  "iot_class": "cloud_polling",
+  "iot_class": "cloud_push",
   "issue_tracker": "https://github.com/jertech/verdi-ha/issues",
   "requirements": [],
-  "version": "0.19.3"
+  "version": "0.19.4"
 }

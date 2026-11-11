@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.19.4] - 2026-11-11
+
+### Integration
+- The integration is listed as cloud push instead of cloud polling. Since 0.18.0 Verdi announces changes over the
+  live updates connection, and the integration polls only as a fallback. No change in behaviour.
+
 ## [0.19.3] - 2026-11-10
 
 ### Integration
@@ -523,6 +529,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.19.4]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.4
 [0.19.3]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.3
 [0.19.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.2
 [0.19.1]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.1
