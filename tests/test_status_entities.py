@@ -63,6 +63,32 @@ async def test_non_admin_button_press_is_refused(hass, config_entry, mock_api, w
     add.assert_not_called()
 
 
+@pytest.mark.parametrize(
+    ("entity", "option"), [("select.verdi_status", "Urgent"), ("select.verdi_duration", "unlimited")]
+)
+async def test_non_admin_select_change_is_refused(
+    hass, config_entry, mock_api, writes, local_auth, entity, option
+):
+    await setup_with_token(hass, config_entry, options=ON)
+    user = MockUser(groups=[await hass.auth.async_get_group(GROUP_ID_USER)]).add_to_hass(hass)
+    before = hass.states.get(entity).state
+    with pytest.raises(HomeAssistantError) as err:
+        await hass.services.async_call("select", "select_option", {"entity_id": entity, "option": option}, blocking=True,
+                                       context=Context(user_id=user.id))  # fmt: skip
+    assert err.value.translation_key == "not_admin"
+    assert hass.states.get(entity).state == before
+
+
+@pytest.mark.parametrize(
+    ("entity", "option"), [("select.verdi_status", "Urgent"), ("select.verdi_duration", "unlimited")]
+)
+async def test_admin_select_change(hass, config_entry, mock_api, writes, hass_admin_user, entity, option):
+    await setup_with_token(hass, config_entry, options=ON)
+    await hass.services.async_call("select", "select_option", {"entity_id": entity, "option": option}, blocking=True,
+                                   context=Context(user_id=hass_admin_user.id))  # fmt: skip
+    assert hass.states.get(entity).state == option
+
+
 async def test_read_only_user_is_stopped_by_home_assistant(
     hass, config_entry, mock_api, writes, hass_read_only_user
 ):
