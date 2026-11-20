@@ -54,7 +54,7 @@ from pathlib import Path
 
 LOG = logging.getLogger("verdi_token_relay")
 
-VERSION = "1.0.0"  # the app's own version; scripts/check_version.py keeps it equal to config.yaml
+VERSION = "1.0.1"  # the app's own version; scripts/check_version.py keeps it equal to config.yaml
 
 PUSH_INTERVAL = 90  # seconds between re-pushes of the current token
 TICK = 10  # main loop resolution; also how fast an HA outage is noticed as over

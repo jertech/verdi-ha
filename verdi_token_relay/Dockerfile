@@ -1,10 +1,11 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-FROM python:3.13-slim-bookworm
+FROM python:3.15-slim-bookworm
 
-# Playwright is pinned; Dependabot proposes updates, and the image is rebuilt for
-# Chromium security releases.
+# Playwright is pinned; Dependabot proposes updates, and a new app
+# version publishes a new image.
 COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt \
+RUN apt-get update && apt-get install -y --no-install-recommends libatomic1 \
+    && pip install --no-cache-dir -r /app/requirements.txt \
     && playwright install --with-deps chromium \
     && rm -rf /var/lib/apt/lists/*
 

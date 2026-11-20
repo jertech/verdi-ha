@@ -17,8 +17,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+  # The app's requirements have their own updater above.
   - package-ecosystem: pip
     directory: /
+    exclude-paths: ["verdi_token_relay/**"]
     schedule:
       interval: weekly
     cooldown:

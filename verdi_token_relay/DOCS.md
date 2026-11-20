@@ -37,7 +37,9 @@ On start, the app moves the file into its private data folder and deletes the co
 - `New Verdi token, valid until ... (login took 8 s, login state seeded 3.2 days ago)`: an hourly
   renewal. The age tells you how long your one-time login has lasted so far.
 - `Token delivered to Home Assistant`: once per new token, and again after Home Assistant was away.
-- `Home Assistant is not reachable` / `reachable again`: Home Assistant restarted; nothing to do.
+- `Home Assistant is not reachable` / `reachable again`: Home Assistant restarted, or the Verdi
+  integration isn't installed yet (then the line below about `/api/verdi/token` repeats every 10 seconds);
+  nothing to do.
 - `Login stopped at <host>/<path>`: where a headless login did not finish (never the full address).
 - `Home Assistant has no /api/verdi/token yet; is the Verdi integration installed?`: expected until you add
   the Verdi integration in Home Assistant; the app keeps trying.
