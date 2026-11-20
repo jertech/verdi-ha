@@ -3,6 +3,14 @@
 The app has its own version number from 1.0.0 on and gets a new one only when the app itself changes.
 Before that it followed the integration's version.
 
+## 1.0.1 - 2026-11-20
+
+- Playwright 1.65.0, with a newer Chromium.
+- Python 3.15 base image.
+- Adds the `libatomic1` library that Playwright 1.65 needs.
+- Corrected the explanation of the "Home Assistant is not reachable" log line: it also appears while the
+  Verdi integration isn't installed yet.
+
 ## 1.0.0 - 2026-11-01
 
 - Own version number; the integration's releases no longer change the app's version. The same program as

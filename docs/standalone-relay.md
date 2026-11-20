@@ -31,7 +31,7 @@ docker run -d --name verdi-token-relay --restart=always \
   -e HA_URL=http://homeassistant.local:8123 \
   -e HA_TOKEN=<long-lived token of the dedicated user> \
   -v "$PWD/verdi-data:/data" \
-  ghcr.io/jertech/verdi-ha-token-relay:1.0.0
+  ghcr.io/jertech/verdi-ha-token-relay:1.0.1
 ```
 
 `verdi_state.json*` also copies `verdi_state.json.seeded`, which the relay uses to log how old the login is.
@@ -47,7 +47,7 @@ sudo useradd --system --create-home --shell /usr/sbin/nologin verdi
 sudo mkdir -p /opt/verdi
 sudo cp verdi_token_relay/verdi_token_relay.py /opt/verdi/
 sudo python3 -m venv /opt/verdi/venv
-sudo /opt/verdi/venv/bin/pip install playwright==1.64.1
+sudo /opt/verdi/venv/bin/pip install playwright==1.65.0
 sudo PLAYWRIGHT_BROWSERS_PATH=/opt/verdi/browsers /opt/verdi/venv/bin/playwright install --with-deps chromium
 sudo install -d -o verdi -g verdi -m 700 /var/lib/verdi-token-relay
 sudo install -o verdi -g verdi -m 600 verdi_state.json* /var/lib/verdi-token-relay/
