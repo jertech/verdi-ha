@@ -494,3 +494,79 @@ async def test_a_burst_after_a_fetch_that_ran_early_is_fetched(
         await hass.async_block_till_done()
     assert [c[1] for c in api].count(ROSTER) == 2
     assert live.marks["roster"] == 2  # the notice at 4 s, after the reconnect, joined the pending fetch
+
+
+def _paged_marks(live):
+    return live.marks["paged"]
+
+
+@pytest.mark.parametrize("changed", [["IsOnIntervention"], ["InterventionConfirmation", "isonintervention"]])
+async def test_own_on_intervention_marks_the_page(
+    hass: HomeAssistant, config_entry, api, real_live, freezer, changed
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    before = _paged_marks(live)
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "Person", "ME-1", changed])
+    assert _reason(station.fast, "paged") == "live:receivechanged"
+    assert _reason(station.personal, "availability") == "live:receivechanged"
+    assert _reason(station, "personnel") == "live:receivechanged"
+    assert station.timing._live_own == dt_util.now()
+    assert station.fast.burst_until is None and live.bursts == 0
+    assert _paged_marks(live) == before + 1
+
+
+@pytest.mark.parametrize(
+    "args",
+    [
+        ["2026-01-01T00:00:00Z", "Person", "ME-1", []],
+        ["2026-01-01T00:00:00Z", "Person", "ME-1", ["LastAvailableCountDateTime"]],
+        ["2026-01-01T00:00:00Z", "Person", "ME-1"],
+    ],
+)
+async def test_other_own_person_notices_leave_the_page_alone(
+    hass: HomeAssistant, config_entry, api, real_live, args
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    before = _paged_marks(live)
+    live.handle("ReceiveChanged", args)
+    assert _reason(station.personal, "availability") == "live:receivechanged"
+    assert _reason(station, "personnel") == "live:receivechanged"
+    assert _paged_marks(live) == before
+    assert not str(_reason(station.fast, "paged")).startswith("live:")
+    assert station.timing._live_own is None
+
+
+async def test_a_colleague_on_intervention_doesnt_mark_your_page(
+    hass: HomeAssistant, config_entry, api, real_live
+):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    other = next(p["id"] for p in station.data["personnel"]["persons"] if p["id"] != "me-1")
+    before = _paged_marks(live)
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "Person", other, ["IsOnIntervention"]])
+    assert _reason(station, "personnel") == "live:receivechanged"
+    assert _paged_marks(live) == before
+    assert station.timing._live_own is None
+
+
+async def test_own_on_intervention_while_paging_is_paused(hass: HomeAssistant, config_entry, api, real_live):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    station.fast.paused = True
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "Person", "me-1", ["IsOnIntervention"]])
+    assert _reason(station.personal, "availability") == "live:receivechanged"
+    assert _reason(station, "personnel") == "live:receivechanged"
+    assert station.timing._live_own is None
+    assert not str(_reason(station.fast, "paged")).startswith("live:")
+
+
+async def test_a_later_wave_page_is_fetched_on_your_own_notice(
+    hass: HomeAssistant, config_entry, api, real_live
+):
+    live = await _live(hass, config_entry)
+    api.clear()
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "Person", "me-1", ["IsOnIntervention"]])
+    await hass.async_block_till_done()
+    assert any(call[1] == "GetPersonCurrentInterventionInformationCommand" for call in api)

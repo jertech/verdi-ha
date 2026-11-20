@@ -98,6 +98,8 @@ class LiveSignals:
             changed = arguments[3] if len(arguments) > 3 and isinstance(arguments[3], list) else []
             if model == "person":
                 if _same(guid, me):
+                    if any(_same(prop, "IsOnIntervention") for prop in changed):
+                        return self._own_on_intervention(reason)
                     return self._mark(reason, "availability", "personnel")
                 if isinstance(guid, str) and guid.lower() in self._persons():
                     return self._mark(reason, "personnel")
@@ -130,6 +132,14 @@ class LiveSignals:
         fast.pull_tick(LIVE_BURST_TICK)
         self.bursts += 1
         return self._mark(reason, "paged")
+
+    def _own_on_intervention(self, reason: str) -> bool:
+        """Your own person is now on an intervention: fetch your page once (no burst)."""
+        fast = self._station.fast
+        can_fetch = isinstance(fast, FastCoordinator) and "paged" in fast.lookups and not fast.paused
+        if can_fetch and self._station.timing is not None:
+            self._station.timing.live_own(dt_util.now())
+        return self._mark(reason, "availability", "personnel", "paged")
 
     def _roster_edit(self, reason: str) -> bool:
         """A roster in the zone changed; Verdi doesn't say which. Fetch the roster and its calendar once,
