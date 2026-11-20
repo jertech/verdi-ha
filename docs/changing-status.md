@@ -135,7 +135,8 @@ and **My shifts and availability calendars** on. Then you can add and remove eve
 
 Only Home Assistant administrators can press the buttons, change the selects, use the actions and change
 the status on the status page. Automations and scripts can too. So an automation you write can be started
-by anyone who can trigger it.
+by anyone who can trigger it. Someone who isn't an administrator sees the selects but gets an error when changing
+them.
 
 Only one change is sent at a time. A second press or call while a change is still on its way is refused.
 

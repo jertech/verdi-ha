@@ -64,12 +64,16 @@ With **Live updates from Verdi** on (the default), the integration keeps one con
 the Verdi web interface does, with your token. Verdi sends change notices for your whole zone. Each holds only IDs and
 the kind of change ("a person changed", "a vehicle changed", "a new intervention"), never names or contents. The
 integration uses the notices about your station, yourself and your station's vehicles to decide what to fetch, and the
-notices that a roster in your zone changed (they don't say which station) to fetch your roster again. It drops the rest.
-It stores none of them; diagnostics only count them by kind.
+notices that a roster in your zone changed (they don't say which station) to fetch your roster again. It also acts on
+some notices for the whole zone: a new or starting intervention (to check your page), a pre-alert and a garrison
+attendance. It drops the rest. It stores none of them; diagnostics only count them by kind.
 
 ## Diagnostics
 
 A diagnostics download contains counts, settings, lookup times, the token's expiry, and the times of your
 last ten pages (with their field names, never values) and of the station's last ten interventions. With
 **Change my status** on, it also shows whether your account has the two rights and, per kind of change,
-today's count, the last time and its outcome. Every identifier is removed.
+today's count, the last time and its outcome. With live updates on, it also holds the connection (whether it is up,
+since when, connects and reconnects today, how connections ended, the last end, the last notice time), the notices and
+marks per kind, bursts, unannounced changes and the ticks. It holds the guard state, the pace, the steady calls a minute
+and the Fast lane too. None of these is an identifier. Every identifier is removed.

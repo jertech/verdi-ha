@@ -76,13 +76,16 @@ page is current then.
 
 **Live updates from Verdi** (on by default) keeps one connection open to Verdi's live updates, the same the web
 interface uses. Verdi then says when something changes at your station, for you or for your station's vehicles, and the
-integration fetches that right away, so changes show within seconds. A roster change in your zone fetches the roster
+integration fetches that right away, so changes show within seconds. It also acts on some notices for the whole zone: a
+new or starting intervention (to check your page), a pre-alert and a garrison attendance. A roster change in your zone fetches the roster
 and the roster calendar again within seconds too (Verdi doesn't say which station's roster changed). While the
 connection is up it polls far less: the station every 15 minutes instead of every minute (also during an intervention),
 your current page every minute instead of every 15 seconds (every 10 seconds for a minute and a half after a new
-intervention in your zone), readiness at least every hour, and your availability, the roster and the roster calendar
+intervention in your zone; your page is also fetched as soon as Verdi says you are on an intervention, which covers being
+called in a later alarm), readiness when Verdi says it changed and at least every hour, and your availability, the roster and the roster calendar
 at least every 2 hours. A slower interval you set yourself is kept. When the connection drops, polling goes back to the
-normal pace at once. Switch it off to poll only, as before.
+normal pace at once. With Vehicles or Personnel in the Fast lane, they are checked every minute while live updates are
+connected (the Fast lane's live tick), not every 15 minutes. Switch it off to poll only, as before.
 
 ## Language
 
@@ -101,7 +104,8 @@ The integration speaks Dutch, French and English. Any other language gets Englis
 - **Every tick:** personnel and vehicles. 60 seconds by default, 30 seconds during an intervention.
 - **Every fast tick:** your page, while you can be paged. When your availability says you can't be paged,
   this check pauses.
-- **Everything else** is fetched when the station data shows a change, at a time Verdi announced (a team
+- **Everything else** is fetched when the station data shows a change (with live updates connected: when Verdi
+  announces the change), at a time Verdi announced (a team
   rotation, a shift change, the end of your availability), or after its safety interval.
 
 When Verdi has trouble or asks to slow down, the integration slows down by itself. It never makes more
