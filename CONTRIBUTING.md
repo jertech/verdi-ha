@@ -22,7 +22,7 @@ new request needs an issue first; other writes to Verdi are not accepted.
 Python 3.14. Home Assistant's test package, and the frontend that Home Assistant version needs:
 
 ```sh
-pip install "pytest-homeassistant==2026.11.0" "ruff==0.17.4"
+pip install "pytest-homeassistant==2026.11.0" "ruff==0.17.5"
 pip install --no-deps "$(python -c "import json, pathlib, homeassistant.components.frontend as f; print(json.loads((pathlib.Path(f.__file__).parent / 'manifest.json').read_text())['requirements'][0])")"
 ```
 
