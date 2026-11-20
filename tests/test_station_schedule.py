@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 import pytest
 from homeassistant.core import HomeAssistant
+from homeassistant.util import dt as dt_util
 
 from tests import responses as r
 from tests.conftest import fake_command, setup_with_token
@@ -70,6 +71,41 @@ async def test_changes_fetch_readiness_in_the_same_run(hass: HomeAssistant, conf
     responses[VEHICLES]["data"][0]["currentAvailability"]["description"] = {"default": "Workshop"}
     await run(hass, freezer, 60)
     assert paths(calls) == [PERSONNEL, VEHICLES, READINESS]
+
+
+async def test_live_changes_leave_readiness_to_verdi(hass: HomeAssistant, config_entry, api, freezer):
+    responses, calls, _ = api
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry)
+    station = config_entry.runtime_data
+    station.live_connected = True
+    calls.clear()
+    responses[PERSONNEL]["personGroups"][0]["persons"][0]["currentAvailability"]["description"] = {
+        "default": "Not available"
+    }
+    station.mark_due("personnel", "test")
+    await station.async_refresh()
+    assert PERSONNEL in paths(calls)
+    assert READINESS not in paths(calls)
+    assert station.lookups["readiness"].schedule.reason(dt_util.now()) is None
+    calls.clear()
+    responses[VEHICLES] = copy.deepcopy(r.VEHICLES)
+    responses[VEHICLES]["data"][0]["currentAvailability"]["description"] = {"default": "Workshop"}
+    station.mark_due("vehicles", "test")
+    await station.async_refresh()
+    assert VEHICLES in paths(calls)
+    assert READINESS not in paths(calls)
+    assert station.lookups["readiness"].schedule.reason(dt_util.now()) is None
+    # Once the connection drops, the next change marks readiness again at once.
+    station.live_connected = False
+    calls.clear()
+    responses[PERSONNEL]["personGroups"][0]["persons"][0]["currentAvailability"]["description"] = {
+        "default": "Available"
+    }
+    station.mark_due("personnel", "test")
+    await station.async_refresh()
+    assert READINESS in paths(calls)
+    assert station.lookups["readiness"].schedule.last_reason == "trigger:personnel"
 
 
 async def test_readiness_safety_interval(hass: HomeAssistant, config_entry, api, freezer):

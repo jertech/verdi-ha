@@ -62,6 +62,25 @@ async def test_vehicle_change_on_fast_lane_marks_station_readiness(
     assert station.lookups["readiness"].schedule.reason(dt_util.now()) == "trigger:vehicles"
 
 
+async def test_live_vehicle_change_on_fast_lane_leaves_readiness(
+    hass: HomeAssistant, config_entry, api, freezer
+):
+    responses, calls = api
+    freezer.move_to(NOW)
+    await setup_with_token(hass, config_entry, options={CONF_FAST_LANE: ["vehicles"], CONF_PAGED: True})
+    station = config_entry.runtime_data
+    fast = station.fast
+    assert fast is not None
+    station.live_connected = True  # the station's flag; the fast lane's own stays False
+    assert not fast.live_connected
+    responses[VEHICLES] = copy.deepcopy(r.VEHICLES)
+    responses[VEHICLES]["data"][0]["isOnIntervention"] = True
+    freezer.tick(timedelta(seconds=15))
+    await fast.async_refresh()
+    assert VEHICLES in paths(calls)
+    assert station.lookups["readiness"].schedule.reason(dt_util.now()) is None
+
+
 async def test_fast_lane_has_paged_by_default(hass: HomeAssistant, config_entry, api):
     await setup_with_token(hass, config_entry)
     station = config_entry.runtime_data

@@ -632,7 +632,11 @@ class VerdiCoordinator(LookupCoordinator):
         return "intervention" if self.intervention else "normal"
 
     def _fetched(self, key: str, new: Any, old: Any) -> None:
-        if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
+        if (
+            not self.live_connected
+            and old is not None
+            and readiness_inputs(key, new) != readiness_inputs(key, old)
+        ):
             self.mark_due("readiness", f"trigger:{key}")
         super()._fetched(key, new, old)
 
@@ -646,8 +650,9 @@ class FastCoordinator(LookupCoordinator):
     """The fast lane: the paged lookup and any of vehicles/personnel moved here by the fast_lane
     option, polled at fast_interval. It shares the station's api, guard and rng.
 
-    A personnel/vehicle change here marks the station's readiness lookup due, exactly as it would
-    on the station coordinator, so readiness keeps following those lookups wherever they live.
+    A personnel/vehicle change here marks the station's readiness lookup due when live updates aren't
+    connected (while they are, Verdi's readiness notice does), exactly as it would on the station
+    coordinator, so readiness keeps following those lookups wherever they live.
 
     paused suppresses only the paged lookup. The coordinator still ticks while vehicles or personnel
     are on it; it goes idle (pace None) only when paging is off or paused and neither is on it.
@@ -693,7 +698,11 @@ class FastCoordinator(LookupCoordinator):
         return max(current[0], float(LIVE_FAST_TICK)), current[1]
 
     def _fetched(self, key: str, new: Any, old: Any) -> None:
-        if old is not None and readiness_inputs(key, new) != readiness_inputs(key, old):
+        if (
+            not self.station.live_connected
+            and old is not None
+            and readiness_inputs(key, new) != readiness_inputs(key, old)
+        ):
             self.station.mark_due("readiness", f"trigger:{key}")
         super()._fetched(key, new, old)
 
