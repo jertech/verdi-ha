@@ -541,6 +541,7 @@ async def test_own_on_intervention_marks_the_page(
         ["2026-01-01T00:00:00Z", "Person", "ME-1", []],
         ["2026-01-01T00:00:00Z", "Person", "ME-1", ["LastAvailableCountDateTime"]],
         ["2026-01-01T00:00:00Z", "Person", "ME-1"],
+        ["2026-01-01T00:00:00Z", "Person", "ME-1", "IsOnIntervention"],
     ],
 )
 async def test_other_own_person_notices_leave_the_page_alone(
@@ -579,6 +580,19 @@ async def test_own_on_intervention_while_paging_is_paused(hass: HomeAssistant, c
     assert _reason(station, "personnel") == "live:receivechanged"
     assert station.timing._live_own is None
     assert not str(_reason(station.fast, "paged")).startswith("live:")
+
+
+@pytest.mark.parametrize("fast_lane", [[], ["vehicles"]])
+async def test_own_on_intervention_without_a_paged_lookup(
+    hass: HomeAssistant, config_entry, api, real_live, fast_lane
+):
+    live = await _live(hass, config_entry, options={"fast_lane": fast_lane})
+    station = config_entry.runtime_data
+    live.handle("ReceiveChanged", ["2026-01-01T00:00:00Z", "Person", "ME-1", ["IsOnIntervention"]])
+    assert _reason(station.personal, "availability") == "live:receivechanged"
+    assert _reason(station, "personnel") == "live:receivechanged"
+    assert live.dropped == 0
+    assert station.timing._live_own is None
 
 
 async def test_a_later_wave_page_is_fetched_on_your_own_notice(
