@@ -12,7 +12,8 @@ app shared version numbers; from then on the app has its own (see `verdi_token_r
   page check, up to a minute later. Your page is now fetched as soon as Verdi says you are on an intervention; the end
   of a page shows sooner too.
 - Live updates: readiness is fetched when Verdi says it changed, no longer also after every change in personnel or
-  vehicles; about a third of the readiness calls. Without live updates nothing changes.
+  vehicles, except that a change Verdi didn't announce still fetches readiness; about a third of the readiness
+  calls. Without live updates nothing changes.
 - The Status and Duration selects now refuse users who aren't administrators, as the docs already said.
 - Diagnostics: page timing records show `live_own_s`.
 

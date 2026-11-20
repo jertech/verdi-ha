@@ -237,6 +237,25 @@ async def test_two_unannounced_changes_reconnect(hass: HomeAssistant, config_ent
     live.client.reconnect.assert_called_once()
 
 
+async def test_an_unannounced_change_marks_readiness(hass: HomeAssistant, config_entry, api, real_live):
+    live = await _live(hass, config_entry)
+    station = config_entry.runtime_data
+    live.state(True)
+    old = station.data["personnel"]
+    new = {**old, "persons": [{**p, "availability": "Changed"} for p in old["persons"]]}
+    readiness = station.lookups["readiness"].schedule
+    schedule = station.lookups["personnel"].schedule
+    with patch.object(live, "_wake"):  # nothing fetches: the marks stay visible
+        readiness.last_fetch = dt_util.now()
+        assert readiness.reason(dt_util.now()) is None
+        schedule.last_reason = "live:receivepersonavailabilitychange"
+        live.fetched("personnel", new, old)  # announced: readiness isn't due
+        assert readiness.reason(dt_util.now()) is None
+        schedule.last_reason = TICK
+        live.fetched("personnel", new, old)
+        assert readiness.reason(dt_util.now()) == "live:unannounced"
+
+
 async def test_announced_and_off_tick_changes_do_not_count(hass: HomeAssistant, config_entry, api, real_live):
     live = await _live(hass, config_entry)
     station = config_entry.runtime_data

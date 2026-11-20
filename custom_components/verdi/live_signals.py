@@ -275,6 +275,7 @@ class LiveSignals:
             return
         if not announced and readiness_inputs(key, new) != readiness_inputs(key, old):
             self.unannounced += 1
+            self._mark("live:unannounced", "readiness")
             self._streak[key] += 1
             if self._streak[key] >= LIVE_UNANNOUNCED_LIMIT and self.client is not None:
                 self._streak[key] = 0
