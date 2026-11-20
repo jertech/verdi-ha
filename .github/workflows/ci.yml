@@ -29,9 +29,9 @@ jobs:
       matrix:
         include:
           # Home Assistant's own test package from 2026.11; the older one for the minimum version.
-          - name: minimum (HA 2026.4.0)
+          - name: minimum  # HA 2026.4.0; job names stay fixed for branch protection
             package: "pytest-homeassistant-custom-component==0.13.321"
-          - name: current (HA 2026.11.2)
+          - name: current  # HA 2026.11.2
             package: "pytest-homeassistant==2026.11.2"
     name: tests ${{ matrix.name }}
     steps:
