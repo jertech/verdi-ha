@@ -22,7 +22,7 @@ new request needs an issue first; other writes to Verdi are not accepted.
 Python 3.14. Home Assistant's test package, and the frontend that Home Assistant version needs:
 
 ```sh
-pip install "pytest-homeassistant==2026.11.0" "ruff==0.17.3"
+pip install "pytest-homeassistant==2026.11.0" "ruff==0.17.4"
 pip install --no-deps "$(python -c "import json, pathlib, homeassistant.components.frontend as f; print(json.loads((pathlib.Path(f.__file__).parent / 'manifest.json').read_text())['requirements'][0])")"
 ```
 
@@ -31,12 +31,14 @@ Before you open a pull request:
 ```sh
 python -m pytest -q
 ruff check . && ruff format --check .
+node --test tests/js/verdi_panel.test.mjs tests/js/verdi_settings.test.mjs
 python scripts/check_version.py
 python scripts/check_image_metadata.py
 ```
 
-CI also runs the tests on the oldest supported Home Assistant (2026.4.0, with
-`pytest-homeassistant-custom-component==0.13.321`), hassfest, the HACS check and the app build.
+CI runs lint (ruff), the tests on the current and the oldest supported Home Assistant (2026.4.0, with
+`pytest-homeassistant-custom-component==0.13.321`), js-tests (the Node tests above), hassfest, the HACS check, the repo
+checks, gitleaks and the app build.
 
 ## Versions and changelog
 

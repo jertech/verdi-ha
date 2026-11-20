@@ -503,3 +503,47 @@ def test_older_page_record_without_the_key_still_loads():
     log.load({"page": old, "pages": [old]})
     assert log.page is not None and "live_intervention_s" not in log.page
     assert log.pages[0] == old
+
+
+def _page_after_own(notice):
+    log = TimingLog()
+    log.paged(LIVE_T0 - timedelta(seconds=15), None, [])
+    if notice is not None:
+        log.live_own(notice)
+    log.paged(LIVE_T0, dict(LIVE_PAGE), [])
+    return log
+
+
+def test_page_notes_your_own_notice_before_it():
+    page = _page_after_own(LIVE_T0 - timedelta(seconds=1.8)).page
+    assert page["live_own_s"] == 1.8
+    assert page["live_intervention_s"] is None
+
+
+def test_page_without_a_recent_own_notice():
+    assert _page_after_own(None).page["live_own_s"] is None
+    assert _page_after_own(LIVE_T0 - timedelta(seconds=121)).page["live_own_s"] is None
+    assert _page_after_own(LIVE_T0 + timedelta(seconds=1)).page["live_own_s"] is None
+
+
+def test_both_notices_are_kept_apart():
+    log = TimingLog()
+    log.paged(LIVE_T0 - timedelta(seconds=15), None, [])
+    log.live_intervention(LIVE_T0 - timedelta(seconds=6.5))
+    log.live_own(LIVE_T0 - timedelta(seconds=1.2))
+    log.paged(LIVE_T0, dict(LIVE_PAGE), [])
+    assert (log.page["live_intervention_s"], log.page["live_own_s"]) == (6.5, 1.2)
+
+
+def test_own_notice_alone_opens_no_page():
+    log = TimingLog()
+    log.live_own(LIVE_T0)
+    assert log.page is None
+
+
+def test_older_page_record_without_live_own_still_loads():
+    old = {k: v for k, v in _page_after_own(None).page.items() if k != "live_own_s"}
+    log = TimingLog()
+    log.load({"page": old, "pages": [old]})
+    assert log.page is not None and "live_own_s" not in log.page
+    assert log.pages[0] == old

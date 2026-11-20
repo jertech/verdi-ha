@@ -5,6 +5,32 @@ All notable changes to this project are documented here. The format is based on
 [Semantic Versioning](https://semver.org/). Until 0.10.1 the integration and the
 app shared version numbers; from then on the app has its own (see `verdi_token_relay/CHANGELOG.md`).
 
+## [0.19.5] - 2026-11-20
+
+### Integration
+- Live updates: a page in a later alarm (when you are called after the intervention started) showed only at the next
+  page check, up to a minute later. Your page is now fetched as soon as Verdi says you are on an intervention; the end
+  of a page shows sooner too.
+- Live updates: readiness is fetched when Verdi says it changed, no longer also after every change in personnel or
+  vehicles, except that a change Verdi didn't announce still fetches readiness; about a third of the readiness
+  calls. Without live updates nothing changes.
+- The Status and Duration selects now refuse users who aren't administrators, as the docs already said.
+- Diagnostics: page timing records show `live_own_s`.
+
+### Docs
+- Live updates: the privacy and configuration pages now say the integration also acts on some notices for the whole
+  zone (a new or starting intervention, a pre-alert, a garrison attendance).
+- Privacy: the diagnostics list is complete (the live updates block, the guard state, the pace, the steady calls a
+  minute and the Fast lane).
+- Configuration: with Vehicles or Personnel in the Fast lane, they are checked every minute while live updates are
+  connected.
+- Entities: `sensor.<name>_token_expires` is no longer listed as a diagnostic entity (it never was one); My
+  availability lists `next_status`, `color` and `garrison_crew`.
+- Endpoints: the live updates connection sends only the subscriptions, the protocol handshake and a keep-alive every
+  15 seconds.
+- Contributing and the pull request template: the JS tests, the CI jobs (lint, js-tests, gitleaks) and ruff 0.17.4.
+- The bug report form's version example no longer goes stale.
+
 ## [0.19.4] - 2026-11-11
 
 ### Integration
@@ -529,6 +555,7 @@ First release (not published).
 - Takes the one-time login state from its own configuration folder and deletes the dropped-in copy.
 - Prebuilt images for amd64 and aarch64.
 
+[0.19.5]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.5
 [0.19.4]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.4
 [0.19.3]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.3
 [0.19.2]: https://github.com/jertech/verdi-ha/releases/tag/v0.19.2

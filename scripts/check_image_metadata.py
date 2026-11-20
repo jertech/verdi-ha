@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Fail if any image in the repository carries metadata (text chunks, EXIF, XMP, C2PA...)."""
+"""Fail if any image in the repository carries metadata (text chunks, EXIF, XMP, C2PA...).
+
+It also refuses image types other than PNG and JPEG.
+"""
 
 from __future__ import annotations
 

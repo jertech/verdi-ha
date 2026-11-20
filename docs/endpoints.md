@@ -43,8 +43,8 @@ with the same parameters the web app uses, and reads the token from the redirect
 ## Live updates
 
 With **Live updates from Verdi** on (the default), the integration also keeps one connection open to the live-updates
-hub the Verdi web interface uses. It only subscribes to change notices and never sends anything else on it. Paths are
-relative to the same address as above.
+hub the Verdi web interface uses. Besides the subscriptions it sends only the protocol handshake and a keep-alive every
+15 seconds. Paths are relative to the same address as above.
 
 | Kind | Path | Used for |
 |------|------|----------|

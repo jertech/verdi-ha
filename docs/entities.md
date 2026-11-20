@@ -14,6 +14,7 @@ the names Verdi uses. You can turn most entities on or off in the integration's 
 | `sensor.<name>_personnel` | How many people have one of the availabilities you picked in the options. Statuses Verdi sets when someone is called always count. The count per availability and their colours (`availability_colors`) are attributes. |
 | `sensor.<name>_team_on_duty_<group>` | The current team. The next team and the rotation time are attributes. |
 | `sensor.<name>_on_duty_<function>` | Whether the crew function is filled now: *filled* or *open*. With "Show colleagues' names" on, who fills it. |
+| `sensor.<name>_token_expires` | When the current token expires. |
 | `calendar.<name>_roster` | The shifts of the function calendar. Only with a Function calendar ID. |
 
 **Vehicles Verdi no longer lists.** When Verdi stops listing a vehicle for your station, its entities
@@ -27,7 +28,7 @@ Paged, which is in the Fast lane.
 
 | Entity | What it shows |
 |--------|---------------|
-| `sensor.<name>_my_availability` | Your current availability. Its end time, your availability per station and per planning group, and the colours of the availabilities (`availability_colors`) are attributes. |
+| `sensor.<name>_my_availability` | Your current availability. Its end time, the next status (`next_status`), its colour (`color`), whether you are garrison crew (`garrison_crew`), your availability per station and per planning group, and the colours of the availabilities (`availability_colors`) are attributes. |
 | `binary_sensor.<name>_paged` | On while you're paged. The station, crew function, vehicle, alarm time, incident, city and your confirmation are attributes. On by default; it disappears when you untick Paged in the Fast lane. |
 | `binary_sensor.<name>_pre_alert` | On when you have a pre-alert. Off by default. |
 | `binary_sensor.<name>_garrison` | On when you're on garrison. Off by default. |
@@ -51,6 +52,5 @@ Only with **Change my status** on. See [changing your status](changing-status.md
 
 | Entity | What it shows |
 |--------|---------------|
-| `sensor.<name>_token_expires` | When the current token expires. |
 | `sensor.<name>_pace` | How fast the integration polls: normal, intervention, live (live updates connected) or backoff. Disabled by default. |
 | `binary_sensor.<name>_live_updates` | On while the live updates connection to Verdi is up. Attributes: since when, reconnects today, the last notice, and changes polling found that Verdi hadn't announced. Only with "Live updates from Verdi" on. |

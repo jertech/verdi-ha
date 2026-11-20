@@ -22,7 +22,7 @@ JOIN = timedelta(minutes=10)  # rejoin after a close; how far back an earlier ri
 PAGE_TIMEOUT = timedelta(hours=6)
 STATION_TIMEOUT = timedelta(hours=3)
 PAGE_FIELDS = ("station", "crew_function", "vehicle", "alarm_time", "incident", "confirmation")
-LIVE_WINDOW = timedelta(seconds=120)  # a new-intervention notice this long before a page counts for it
+LIVE_WINDOW = timedelta(seconds=120)  # a new-intervention or own notice this long before a page counts for it
 
 Record = dict[str, Any]
 
@@ -95,6 +95,7 @@ class TimingLog:
         self._vehicles: tuple[bool, datetime] | None = None
         self._counts: list[tuple[datetime, int, bool]] = []  # (time, count, list changed)
         self._live_intervention: datetime | None = None  # memory only: the latest new-intervention notice
+        self._live_own: datetime | None = None  # memory only: the latest own-intervention notice
 
     # Saved state and diagnostics.
 
@@ -140,8 +141,11 @@ class TimingLog:
         """Verdi's live updates announced a new intervention (anywhere in the zone)."""
         self._live_intervention = now
 
-    def _live_seconds(self, now: datetime) -> float | None:
-        at = self._live_intervention
+    def live_own(self, now: datetime) -> None:
+        """Verdi's live updates said you are on an intervention."""
+        self._live_own = now
+
+    def _live_seconds(self, now: datetime, at: datetime | None) -> float | None:
         if at is None or not timedelta(0) <= now - at <= LIVE_WINDOW:
             return None
         return round((now - at).total_seconds(), 1)
@@ -190,7 +194,8 @@ class TimingLog:
                 "alarm_time": alarm,
                 "paged_on": _iso(now),
                 "paged_on_after": _iso(prev[1]) if prev else None,
-                "live_intervention_s": self._live_seconds(now),
+                "live_intervention_s": self._live_seconds(now, self._live_intervention),
+                "live_own_s": self._live_seconds(now, self._live_own),
                 "fields": {name: page.get(name) is not None for name in PAGE_FIELDS},
                 "confirmation_at": _iso(now) if page.get("confirmation") is not None else None,
                 "keys": sorted(set(keys))[:KEYS_MAX],
@@ -370,6 +375,7 @@ class TimingLog:
             "paged_on": None,
             "paged_on_after": None,
             "live_intervention_s": None,
+            "live_own_s": None,
             "paged_off": None,
             "own_on": None,
             "own_on_after": None,

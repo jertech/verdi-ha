@@ -14,7 +14,7 @@ from homeassistant.helpers.restore_state import RestoreEntity
 from . import VerdiConfigEntry
 from .coordinator import VerdiCoordinator
 from .entity import VerdiEntity, device_info
-from .write import StatusWriter
+from .write import StatusWriter, require_admin
 from .write_data import DURATIONS
 
 PARALLEL_UPDATES = 0
@@ -54,6 +54,7 @@ class _ChoiceSelect(VerdiEntity, SelectEntity, RestoreEntity):
         return value if value in self.options else None
 
     async def async_select_option(self, option: str) -> None:
+        await require_admin(self.hass, self._context)
         self._writer.choice[self._key] = option
         self.async_write_ha_state()
 

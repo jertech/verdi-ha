@@ -21,7 +21,7 @@ body:
     attributes:
       label: Integration version
       description: Settings > Devices & services > Verdi (unofficial).
-      placeholder: "0.18.3"
+      placeholder: "e.g. 0.19.5, see Settings > Devices & services"
     validations:
       required: true
   - type: input
