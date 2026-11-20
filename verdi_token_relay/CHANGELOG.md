@@ -3,6 +3,10 @@
 The app has its own version number from 1.0.0 on and gets a new one only when the app itself changes.
 Before that it followed the integration's version.
 
+## 1.0.3 - 2026-11-21
+
+- Playwright 1.65.2, with a newer Chromium (159).
+
 ## 1.0.2 - 2026-11-20
 
 - Playwright 1.65.1: a security update of the Node.js it uses internally (same Chromium).
