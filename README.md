@@ -106,7 +106,7 @@ Linux or macOS:
 ```sh
 python3 -m venv ~/.venvs/verdi
 . ~/.venvs/verdi/bin/activate
-pip install playwright==1.65.0
+pip install playwright==1.65.1
 playwright install chromium
 export VERDI_URL=https://yourzone.verdi.cloud VERDI_TENANT=YourTenant VERDI_STATE=~/verdi_state.json
 python verdi_token_relay/verdi_token_relay.py login
@@ -117,7 +117,7 @@ Windows (Command Prompt):
 ```bat
 py -m venv %USERPROFILE%\.venvs\verdi
 %USERPROFILE%\.venvs\verdi\Scripts\activate
-pip install playwright==1.65.0
+pip install playwright==1.65.1
 playwright install chromium
 set VERDI_URL=https://yourzone.verdi.cloud
 set VERDI_TENANT=YourTenant
