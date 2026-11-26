@@ -132,7 +132,14 @@ def run_loop(settings, monkeypatch, logins, pushes, ticks):
     """Run the main loop for a number of ticks, with fake logins, pushes and clock."""
     settings.state.write_text("{}")
     clock = iter(range(0, 100000, 100))
-    monkeypatch.setattr(relay, "browser_login", lambda *a, **k: logins.pop(0) if logins else None)
+
+    def fake_login(*_args, **_kwargs):
+        result = logins.pop(0) if logins else None
+        if isinstance(result, Exception):
+            raise result
+        return result
+
+    monkeypatch.setattr(relay, "browser_login", fake_login)
     monkeypatch.setattr(relay, "push", lambda s, token: pushes.pop(0) if pushes else True)
     left = iter(range(ticks))
 
@@ -165,6 +172,61 @@ def test_run_logs_state_changes_once(settings, monkeypatch, caplog):
 def test_failed_login_says_when_it_retries(settings, monkeypatch, caplog):
     run_loop(settings, monkeypatch, logins=[], pushes=[], ticks=1)
     assert "The login needs interaction. Next attempt at " in caplog.text
+
+
+@pytest.mark.parametrize(
+    ("page_url", "errors", "expected"),
+    [
+        # Chromium's own error page: the address didn't resolve, refused, reset...
+        (
+            "chrome-error://chromewebdata/",
+            [
+                "Page.goto: net::ERR_NAME_NOT_RESOLVED at https://zone.verdi.example/auth/connect/authorize?state=s3cr3t"
+            ],
+            "zone.verdi.example (net::ERR_NAME_NOT_RESOLVED)",
+        ),
+        # A later page of the login (the sign-in provider) failed: name that host, the latest failure wins.
+        (
+            "chrome-error://chromewebdata/",
+            [
+                "Page.goto: net::ERR_ABORTED at https://zone.verdi.example/auth/connect/authorize?x=1",
+                "net::ERR_CONNECTION_RESET at https://login.example/tenant-id/oauth2/v2.0/authorize?code=c0de",
+            ],
+            "login.example (net::ERR_CONNECTION_RESET)",
+        ),
+        ("chrome-error://chromewebdata/", [], "zone.verdi.example (no answer)"),
+        # Nothing answered before the page load timed out.
+        ("about:blank", ["Page.goto: Timeout 30000ms exceeded."], "zone.verdi.example (no answer)"),
+        # A page did load (a sign-in page): that's the login needing interaction, not an outage.
+        (
+            "https://login.example/tenant-id/oauth2/v2.0/authorize",
+            ["net::ERR_ABORTED at https://x.example/"],
+            None,
+        ),
+    ],
+)
+def test_load_failure(settings, page_url, errors, expected):
+    assert relay.load_failure(settings, page_url, errors) == expected
+
+
+def test_unreachable_login_page_is_no_login_problem(settings, monkeypatch, caplog):
+    failure = relay.LoginPageUnreachable("zone.verdi.example (net::ERR_NAME_NOT_RESOLVED)")
+    run_loop(settings, monkeypatch, logins=[failure], pushes=[], ticks=1)
+    assert "Could not reach zone.verdi.example (net::ERR_NAME_NOT_RESOLVED)" in caplog.text
+    assert "not a login problem. Next attempt at " in caplog.text
+    assert "needs interaction" not in caplog.text
+    assert "Login stopped" not in caplog.text
+
+
+def test_interactive_login_unreachable(settings, monkeypatch):
+    def unreachable(*_args, **_kwargs):
+        raise relay.LoginPageUnreachable("zone.verdi.example (net::ERR_INTERNET_DISCONNECTED)")
+
+    monkeypatch.setattr(relay, "browser_login", unreachable)
+    with pytest.raises(
+        SystemExit, match=r"Could not reach zone\.verdi\.example \(net::ERR_INTERNET_DISCONNECTED\)"
+    ):
+        relay.login(settings, push_after=False)
 
 
 @pytest.mark.parametrize(

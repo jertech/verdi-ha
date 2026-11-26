@@ -39,6 +39,7 @@ import base64
 import json
 import logging
 import os
+import re
 import secrets
 import signal
 import sys
@@ -54,7 +55,7 @@ from pathlib import Path
 
 LOG = logging.getLogger("verdi_token_relay")
 
-VERSION = "1.0.3"  # the app's own version; scripts/check_version.py keeps it equal to config.yaml
+VERSION = "1.0.4"  # the app's own version; scripts/check_version.py keeps it equal to config.yaml
 
 PUSH_INTERVAL = 90  # seconds between re-pushes of the current token
 TICK = 10  # main loop resolution; also how fast an HA outage is noticed as over
@@ -63,6 +64,7 @@ RETRY_LOGIN = 900  # after a failed headless login, wait this long before trying
 GATEWAY_ERRORS = (502, 503, 504)  # proxy answers while Home Assistant is (re)starting
 CLIENT_ID = "verdi-web"
 SCOPE = "openid profile verdi-api verdi-communications"
+NET_ERROR = re.compile(r"(net::ERR_[A-Z0-9_]+)(?: at (\S+))?")  # Chromium's reason a page didn't load
 
 
 @dataclass
@@ -183,13 +185,38 @@ def where(url: str) -> str:
     return f"{parts.netloc}{parts.path}" or "(no page)"
 
 
+class LoginPageUnreachable(Exception):
+    """A page of the login didn't load (no internet or DNS, or the site is down): not a login problem."""
+
+
+def load_failure(s: Settings, page_url: str, errors: list[str]) -> str | None:
+    """Host and Chromium's reason when the login ended without any page loaded, else None.
+
+    `errors` holds Chromium's messages for failed page loads ("net::ERR_... at <address>"), latest last.
+    Only the host is kept: the address can hold state or codes.
+    """
+    # Chromium's own error page, or still blank because nothing answered.
+    if not page_url.startswith("chrome-error://") and page_url != "about:blank":
+        return None
+    verdi_host = urllib.parse.urlsplit(s.verdi_url).netloc
+    for text in reversed(errors):
+        if match := NET_ERROR.search(text):
+            host = urllib.parse.urlsplit(match[2]).netloc if match[2] else ""
+            return f"{host or verdi_host} ({match[1]})"
+    return f"{verdi_host} (no answer)"
+
+
 def browser_login(s: Settings, headless: bool, timeout_s: int) -> str | None:
-    """Run the web login once. Returns the access token, or None if it needs a human."""
+    """Run the web login once. Returns the access token, or None if it needs a human.
+
+    Raises LoginPageUnreachable when no page of the login loaded.
+    """
     from playwright.sync_api import Error as PlaywrightError
     from playwright.sync_api import sync_playwright
 
     callback = f"{s.verdi_url}/callback"
     seen: list[str] = []
+    errors: list[str] = []
     with sync_playwright() as pw:
         # The full Chromium build; the slimmer headless shell is treated differently by
         # some sign-in pages.
@@ -199,8 +226,16 @@ def browser_login(s: Settings, headless: bool, timeout_s: int) -> str | None:
             page = context.new_page()
             # The web app may rewrite the URL after loading, so record every navigation.
             page.on("framenavigated", lambda frame: seen.append(frame.url))
-            with suppress(PlaywrightError):
+
+            def page_failed(request) -> None:
+                if request.is_navigation_request():
+                    errors.append(f"{request.failure} at {request.url}")
+
+            page.on("requestfailed", page_failed)
+            try:
                 page.goto(authorize_url(s), wait_until="domcontentloaded", timeout=30000)
+            except PlaywrightError as err:
+                errors.append(str(err))
             deadline = time.monotonic() + timeout_s
             token = None
             while time.monotonic() < deadline:
@@ -210,10 +245,12 @@ def browser_login(s: Settings, headless: bool, timeout_s: int) -> str | None:
                 page.wait_for_timeout(500)
             if token:
                 save_state(context, s.state)
-            else:
-                with suppress(PlaywrightError):
-                    LOG.warning("Login stopped at %s (page title: %r)", where(page.url), page.title())
-            return token
+                return token
+            if failure := load_failure(s, page.url, errors):
+                raise LoginPageUnreachable(failure)
+            with suppress(PlaywrightError):
+                LOG.warning("Login stopped at %s (page title: %r)", where(page.url), page.title())
+            return None
         finally:
             browser.close()
 
@@ -287,7 +324,12 @@ def run(s: Settings, addon: bool = False) -> None:
     while True:
         now = time.monotonic()
         if seconds_left(token) < REFRESH_MARGIN and now >= next_login:
-            fresh = browser_login(s, headless=True, timeout_s=45)
+            try:
+                fresh = browser_login(s, headless=True, timeout_s=45)
+            except LoginPageUnreachable as err:
+                fresh, unreachable = None, str(err)
+            else:
+                unreachable = None
             took = time.monotonic() - now
             if fresh:
                 token = fresh
@@ -303,12 +345,20 @@ def run(s: Settings, addon: bool = False) -> None:
             else:
                 next_login = now + RETRY_LOGIN
                 retry_at = datetime.now().astimezone() + timedelta(seconds=RETRY_LOGIN)
-                LOG.error(
-                    "The login needs interaction. Next attempt at %s. If this keeps happening, redo "
-                    "the one-time login on a PC with this script ('login'), copy the new "
-                    "verdi_state.json here and restart.",
-                    retry_at.strftime("%H:%M"),
-                )
+                if unreachable:
+                    LOG.warning(
+                        "Could not reach %s: no internet or DNS, or the site is down; not a login problem. "
+                        "Next attempt at %s.",
+                        unreachable,
+                        retry_at.strftime("%H:%M"),
+                    )
+                else:
+                    LOG.error(
+                        "The login needs interaction. Next attempt at %s. If this keeps happening, redo "
+                        "the one-time login on a PC with this script ('login'), copy the new "
+                        "verdi_state.json here and restart.",
+                        retry_at.strftime("%H:%M"),
+                    )
         if token and seconds_left(token) > 60 and (not reachable or now - last_push >= PUSH_INTERVAL):
             result = push(s, token)
             if result is None:
@@ -328,7 +378,10 @@ def run(s: Settings, addon: bool = False) -> None:
 
 
 def login(s: Settings, push_after: bool) -> None:
-    token = browser_login(s, headless=False, timeout_s=300)
+    try:
+        token = browser_login(s, headless=False, timeout_s=300)
+    except LoginPageUnreachable as err:
+        sys.exit(f"Could not reach {err}. Check the internet connection and try again.")
     if not token:
         sys.exit("No token appeared within 5 minutes. Did the login finish?")
     mark_seeded(s.state)

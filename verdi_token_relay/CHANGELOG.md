@@ -3,6 +3,12 @@
 The app has its own version number from 1.0.0 on and gets a new one only when the app itself changes.
 Before that it followed the integration's version.
 
+## 1.0.4 - 2026-11-26
+
+- When a login page doesn't load (no internet or DNS, or the site is down), the log now says
+  `Could not reach <host> (net::ERR_...)`. Before, it said "The login needs interaction" and asked for a new
+  one-time login that wasn't needed.
+
 ## 1.0.3 - 2026-11-21
 
 - Playwright 1.65.2, with a newer Chromium (159).
