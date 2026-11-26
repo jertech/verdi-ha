@@ -41,6 +41,9 @@ On start, the app moves the file into its private data folder and deletes the co
   integration isn't installed yet (then the line below about `/api/verdi/token` repeats every 10 seconds);
   nothing to do.
 - `Login stopped at <host>/<path>`: where a headless login did not finish (never the full address).
+- `Could not reach <host> (net::ERR_...)`: a login page didn't load: no internet or DNS on the Home
+  Assistant machine, or that site is down (the code is the browser's reason). Your saved login is not the
+  problem; the app tries again every 15 minutes and logs in by itself once the site answers.
 - `Home Assistant has no /api/verdi/token yet; is the Verdi integration installed?`: expected until you add
   the Verdi integration in Home Assistant; the app keeps trying.
 - `Home Assistant refused the token (HTTP ...)`: the message says why: no Verdi entry matches this account
